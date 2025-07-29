@@ -1,0 +1,148 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      ai:
+        specifier: 5.0.0-beta.28
+        version: 5.0.0-beta.28(zod@3.25.76)
+      arg:
+        specifier: ^5.0.2
+        version: 5.0.2
+      yoctocolors:
+        specifier: ^2.1.1
+        version: 2.1.1
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^24.1.0
+        version: 24.1.0
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
+packages:
+
+  '@ai-sdk/gateway@1.0.0-beta.14':
+    resolution: {integrity: sha512-jsOZoz4hd1vSQ6PBftdQ/j3hPC4Fxf7tY2slCgdpMEevrqFVmRBp6W5xEELDa2wXuPQ/3QxtrQhQU7Qxj42p2Q==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4
+
+  '@ai-sdk/provider-utils@3.0.0-beta.6':
+    resolution: {integrity: sha512-r8Nswwko+7nuLnLxprPgAxjGcpjq5fnFmfFwtkz4k9KfF1Z6Nkwvl8+Ee9BULBWXOqbtJGh9iCiJaTPBnhZrqw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4
+
+  '@ai-sdk/provider@2.0.0-beta.1':
+    resolution: {integrity: sha512-Z8SPncMtS3RsoXITmT7NVwrAq6M44dmw0DoUOYJqNNtCu8iMWuxB8Nxsoqpa0uEEy9R1V1ZThJAXTYgjTUxl3w==}
+    engines: {node: '>=18'}
+
+  '@opentelemetry/api@1.9.0':
+    resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
+    engines: {node: '>=8.0.0'}
+
+  '@standard-schema/spec@1.0.0':
+    resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
+  '@types/node@24.1.0':
+    resolution: {integrity: sha512-ut5FthK5moxFKH2T1CUOC6ctR67rQRvvHdFLCD2Ql6KXmMuCrjsSsRI9UsLCm9M18BMwClv4pn327UvB7eeO1w==}
+
+  ai@5.0.0-beta.28:
+    resolution: {integrity: sha512-RYAYmrM+mfS4DFT7Qq/WQF9OMEdxTqRffc8UISJ+GwwHtjT+tAcq08KBySJwGa/x+69T9AVKZKfWeVc3XzwcDg==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      zod: ^3.25.76 || ^4
+
+  arg@5.0.2:
+    resolution: {integrity: sha512-PYjyFOLKQ9y57JvQ6QLo8dAgNqswh8M1RMJYdQduT6xbWSgK36P/Z/v+p888pM69jMMfS8Xd8F6I1kQ/I9HUGg==}
+
+  eventsource-parser@3.0.3:
+    resolution: {integrity: sha512-nVpZkTMM9rF6AQ9gPJpFsNAMt48wIzB5TQgiTLdHiuO8XEDhUgZEhqKlZWXbIzo9VmJ/HvysHqEaVeD5v9TPvA==}
+    engines: {node: '>=20.0.0'}
+
+  json-schema@0.4.0:
+    resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
+
+  typescript@5.8.3:
+    resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  undici-types@7.8.0:
+    resolution: {integrity: sha512-9UJ2xGDvQ43tYyVMpuHlsgApydB8ZKfVYTsLDhXkFL/6gfkp+U8xTGdh8pMJv1SpZna0zxG1DwsKZsreLbXBxw==}
+
+  yoctocolors@2.1.1:
+    resolution: {integrity: sha512-GQHQqAopRhwU8Kt1DDM8NjibDXHC8eoh1erhGAJPEyveY9qqVeXvVikNKrDz69sHowPMorbPUrH/mx8c50eiBQ==}
+    engines: {node: '>=18'}
+
+  zod-to-json-schema@3.24.6:
+    resolution: {integrity: sha512-h/z3PKvcTcTetyjl1fkj79MHNEjm+HpD6NXheWjzOekY7kV+lwDYnHw+ivHkijnCSMz1yJaWBD9vu/Fcmk+vEg==}
+    peerDependencies:
+      zod: ^3.24.1
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+snapshots:
+
+  '@ai-sdk/gateway@1.0.0-beta.14(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0-beta.1
+      '@ai-sdk/provider-utils': 3.0.0-beta.6(zod@3.25.76)
+      zod: 3.25.76
+
+  '@ai-sdk/provider-utils@3.0.0-beta.6(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0-beta.1
+      '@standard-schema/spec': 1.0.0
+      eventsource-parser: 3.0.3
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.6(zod@3.25.76)
+
+  '@ai-sdk/provider@2.0.0-beta.1':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@opentelemetry/api@1.9.0': {}
+
+  '@standard-schema/spec@1.0.0': {}
+
+  '@types/node@24.1.0':
+    dependencies:
+      undici-types: 7.8.0
+
+  ai@5.0.0-beta.28(zod@3.25.76):
+    dependencies:
+      '@ai-sdk/gateway': 1.0.0-beta.14(zod@3.25.76)
+      '@ai-sdk/provider': 2.0.0-beta.1
+      '@ai-sdk/provider-utils': 3.0.0-beta.6(zod@3.25.76)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.76
+
+  arg@5.0.2: {}
+
+  eventsource-parser@3.0.3: {}
+
+  json-schema@0.4.0: {}
+
+  typescript@5.8.3: {}
+
+  undici-types@7.8.0: {}
+
+  yoctocolors@2.1.1: {}
+
+  zod-to-json-schema@3.24.6(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
+
+  zod@3.25.76: {}
