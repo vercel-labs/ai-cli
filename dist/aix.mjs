@@ -110,7 +110,7 @@ Usage:
 Options:
   -y, --yes     Auto-accept harmless commands without prompting
   --yolo        Run ANY command without prompting (DANGEROUS!)
-  -m, --model   Specify AI model (default: claude-4-sonnet)
+  -m, --model   Specify AI model (default: openai/wagyu-a5)
   -h, --help    Show this help message
   --debug       Show debug information
 
@@ -124,5 +124,5 @@ Environment:
   AI_GATEWAY_API_KEY    Required. Get yours at https://vercel.com/docs/ai-gateway
 
 Tips:
-  Press \u2191 (up arrow) during command confirmation to see AI reasoning`),process.exit(0));var gc=Rt["--model"]||"anthropic/claude-4-sonnet",jf=Rt["--yes"]||!1,Af=Rt["--yolo"]||!1,Rf=Rt["--debug"]||!1,Cf=Rt._.join(" ");Cf||(await p$(gc,jf,Af,Rf),process.exit(0));console.log(`\x1B[38;5;245maix ${hc} (${gc})\x1B[0m`);process.on("SIGINT",()=>{process.stdout.write(`
+  Press \u2191 (up arrow) during command confirmation to see AI reasoning`),process.exit(0));var gc=Rt["--model"]||"openai/wagyu-a5",jf=Rt["--yes"]||!1,Af=Rt["--yolo"]||!1,Rf=Rt["--debug"]||!1,Cf=Rt._.join(" ");Cf||(await p$(gc,jf,Af,Rf),process.exit(0));console.log(`\x1B[38;5;245maix ${hc} (${gc})\x1B[0m`);process.on("SIGINT",()=>{process.stdout.write(`
 `),process.exit(0)});try{await Pf(Cf,gc,jf,Af,Rf)}catch(e){console.error("Error:",e instanceof Error?e.message:"Unknown error"),process.exit(1)}
