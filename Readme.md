@@ -8,4 +8,4 @@
 - [x] look into a way of persisting run commands into shell history?
 - [x] `--yolo` mode (runs in any level of danger)
 - [x] look into a way of reading thinking traces (maybe pressing ↑)
-- [ ] interactive mode? `aix` with no arguments
+- [x] interactive mode? `aix` with no arguments

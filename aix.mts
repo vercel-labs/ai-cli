@@ -6,6 +6,7 @@ import arg from 'arg'
 import { writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
+import { createInterface } from 'readline'
 
 const DangerLevel = z.enum(['harmless', 'dangerous', 'ultra'])
 type DangerLevel = z.infer<typeof DangerLevel>
@@ -160,6 +161,8 @@ class ShellHistory {
 async function readUserInput(danger: DangerLevel): Promise<string> {
   return new Promise((resolve) => {
     let buffer = ''
+  
+    process.stdin.setRawMode?.(true)
     
     const onData = (chunk: Buffer) => {
       const char = chunk.toString()
@@ -235,13 +238,13 @@ async function readUserInput(danger: DangerLevel): Promise<string> {
   })
 }
 
-async function promptAndExecute(command: string, danger: DangerLevel, autoAccept: boolean, yolo: boolean = false): Promise<void> {
+async function promptAndExecute(command: string, danger: DangerLevel, autoAccept: boolean, yolo: boolean = false, onComplete?: (exitCode: number) => void): Promise<void> {
   // YOLO mode - run everything without prompting (even ultra dangerous)
   if (yolo) {
     const warningColor = danger === 'ultra' ? red : danger === 'dangerous' ? red : gray
     const styledCommand = warningColor(bold(command))
     console.log(`${styledCommand} ${warningColor('[YOLO MODE]')}`)
-    executeCommand(command)
+    executeCommand(command, onComplete)
     return
   }
   
@@ -250,14 +253,19 @@ async function promptAndExecute(command: string, danger: DangerLevel, autoAccept
     const styledCommand = red(bold(command))
     console.log(`${styledCommand} ${red('[BLOCKED]')}`)
     console.log(red('This command is irreversibly destructive and cannot be executed'))
-    process.exit(1)
+    if (onComplete) {
+      onComplete(1)
+    } else {
+      process.exit(1)
+    }
+    return
   }
   
   // Auto-accept harmless commands if -y flag is set
   if (autoAccept && danger === 'harmless') {
     const styledCommand = bold(command)
     console.log(`${styledCommand} ${gray('[auto-accepted]')}`)
-    executeCommand(command)
+    executeCommand(command, onComplete)
     return
   }
   
@@ -272,14 +280,18 @@ async function promptAndExecute(command: string, danger: DangerLevel, autoAccept
     if (danger === 'harmless') {
       console.log('') // newline for harmless commands
     }
-    executeCommand(command)
+    executeCommand(command, onComplete)
   } else {
     console.log(gray('aborted'))
-    process.exit(0)
+    if (onComplete) {
+      onComplete(0)
+    } else {
+      process.exit(0)
+    }
   }
 }
 
-function executeCommand(command: string) {
+function executeCommand(command: string, onComplete?: (exitCode: number) => void) {
   const shell = process.env.SHELL || '/bin/bash'
   const history = new ShellHistory()
   
@@ -296,13 +308,114 @@ function executeCommand(command: string) {
     if (code === 0) {
       await history.addCommand(command)
     }
-    process.exit(code || 0)
+    
+    if (onComplete) {
+      onComplete(code || 0)
+    } else {
+      process.exit(code || 0)
+    }
   })
   
   child.on('error', (err) => {
     console.error('Failed to execute command:', err)
-    process.exit(1)
+    if (onComplete) {
+      onComplete(1)
+    } else {
+      process.exit(1)
+    }
   })
+}
+
+async function processPrompt(prompt: string, model: string, autoAccept: boolean, yoloMode: boolean, isDebug: boolean, onComplete?: (exitCode: number) => void): Promise<void> {
+  const loader = new ThinkingLoader()
+  loader.start()
+
+  try {
+    const { object } = await generateObject({
+      model: model,
+      schema: commandSchema,
+      prompt: `Given this natural language request: "${prompt}"
+      
+Suggest the most appropriate command line command to accomplish this task. Consider common shell commands, git commands, npm/yarn commands, and other standard CLI tools.
+
+Examples:
+- "list files" → "ls" (harmless)
+- "show git status" → "git status" (harmless)
+- "install dependencies" → "npm install" (harmless)
+- "delete node_modules" → "rm -rf node_modules" (dangerous)
+- "remove all files" → "rm -rf /" (ultra)
+
+Categorize the danger level:
+- harmless: Safe read-only commands or commands that don't modify important data
+- dangerous: Commands that delete files, modify system settings, or could cause data loss if misused
+- ultra: Irreversibly destructive commands like "rm -rf /", "dd if=/dev/zero of=/dev/sda", format commands, or commands that would destroy the entire system or critical data
+
+Provide a brief description of what the command does.
+
+Also provide detailed step-by-step reasoning explaining:
+1. How you interpreted the user's request
+2. What command options/flags you considered
+3. Why this specific command was chosen over alternatives
+4. Any potential edge cases or considerations`,
+    })
+
+    loader.stop()
+    
+    // Store reasoning for ↑ key access
+    lastReasoning = object.reasoning
+    
+    if (isDebug) {
+      console.log('Debug - LLM Response:', JSON.stringify(object, null, 2))
+    }
+    
+    await promptAndExecute(object.command, object.danger, autoAccept, yoloMode, onComplete)
+  } catch (error) {
+    loader.stop()
+    throw error
+  }
+}
+
+async function interactiveMode(model: string, autoAccept: boolean, yoloMode: boolean, isDebug: boolean): Promise<void> {
+  console.log(`\x1b[38;5;245maix ${version} (${model}) - Interactive Mode\x1b[0m`)
+  console.log(gray('Type your commands or "exit" to quit'))
+  console.log()
+
+  while (true) {
+    // Create a fresh readline interface for each prompt to avoid buffer issues
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout
+    })
+
+    const userInput = await new Promise<string>((resolve, reject) => {
+      rl.question(bold('aix> '), (answer) => {
+        rl.close()
+        resolve(answer.trim())
+      })
+    })
+    
+    if (!userInput) continue
+    
+    if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
+      console.log('Goodbye!')
+      break
+    }
+    
+    try {
+      await new Promise<void>((resolve) => {
+        processPrompt(userInput, model, autoAccept, yoloMode, isDebug, (exitCode) => {
+          resolve()
+        }).catch(error => {
+          console.error('Error:', error instanceof Error ? error.message : 'Unknown error')
+          resolve()
+        })
+      })
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : 'Unknown error')
+    }
+    
+    console.log()
+  }
 }
 
 // Check for AI_GATEWAY_API_KEY early
@@ -369,18 +482,16 @@ Tips:
   process.exit(0)
 }
 
-const prompt = args._.join(' ')
-if (!prompt) {
-  console.error('Error: No prompt provided')
-  console.error('Usage: aix [options] <prompt>')
-  console.error('Try: aix --help')
-  process.exit(1)
-}
-
 const model = args['--model'] || 'anthropic/claude-4-sonnet'
 const autoAccept = args['--yes'] || false
 const yoloMode = args['--yolo'] || false
 const isDebug = args['--debug'] || false
+
+const prompt = args._.join(' ')
+if (!prompt) {
+  await interactiveMode(model, autoAccept, yoloMode, isDebug)
+  process.exit(0)
+}
 
 // Print version info
 console.log(`\x1b[38;5;245maix ${version} (${model})\x1b[0m`)
@@ -391,50 +502,9 @@ process.on('SIGINT', () => {
   process.exit(0)
 })
 
-const loader = new ThinkingLoader()
-loader.start()
-
 try {
-  const { object } = await generateObject({
-    model: model,
-    schema: commandSchema,
-    prompt: `Given this natural language request: "${prompt}"
-    
-Suggest the most appropriate command line command to accomplish this task. Consider common shell commands, git commands, npm/yarn commands, and other standard CLI tools.
-
-Examples:
-- "list files" → "ls" (harmless)
-- "show git status" → "git status" (harmless)
-- "install dependencies" → "npm install" (harmless)
-- "delete node_modules" → "rm -rf node_modules" (dangerous)
-- "remove all files" → "rm -rf /" (ultra)
-
-Categorize the danger level:
-- harmless: Safe read-only commands or commands that don't modify important data
-- dangerous: Commands that delete files, modify system settings, or could cause data loss if misused
-- ultra: Irreversibly destructive commands like "rm -rf /", "dd if=/dev/zero of=/dev/sda", format commands, or commands that would destroy the entire system or critical data
-
-Provide a brief description of what the command does.
-
-Also provide detailed step-by-step reasoning explaining:
-1. How you interpreted the user's request
-2. What command options/flags you considered
-3. Why this specific command was chosen over alternatives
-4. Any potential edge cases or considerations`,
-  })
-
-  loader.stop()
-  
-  // Store reasoning for ↑ key access
-  lastReasoning = object.reasoning
-  
-  if (isDebug) {
-    console.log('Debug - LLM Response:', JSON.stringify(object, null, 2))
-  }
-  
-  await promptAndExecute(object.command, object.danger, autoAccept, yoloMode)
+  await processPrompt(prompt, model, autoAccept, yoloMode, isDebug)
 } catch (error) {
-  loader.stop()
   console.error('Error:', error instanceof Error ? error.message : 'Unknown error')
   process.exit(1)
 }
