@@ -10,3 +10,5 @@
 - [x] look into a way of reading thinking traces (maybe pressing ↑)
 - [x] interactive mode? `aix` with no arguments
 - [x] gpt5
+- [x] apply patch
+- [x] fix piped command execution issues
