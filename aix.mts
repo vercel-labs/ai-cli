@@ -812,8 +812,8 @@ function executeCommand(command: string, onComplete?: (exitCode: number) => void
   
   // Use script command to provide a TTY for interactive shell with aliases
   const scriptCmd = process.platform === 'darwin' 
-    ? ['script', '-q', '/dev/null', shell, '-i', '-c', command]
-    : ['script', '-qc', `${shell} -i -c "${command}"`, '/dev/null']
+    ? ['script', '-q', '/dev/null', shell, '-l', '-c', command]
+    : ['script', '-qe', '-c', `${shell} -l -c '${command.replace(/'/g, "'\\''")}'`, '/dev/null']
   
   const child = spawn(scriptCmd[0], scriptCmd.slice(1), {
     stdio: 'inherit'
