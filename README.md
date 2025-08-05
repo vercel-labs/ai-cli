@@ -1,6 +1,6 @@
 # ai-cli
 
-Simple AI chat interface using OpenAI's open source model.
+AI CLI using OpenAI's open source model.
 
 ## Installation
 
