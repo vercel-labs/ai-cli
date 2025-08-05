@@ -24,6 +24,7 @@ Get your API key at https://vercel.com/docs/ai-gateway
 ```bash
 ai "whats up bro"
 ai hello
+echo "explain this code" | ai
 ai -m openai/gpt-oss-120b "who is rauchg"
 ```
 
