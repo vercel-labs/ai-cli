@@ -1,13 +1,13 @@
 {
-	"name": "aix-cli-alpha",
+	"name": "ai-cli-alpha",
 	"version": "0.1.1",
 	"type": "module",
 	"engines": {
 		"node": ">=18.0.0"
 	},
-	"main": "dist/aix.mjs",
+	"main": "dist/ai.mjs",
 	"dependencies": {
-		"ai": "5.0.0-beta.28",
+		"ai": "5.0.4",
 		"arg": "^5.0.2",
 		"yoctocolors": "^2.1.1",
 		"zod": "^3.25.76"
