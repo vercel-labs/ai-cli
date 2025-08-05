@@ -1,6 +1,6 @@
 {
 	"name": "aix-cli-alpha",
-	"version": "0.0.1",
+	"version": "0.1.1",
 	"type": "module",
 	"engines": {
 		"node": ">=18.0.0"
@@ -13,12 +13,11 @@
 		"zod": "^3.25.76"
 	},
 	"bin": {
-		"aix": "dist/aix.mjs"
+		"ai": "dist/ai.mjs"
 	},
 	"scripts": {
 		"build": "node build.mjs",
-		"prepublishOnly": "pnpm run build",
-		"dev": "node aix.mts"
+		"prepublishOnly": "pnpm run build"
 	},
 	"files": [
 		"dist/",
