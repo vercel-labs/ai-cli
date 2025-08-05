@@ -1,0 +1,43 @@
+# ai-cli
+
+Simple AI chat interface using OpenAI's open source model.
+
+## Installation
+
+```bash
+npm install -g ai-cli
+```
+
+## Setup
+
+Set your AI Gateway API key in your shell configuration:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+export AI_GATEWAY_API_KEY=your-api-key
+```
+
+Get your API key at https://vercel.com/docs/ai-gateway
+
+## Usage
+
+```bash
+ai "whats up bro"
+ai hello
+ai -m openai/gpt-oss-120b "who is rauchg"
+```
+
+## Options
+
+- `-m, --model` - Specify AI model (default: openai/gpt-oss-120b)
+- `-h, --help` - Show help message
+
+## Switching Models
+
+You can use any model available through Vercel AI Gateway by using the `-m` flag:
+
+```bash
+ai -m claude-3-5-sonnet-20241022 "who am i"
+ai -m openai/gpt-4o "count to 3"
+ai -m anthropic/claude-3-opus "spend my money"
+```

@@ -1,23 +1,19 @@
 #!/usr/bin/env node
 
 import { build } from 'esbuild'
-import { readFileSync, mkdirSync, chmodSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from 'fs'
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
-// ensure dist directory exists
 mkdirSync('dist', { recursive: true })
 
 await build({
-  entryPoints: ['aix.mts'],
+  entryPoints: ['ai.mts'],
   bundle: true,
   platform: 'node',
   target: ['node18', 'node20', 'node22'],
   format: 'esm',
-  outfile: 'dist/aix.mjs',
-  banner: {
-    js: '#!/usr/bin/env node'
-  },
+  outfile: 'dist/ai.mjs',
   external: [],
   minify: true,
   sourcemap: false,
@@ -26,6 +22,8 @@ await build({
   }
 })
 
-chmodSync('dist/aix.mjs', 0o755)
+const content = readFileSync('dist/ai.mjs', 'utf-8')
+writeFileSync('dist/ai.mjs', '#!/usr/bin/env node\n' + content)
+chmodSync('dist/ai.mjs', 0o755)
 
 console.log('build completed successfully')
