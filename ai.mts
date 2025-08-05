@@ -3,7 +3,7 @@ import arg from 'arg'
 import { gray } from 'yoctocolors'
 
 // @ts-ignore - defined by esbuild
-const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.1.1'
+const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.1'
 
 async function main() {
   if (!process.env.AI_GATEWAY_API_KEY) {
