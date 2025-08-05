@@ -37,7 +37,7 @@ ai -m openai/gpt-oss-120b "who is rauchg"
 You can use any model available through Vercel AI Gateway by using the `-m` flag:
 
 ```bash
-ai -m claude-3-5-sonnet-20241022 "who am i"
+ai -m claude-4-sonnet "who am i"
 ai -m openai/gpt-4o "count to 3"
 ai -m anthropic/claude-4.1-opus "spend my money"
 ```
