@@ -14,7 +14,7 @@ await build({
   target: ['node18', 'node20', 'node22'],
   format: 'esm',
   outfile: 'dist/ai.mjs',
-  external: [],
+  packages: 'bundle',
   minify: true,
   sourcemap: false,
   define: {
