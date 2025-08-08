@@ -1,6 +1,7 @@
 import { streamText } from 'ai'
 import arg from 'arg'
-import { gray } from 'yoctocolors'
+import { gray, dim } from 'yoctocolors'
+import ora from 'ora'
 
 // @ts-ignore - defined by esbuild
 const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.1'
@@ -33,12 +34,12 @@ Usage:
   ai -m <model> <message>
 
 Options:
-  -m, --model   Specify AI model (default: openai/gpt-oss-120b)
+  -m, --model   Specify AI model (default: openai/gpt-5)
   -h, --help    Show this help message
 
 Examples:
   ai "whats up bro"
-  ai -m openai/gpt-oss-120b "hello world"
+  ai -m openai/gpt-5 "hello world"
   ai hello`)
     process.exit(0)
   }
@@ -61,7 +62,7 @@ Examples:
     }
   }
 
-  const model = args['--model'] || 'openai/gpt-oss-120b'
+  const model = args['--model'] || 'openai/gpt-5'
   const isPiped = !process.stdout.isTTY
 
   if (!isPiped) {
@@ -69,13 +70,63 @@ Examples:
   }
   
   try {
-    const result = await streamText({
+    let thinkingBuffer = ''
+    let hasSeenContent = false
+    let spinner: any = null
+    let lastLength = 0
+
+    if (!isPiped) {
+      spinner = ora({
+        text: dim('Thinking...'),
+        color: 'gray',
+        spinner: 'dots'
+      }).start()
+    }
+
+    const result = streamText({
       model: model,
       prompt: message,
+      providerOptions: {
+        openai: {
+          reasoningEffort: 'high',
+          reasoningSummary: 'detailed'
+        }
+      }
     })
 
-    for await (const chunk of result.textStream) {
-      process.stdout.write(chunk)
+    for await (const part of result.fullStream) {
+      if (part.type === 'reasoning-delta' && part.text) {
+        thinkingBuffer += part.text
+        
+        if (spinner && thinkingBuffer) {
+          const cleaned = thinkingBuffer.replace(/\s+/g, ' ').trim()
+          const termWidth = process.stdout.columns || 80
+          const maxWidth = termWidth - 4
+          
+          if (cleaned.length <= maxWidth) {
+            spinner.text = dim(cleaned)
+          } else {
+            const start = Math.max(0, cleaned.length - maxWidth)
+            const window = cleaned.substring(start, start + maxWidth)
+            spinner.text = dim(window)
+          }
+          
+          lastLength = cleaned.length
+        }
+      } else if (part.type === 'text-delta') {
+        if (!hasSeenContent) {
+          hasSeenContent = true
+          if (spinner) {
+            spinner.stop()
+            spinner = null
+          }
+        }
+        process.stdout.write(part.text)
+      }
+    }
+
+    if (spinner) {
+      spinner.stop()
     }
     
     if (!isPiped) {

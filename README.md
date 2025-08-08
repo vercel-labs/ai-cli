@@ -25,12 +25,12 @@ Get your API key at https://vercel.com/docs/ai-gateway
 ai "whats up bro"
 ai hello
 echo "explain this code" | ai
-ai -m openai/gpt-oss-120b "who is rauchg"
+ai -m openai/gpt-5 "who is rauchg"
 ```
 
 ## Options
 
-- `-m, --model` - Specify AI model (default: openai/gpt-oss-120b)
+- `-m, --model` - Specify AI model (default: openai/gpt-5)
 - `-h, --help` - Show help message
 
 ## Switching Models

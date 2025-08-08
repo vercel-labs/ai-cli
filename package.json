@@ -1,6 +1,6 @@
 {
 	"name": "ai-cli",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"type": "module",
 	"engines": {
 		"node": ">=18.0.0"
@@ -9,6 +9,8 @@
 	"dependencies": {
 		"ai": "5.0.4",
 		"arg": "^5.0.2",
+		"log-update": "^6.1.0",
+		"ora": "^8.2.0",
 		"yoctocolors": "^2.1.1",
 		"zod": "^3.25.76"
 	},
