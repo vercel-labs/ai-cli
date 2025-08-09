@@ -1,4 +1,4 @@
-import { createInterface } from 'node:readline';
+import consola from 'consola';
 import { setApiKey } from '../config/index.js';
 
 const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -27,21 +27,58 @@ async function validateApiKey(apiKey: string): Promise<boolean> {
   }
 }
 
-export async function initCommand(): Promise<void> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+function readPassword(prompt: string): Promise<string> {
+  return new Promise((resolve) => {
+    process.stdout.write(prompt);
+    
+    const stdin = process.stdin;
+    stdin.setRawMode?.(true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
 
-  const apiKey = await new Promise<string>((resolve) => {
-    rl.question('► api key: ', (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
+    let password = '';
+    
+    const onData = (char: string) => {
+      switch (char) {
+        case '\n':
+        case '\r':
+        case '\u0004':
+          stdin.setRawMode?.(false);
+          stdin.pause();
+          stdin.removeListener('data', onData);
+          process.stdout.write('\n');
+          resolve(password);
+          break;
+        case '\u0003':
+          process.exit(1);
+          break;
+        case '\u007f':
+        case '\u0008':
+          if (password.length > 0) {
+            password = password.slice(0, -1);
+            process.stdout.write('\b \b');
+          }
+          break;
+        default:
+          for (const c of char) {
+            if (c >= ' ' && c <= '~') {
+              password += c;
+              process.stdout.write('*');
+            }
+          }
+          break;
+      }
+    };
+    
+    stdin.on('data', onData);
   });
+}
+
+export async function initCommand(): Promise<void> {
+  const apiKey = await readPassword('► api key: ');
 
   if (!apiKey) {
-    console.error('key required');
+    consola.error('key required');
     process.exit(1);
   }
 
@@ -56,15 +93,15 @@ export async function initCommand(): Promise<void> {
   process.stdout.write('\r\x1b[K');
 
   if (!isValid) {
-    console.error('✗ invalid key');
+    consola.error('invalid key');
     process.exit(1);
   }
 
   try {
     setApiKey(apiKey);
-    console.log('✓ saved');
+    consola.success('saved');
   } catch (_error) {
-    console.error('✗ failed to save');
+    consola.error('failed to save');
     process.exit(1);
   }
 }

@@ -1,4 +1,5 @@
 import arg from 'arg';
+import consola from 'consola';
 import { chatCommand } from './commands/chat.js';
 import { initCommand } from './commands/init.js';
 import { getApiKey } from './config/index.js';
@@ -24,10 +25,10 @@ async function main() {
     }) as Args;
   } catch (err: unknown) {
     if (err instanceof Error) {
-      console.error(err.message);
+      consola.error(err.message);
       process.exit(1);
     }
-    console.error('unknown error');
+    consola.error('unknown error');
     process.exit(1);
   }
 
@@ -43,7 +44,7 @@ async function main() {
 
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.error('no key. run: ai init');
+    consola.error('no key. run: ai init');
     process.exit(1);
   }
 
@@ -57,7 +58,7 @@ async function main() {
     }
 
     if (!message) {
-      console.error('no message');
+      consola.error('no message');
       process.exit(1);
     }
   }
@@ -71,6 +72,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('error:', error instanceof Error ? error.message : 'unknown');
+  consola.error('error:', error instanceof Error ? error.message : 'unknown');
   process.exit(1);
 });
