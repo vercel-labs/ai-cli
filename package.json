@@ -7,10 +7,12 @@
 	},
 	"main": "dist/ai.mjs",
 	"dependencies": {
+		"@clack/prompts": "^0.11.0",
 		"ai": "5.0.4",
 		"arg": "^5.0.2",
 		"log-update": "^6.1.0",
 		"ora": "^8.2.0",
+		"rc9": "^2.1.2",
 		"yoctocolors": "^2.1.1",
 		"zod": "^3.25.76"
 	},

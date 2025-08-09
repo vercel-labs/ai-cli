@@ -8,7 +8,7 @@ const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
 mkdirSync('dist', { recursive: true })
 
 await build({
-  entryPoints: ['ai.mts'],
+  entryPoints: ['src/index.ts'],
   bundle: true,
   platform: 'node',
   target: ['node18', 'node20', 'node22'],
