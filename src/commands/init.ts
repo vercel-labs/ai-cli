@@ -45,7 +45,6 @@ export async function initCommand(): Promise<void> {
     process.exit(1);
   }
 
-  // Show loading animation while validating
   let frame = 0;
   const interval = setInterval(() => {
     process.stdout.write(`\r${spinnerFrames[frame]} validating...`);
