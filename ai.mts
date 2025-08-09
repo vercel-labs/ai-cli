@@ -1,29 +1,31 @@
-import { streamText } from 'ai'
-import arg from 'arg'
-import { gray, dim } from 'yoctocolors'
-import ora from 'ora'
+import { streamText } from 'ai';
+import arg from 'arg';
+import { gray, dim } from 'yoctocolors';
+import ora from 'ora';
 
 // @ts-ignore - defined by esbuild
-const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.1'
+const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.1';
 
 async function main() {
   if (!process.env.AI_GATEWAY_API_KEY) {
-    console.error('Error: AI_GATEWAY_API_KEY environment variable is not set')
-    console.error('Please visit https://vercel.com/docs/ai-gateway to get your API key')
-    process.exit(1)
+    console.error('Error: AI_GATEWAY_API_KEY environment variable is not set');
+    console.error(
+      'Please visit https://vercel.com/ai-gateway to get your API key',
+    );
+    process.exit(1);
   }
 
-  let args: any
+  let args: any;
   try {
     args = arg({
       '--model': String,
       '--help': Boolean,
       '-m': '--model',
-      '-h': '--help'
-    })
+      '-h': '--help',
+    });
   } catch (err: any) {
-    console.error(err.message)
-    process.exit(1)
+    console.error(err.message);
+    process.exit(1);
   }
 
   if (args['--help']) {
@@ -40,47 +42,47 @@ Options:
 Examples:
   ai "whats up bro"
   ai -m openai/gpt-5 "hello world"
-  ai hello`)
-    process.exit(0)
+  ai hello`);
+    process.exit(0);
   }
 
-  let message = args._.join(' ')
-  
+  let message = args._.join(' ');
+
   if (!message) {
     if (!process.stdin.isTTY) {
-      const chunks: string[] = []
+      const chunks: string[] = [];
       for await (const chunk of process.stdin) {
-        chunks.push(chunk.toString())
+        chunks.push(chunk.toString());
       }
-      message = chunks.join('').trim()
+      message = chunks.join('').trim();
     }
-    
+
     if (!message) {
-      console.error('Error: Please provide a message')
-      console.error('Usage: ai <message>')
-      process.exit(1)
+      console.error('Error: Please provide a message');
+      console.error('Usage: ai <message>');
+      process.exit(1);
     }
   }
 
-  const model = args['--model'] || 'openai/gpt-5'
-  const isPiped = !process.stdout.isTTY
+  const model = args['--model'] || 'openai/gpt-5';
+  const isPiped = !process.stdout.isTTY;
 
   if (!isPiped) {
-    console.log(gray(`ai ${version} [${model}]`))
+    console.log(gray(`ai ${version} [${model}]`));
   }
-  
+
   try {
-    let thinkingBuffer = ''
-    let hasSeenContent = false
-    let spinner: any = null
-    let lastLength = 0
+    let thinkingBuffer = '';
+    let hasSeenContent = false;
+    let spinner: any = null;
+    let lastLength = 0;
 
     if (!isPiped) {
       spinner = ora({
         text: dim('Thinking...'),
         color: 'gray',
-        spinner: 'dots'
-      }).start()
+        spinner: 'dots',
+      }).start();
     }
 
     const result = streamText({
@@ -89,56 +91,66 @@ Examples:
       providerOptions: {
         openai: {
           reasoningEffort: 'high',
-          reasoningSummary: 'detailed'
-        }
-      }
-    })
+          reasoningSummary: 'detailed',
+        },
+      },
+      headers: {
+        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
+        'X-Title': 'ai-cli',
+      },
+    });
 
     for await (const part of result.fullStream) {
       if (part.type === 'reasoning-delta' && part.text) {
-        thinkingBuffer += part.text
-        
+        thinkingBuffer += part.text;
+
         if (spinner && thinkingBuffer) {
-          const cleaned = thinkingBuffer.replace(/\s+/g, ' ').trim()
-          const termWidth = process.stdout.columns || 80
-          const maxWidth = termWidth - 4
-          
+          const cleaned = thinkingBuffer.replace(/\s+/g, ' ').trim();
+          const termWidth = process.stdout.columns || 80;
+          const maxWidth = termWidth - 4;
+
           if (cleaned.length <= maxWidth) {
-            spinner.text = dim(cleaned)
+            spinner.text = dim(cleaned);
           } else {
-            const start = Math.max(0, cleaned.length - maxWidth)
-            const window = cleaned.substring(start, start + maxWidth)
-            spinner.text = dim(window)
+            const start = Math.max(0, cleaned.length - maxWidth);
+            const window = cleaned.substring(start, start + maxWidth);
+            spinner.text = dim(window);
           }
-          
-          lastLength = cleaned.length
+
+          lastLength = cleaned.length;
         }
       } else if (part.type === 'text-delta') {
         if (!hasSeenContent) {
-          hasSeenContent = true
+          hasSeenContent = true;
           if (spinner) {
-            spinner.stop()
-            spinner = null
+            spinner.stop();
+            spinner = null;
           }
         }
-        process.stdout.write(part.text)
+        process.stdout.write(part.text);
       }
     }
 
     if (spinner) {
-      spinner.stop()
+      spinner.stop();
     }
-    
+
     if (!isPiped) {
-      console.log()
+      console.log();
     }
   } catch (error) {
-    console.error('Error:', error instanceof Error ? error.message : 'Unknown error')
-    process.exit(1)
+    console.error(
+      'Error:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
+    process.exit(1);
   }
 }
 
-main().catch(error => {
-  console.error('Error:', error instanceof Error ? error.message : 'Unknown error')
-  process.exit(1)
-})
+main().catch((error) => {
+  console.error(
+    'Error:',
+    error instanceof Error ? error.message : 'Unknown error',
+  );
+  process.exit(1);
+});

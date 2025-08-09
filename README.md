@@ -17,7 +17,7 @@ Set your AI Gateway API key in your shell configuration:
 export AI_GATEWAY_API_KEY=your-api-key
 ```
 
-Get your API key at https://vercel.com/docs/ai-gateway
+Get your API key at https://vercel.com/ai-gateway
 
 ## Usage
 
