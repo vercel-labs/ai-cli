@@ -1,9 +1,9 @@
 export async function readStdin(): Promise<string> {
-  const chunks: string[] = []
+  const chunks: string[] = [];
   for await (const chunk of process.stdin) {
-    chunks.push(chunk.toString())
+    chunks.push(chunk.toString());
   }
-  return chunks.join('').trim()
+  return chunks.join('').trim();
 }
 
 export function showHelp(): void {
@@ -24,5 +24,5 @@ Commands:
 Examples:
   ai "whats up bro"
   ai -m openai/gpt-5 "hello world"
-  ai hello`)
+  ai hello`);
 }

@@ -1,54 +1,64 @@
-import arg from 'arg'
-import { getApiKey } from './config/index.js'
-import { initCommand } from './commands/init.js'
-import { chatCommand } from './commands/chat.js'
-import { readStdin, showHelp } from './utils/index.js'
+import arg from 'arg';
+import { chatCommand } from './commands/chat.js';
+import { initCommand } from './commands/init.js';
+import { getApiKey } from './config/index.js';
+import { readStdin, showHelp } from './utils/index.js';
 
 // @ts-ignore - defined by esbuild
-const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.1'
+const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.1';
+
+interface Args {
+  '--model'?: string;
+  '--help'?: boolean;
+  _: string[];
+}
 
 async function main() {
-  let args: any
+  let args: Args;
   try {
     args = arg({
       '--model': String,
       '--help': Boolean,
       '-m': '--model',
-      '-h': '--help'
-    })
-  } catch (err: any) {
-    console.error(err.message)
-    process.exit(1)
+      '-h': '--help',
+    }) as Args;
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error(err.message);
+      process.exit(1);
+    }
+    console.error('unknown error');
+    process.exit(1);
   }
 
   if (args['--help']) {
-    showHelp()
-    process.exit(0)
+    showHelp();
+    process.exit(0);
   }
 
   if (args._.includes('init')) {
-    await initCommand()
-    return
+    await initCommand();
+    return;
   }
 
-  const apiKey = getApiKey()
+  const apiKey = getApiKey();
   if (!apiKey) {
-    console.error('no key. run: ai init')
-    process.exit(1)
+    console.error('no key. run: ai init');
+    process.exit(1);
   }
 
-  process.env.AI_GATEWAY_API_KEY = apiKey
+  process.env.AI_GATEWAY_API_KEY = apiKey;
 
-  let message = args._.join(' ')
-  
+  let message = args._.join(' ');
+
   if (!message) {
     if (!process.stdin.isTTY) {
-      message = await readStdin()
+      message = await readStdin();
     }
-    
+
     if (!message) {
-      console.error('no message')
-      process.exit(1)
+      console.error('no message');
+      process.exit(1);
     }
   }
 
@@ -56,11 +66,11 @@ async function main() {
     message,
     model: args['--model'],
     isPiped: !process.stdout.isTTY,
-    version
-  })
+    version,
+  });
 }
 
-main().catch(error => {
-  console.error('error:', error instanceof Error ? error.message : 'unknown')
-  process.exit(1)
-})
+main().catch((error) => {
+  console.error('error:', error instanceof Error ? error.message : 'unknown');
+  process.exit(1);
+});

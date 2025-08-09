@@ -21,6 +21,9 @@
 	},
 	"scripts": {
 		"build": "node build.mjs",
+		"lint": "biome lint .",
+		"format": "biome format . --write",
+		"check": "biome check .",
 		"prepublishOnly": "pnpm run build"
 	},
 	"files": [
@@ -28,6 +31,7 @@
 		"README.md"
 	],
 	"devDependencies": {
+		"@biomejs/biome": "2.1.4",
 		"@types/node": "^24.1.0",
 		"esbuild": "^0.25.8",
 		"typescript": "^5.8.3"
