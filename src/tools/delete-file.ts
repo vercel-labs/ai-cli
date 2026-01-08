@@ -3,35 +3,24 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { dim } from 'yoctocolors';
 import { z } from 'zod';
-import { getPermissionMode } from '../config/index.js';
-import { confirmAction } from './confirm.js';
-
-const cwd = process.cwd();
+import { saveDelete } from '../utils/undo.js';
 
 export const deleteFile = tool({
-  description: 'Delete a file in the current directory.',
+  description: 'Delete a file.',
   inputSchema: z.object({
-    filePath: z.string().describe('Path to the file to delete'),
+    filePath: z.string().describe('Absolute or relative path to the file'),
   }),
   execute: async ({ filePath }) => {
     try {
-      const fullPath = path.resolve(cwd, filePath);
-
-      if (!fullPath.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
+      const fullPath = path.resolve(filePath);
 
       if (!fs.existsSync(fullPath)) {
         return { error: `File not found: ${filePath}` };
       }
 
-      if (getPermissionMode() === 'ask') {
-        const ok = await confirmAction('delete file');
-        if (!ok) return { cancelled: true };
-      }
-
+      saveDelete(fullPath);
       fs.unlinkSync(fullPath);
-      console.log(dim(`done. deleted ${filePath}`));
+      process.stdout.write(`\r\x1b[K${dim(`done. deleted ${filePath}`)}\n`);
 
       return { success: true, silent: true };
     } catch (e) {

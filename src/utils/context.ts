@@ -15,7 +15,7 @@ export async function getContextWindow(modelId: string): Promise<number> {
   }
 
   try {
-    const res = await fetch(`${GATEWAY_URL}/v1/models`);
+    const res = await fetch(`${GATEWAY_URL}/v1/models`, { signal: AbortSignal.timeout(3000) });
     const { data } = (await res.json()) as { data: ModelInfo[] };
     for (const m of data) {
       cachedModelInfo.set(m.id, m);

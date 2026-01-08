@@ -3,10 +3,6 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { dim } from 'yoctocolors';
 import { z } from 'zod';
-import { getPermissionMode } from '../config/index.js';
-import { confirmAction } from './confirm.js';
-
-const cwd = process.cwd();
 
 function fileLink(fullPath: string, name: string): string {
   return `\x1b]8;;file://${fullPath}\x1b\\${name}\x1b]8;;\x1b\\`;
@@ -15,25 +11,16 @@ function fileLink(fullPath: string, name: string): string {
 export const copyFile = tool({
   description: 'Copy a file to a new location.',
   inputSchema: z.object({
-    sourcePath: z.string().describe('Path to the source file'),
-    destPath: z.string().describe('Path to the destination'),
+    sourcePath: z.string().describe('Absolute or relative path to source'),
+    destPath: z.string().describe('Absolute or relative path to destination'),
   }),
   execute: async ({ sourcePath, destPath }) => {
     try {
-      const fullSourcePath = path.resolve(cwd, sourcePath);
-      const fullDestPath = path.resolve(cwd, destPath);
-
-      if (!fullSourcePath.startsWith(cwd) || !fullDestPath.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
+      const fullSourcePath = path.resolve(sourcePath);
+      const fullDestPath = path.resolve(destPath);
 
       if (!fs.existsSync(fullSourcePath)) {
         return { error: `Source file not found: ${sourcePath}` };
-      }
-
-      if (getPermissionMode() === 'ask') {
-        const ok = await confirmAction('copy file');
-        if (!ok) return { cancelled: true };
       }
 
       const destDir = path.dirname(fullDestPath);
@@ -43,7 +30,7 @@ export const copyFile = tool({
 
       fs.copyFileSync(fullSourcePath, fullDestPath);
       const link = fileLink(fullDestPath, destPath);
-      console.log(dim(`done. copied to ${link}`));
+      process.stdout.write(`\r\x1b[K${dim(`done. copied to ${link}`)}\n`);
 
       return { success: true, silent: true };
     } catch (e) {

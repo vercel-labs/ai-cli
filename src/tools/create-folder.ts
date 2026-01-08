@@ -3,10 +3,6 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { dim } from 'yoctocolors';
 import { z } from 'zod';
-import { getPermissionMode } from '../config/index.js';
-import { confirmAction } from './confirm.js';
-
-const cwd = process.cwd();
 
 function fileLink(fullPath: string, name: string): string {
   return `\x1b]8;;file://${fullPath}\x1b\\${name}\x1b]8;;\x1b\\`;
@@ -15,28 +11,19 @@ function fileLink(fullPath: string, name: string): string {
 export const createFolder = tool({
   description: 'Create a new folder/directory.',
   inputSchema: z.object({
-    folderPath: z.string().describe('Path to the folder to create'),
+    folderPath: z.string().describe('Absolute or relative path to create'),
   }),
   execute: async ({ folderPath }) => {
     try {
-      const fullPath = path.resolve(cwd, folderPath);
-
-      if (!fullPath.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
+      const fullPath = path.resolve(folderPath);
 
       if (fs.existsSync(fullPath)) {
         return { error: `Folder already exists: ${folderPath}` };
       }
 
-      if (getPermissionMode() === 'ask') {
-        const ok = await confirmAction('create folder');
-        if (!ok) return { cancelled: true };
-      }
-
       fs.mkdirSync(fullPath, { recursive: true });
       const link = fileLink(fullPath, folderPath);
-      console.log(dim(`done. created ${link}`));
+      process.stdout.write(`\r\x1b[K${dim(`done. created ${link}`)}\n`);
 
       return { success: true, silent: true };
     } catch (e) {

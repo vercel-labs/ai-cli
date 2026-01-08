@@ -8,14 +8,17 @@ import { deleteCmd } from './delete.js';
 import { help } from './help.js';
 import { init } from './init.js';
 import { list } from './list.js';
+import { memory } from './memory.js';
 import { model } from './model.js';
 import { newChat } from './new.js';
-import { permission } from './permission.js';
+import { processes } from './processes.js';
 import { purge } from './purge.js';
 import { storage } from './storage.js';
 import { summary } from './summary.js';
 import type { CommandHandler } from './types.js';
+import { undo } from './undo.js';
 import { usage } from './usage.js';
+import { xix } from './xix.js';
 
 export { restoreHistory };
 export type { CommandHandler, CommandResult, Context } from './types.js';
@@ -35,7 +38,8 @@ export const commands: Record<string, CommandHandler> = {
   delete: deleteCmd,
   purge,
   storage,
-  permission,
+  processes,
+  ps: processes,
   init,
   i: init,
   credits,
@@ -43,4 +47,9 @@ export const commands: Record<string, CommandHandler> = {
   compress,
   summary,
   usage,
+  memory,
+  mem: memory,
+  undo,
+  u: undo,
+  xix,
 };

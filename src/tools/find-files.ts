@@ -3,8 +3,6 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 
-const cwd = process.cwd();
-
 const IGNORED = [
   'node_modules',
   '.git',
@@ -25,6 +23,7 @@ function matchPattern(name: string, pattern: string): boolean {
 
 function findInDir(
   dir: string,
+  baseDir: string,
   pattern: string,
   results: string[],
   maxResults: number,
@@ -45,11 +44,11 @@ function findInDir(
     const fullPath = path.join(dir, entry.name);
 
     if (matchPattern(entry.name, pattern)) {
-      results.push(path.relative(cwd, fullPath));
+      results.push(path.relative(baseDir, fullPath));
     }
 
     if (entry.isDirectory()) {
-      findInDir(fullPath, pattern, results, maxResults);
+      findInDir(fullPath, baseDir, pattern, results, maxResults);
     }
   }
 }
@@ -61,18 +60,13 @@ export const findFiles = tool({
     directory: z
       .string()
       .optional()
-      .describe('Directory to search in (default: current directory)'),
+      .describe('Absolute or relative directory to search in'),
   }),
   execute: async ({ pattern, directory }) => {
     try {
-      const searchDir = directory ? path.resolve(cwd, directory) : cwd;
-
-      if (!searchDir.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
-
+      const searchDir = path.resolve(directory || '.');
       const results: string[] = [];
-      findInDir(searchDir, pattern, results, 100);
+      findInDir(searchDir, searchDir, pattern, results, 100);
 
       if (results.length === 0) {
         return { files: [], message: 'No files found' };

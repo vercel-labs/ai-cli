@@ -3,8 +3,6 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 
-const cwd = process.cwd();
-
 function loadGitignore(dir: string): Set<string> {
   const patterns = new Set<string>();
   const gitignorePath = path.join(dir, '.gitignore');
@@ -71,7 +69,7 @@ export const listDirectory = tool({
     dirPath: z
       .string()
       .optional()
-      .describe('Path relative to current directory, defaults to .'),
+      .describe('Absolute or relative path, defaults to .'),
     depth: z
       .number()
       .optional()
@@ -79,14 +77,11 @@ export const listDirectory = tool({
   }),
   execute: async ({ dirPath = '.', depth = 3 }) => {
     try {
-      const fullPath = path.resolve(cwd, dirPath);
-      if (!fullPath.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
-      const ignored = loadGitignore(cwd);
+      const fullPath = path.resolve(dirPath);
+      const ignored = loadGitignore(fullPath);
       const maxDepth = Math.min(depth, 5);
       const tree = buildTree(fullPath, ignored, '', 0, maxDepth).join('\n');
-      return { tree, path: dirPath };
+      return { tree, path: fullPath };
     } catch (e) {
       return { error: `Failed to list directory: ${(e as Error).message}` };
     }

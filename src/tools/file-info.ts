@@ -3,8 +3,6 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 
-const cwd = process.cwd();
-
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -15,15 +13,11 @@ function formatSize(bytes: number): string {
 export const fileInfo = tool({
   description: 'Get information about a file or directory (size, modified date, type).',
   inputSchema: z.object({
-    filePath: z.string().describe('Path to the file or directory'),
+    filePath: z.string().describe('Absolute or relative path'),
   }),
   execute: async ({ filePath }) => {
     try {
-      const fullPath = path.resolve(cwd, filePath);
-
-      if (!fullPath.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
+      const fullPath = path.resolve(filePath);
 
       if (!fs.existsSync(fullPath)) {
         return { error: `Not found: ${filePath}` };

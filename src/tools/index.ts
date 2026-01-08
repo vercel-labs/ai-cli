@@ -1,17 +1,24 @@
 import { copyFile } from './copy-file.js';
 import { createFolder } from './create-folder.js';
 import { deleteFile } from './delete-file.js';
+import { editFile } from './edit-file.js';
 import { fileInfo } from './file-info.js';
 import { findFiles } from './find-files.js';
+import { killProcess } from './kill-process.js';
 import { listDirectory } from './list-directory.js';
+import { memory } from './memory.js';
 import { readFile } from './read-file.js';
+import { readProcessLogs } from './read-process-logs.js';
 import { renameFile } from './rename-file.js';
+import { runCommand } from './run-command.js';
 import { searchInFiles } from './search-in-files.js';
+import { startProcess } from './start-process.js';
 import { writeFile } from './write-file.js';
 
 export const fileTools = {
   readFile,
   writeFile,
+  editFile,
   createFolder,
   copyFile,
   renameFile,
@@ -20,4 +27,9 @@ export const fileTools = {
   findFiles,
   searchInFiles,
   fileInfo,
+  runCommand,
+  startProcess,
+  readProcessLogs,
+  killProcess,
+  memory,
 };

@@ -1,11 +1,8 @@
 import { readUser, updateUser } from 'rc9';
 
-export type PermissionMode = 'ask' | 'yolo';
-
 export interface Config {
   AI_GATEWAY_API_KEY?: string;
   model?: string;
-  permissionMode?: PermissionMode;
 }
 
 export function getConfig(): Config {
@@ -32,13 +29,4 @@ export function getModel(): string | null {
 
 export function setModel(model: string): void {
   setConfig({ model });
-}
-
-export function getPermissionMode(): PermissionMode {
-  const config = getConfig();
-  return config.permissionMode || 'ask';
-}
-
-export function setPermissionMode(mode: PermissionMode): void {
-  setConfig({ permissionMode: mode });
 }

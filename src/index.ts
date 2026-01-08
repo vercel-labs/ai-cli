@@ -14,6 +14,7 @@ interface Args {
   '--model'?: string;
   '--help'?: boolean;
   '--list'?: boolean;
+  '--image'?: string;
   _: string[];
 }
 
@@ -24,6 +25,7 @@ async function main() {
       '--model': String,
       '--help': Boolean,
       '--list': Boolean,
+      '--image': String,
       '-m': '--model',
       '-h': '--help',
       '-l': '--list',
@@ -99,6 +101,7 @@ async function main() {
   await chatCommand({
     message,
     model,
+    image: args['--image'],
     isPiped: !process.stdout.isTTY,
     version,
   });

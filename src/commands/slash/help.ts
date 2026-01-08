@@ -15,9 +15,11 @@ commands:
   /compress     compress chat history
   /summary      view compressed summary
   /usage        show current chat stats
+  /processes    manage background processes
+  /memory       view saved memories
+  /undo, /u     undo last file change
   /list, /l     select model from list
   /model, /m    show current model
-  /permission   file operation mode (ask/yolo)
   /clear, /c    clear current chat
   /credits      show balance
   /init, /i     setup api key

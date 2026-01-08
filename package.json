@@ -6,13 +6,6 @@
     "node": ">=18.0.0"
   },
   "main": "dist/ai.mjs",
-  "dependencies": {
-    "ai": "6.0.6",
-    "arg": "^5.0.2",
-    "rc9": "^2.1.2",
-    "yoctocolors": "^2.1.1",
-    "zod": "^4.1.8"
-  },
   "bin": {
     "ai": "dist/ai.mjs"
   },
@@ -30,8 +23,13 @@
   "devDependencies": {
     "@biomejs/biome": "2.1.4",
     "@types/node": "^24.1.0",
+    "ai": "6.0.6",
+    "arg": "^5.0.2",
     "esbuild": "^0.25.8",
-    "typescript": "^5.8.3"
+    "rc9": "^2.1.2",
+    "typescript": "^5.8.3",
+    "yoctocolors": "^2.1.1",
+    "zod": "^4.1.8"
   },
   "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
 }

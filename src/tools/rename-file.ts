@@ -3,37 +3,25 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { dim } from 'yoctocolors';
 import { z } from 'zod';
-import { getPermissionMode } from '../config/index.js';
-import { confirmAction } from './confirm.js';
-
-const cwd = process.cwd();
+import { saveRename } from '../utils/undo.js';
 
 function fileLink(fullPath: string, name: string): string {
   return `\x1b]8;;file://${fullPath}\x1b\\${name}\x1b]8;;\x1b\\`;
 }
 
 export const renameFile = tool({
-  description: 'Rename or move a file within the current directory.',
+  description: 'Rename or move a file.',
   inputSchema: z.object({
-    oldPath: z.string().describe('Current path of the file'),
-    newPath: z.string().describe('New path/name for the file'),
+    oldPath: z.string().describe('Absolute or relative current path'),
+    newPath: z.string().describe('Absolute or relative new path'),
   }),
   execute: async ({ oldPath, newPath }) => {
     try {
-      const fullOldPath = path.resolve(cwd, oldPath);
-      const fullNewPath = path.resolve(cwd, newPath);
-
-      if (!fullOldPath.startsWith(cwd) || !fullNewPath.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
+      const fullOldPath = path.resolve(oldPath);
+      const fullNewPath = path.resolve(newPath);
 
       if (!fs.existsSync(fullOldPath)) {
         return { error: `File not found: ${oldPath}` };
-      }
-
-      if (getPermissionMode() === 'ask') {
-        const ok = await confirmAction('rename file');
-        if (!ok) return { cancelled: true };
       }
 
       const newDir = path.dirname(fullNewPath);
@@ -41,9 +29,10 @@ export const renameFile = tool({
         fs.mkdirSync(newDir, { recursive: true });
       }
 
+      saveRename(oldPath, newPath);
       fs.renameSync(fullOldPath, fullNewPath);
       const link = fileLink(fullNewPath, newPath);
-      console.log(dim(`done. renamed to ${link}`));
+      process.stdout.write(`\r\x1b[K${dim(`done. renamed to ${link}`)}\n`);
 
       return { success: true, silent: true };
     } catch (e) {

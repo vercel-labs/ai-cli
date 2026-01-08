@@ -3,8 +3,6 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 
-const cwd = process.cwd();
-
 const IGNORED = [
   'node_modules',
   '.git',
@@ -17,6 +15,7 @@ const IGNORED = [
 
 function searchDir(
   dir: string,
+  baseDir: string,
   pattern: RegExp,
   results: Array<{ file: string; line: number; content: string }>,
   maxResults: number,
@@ -37,7 +36,7 @@ function searchDir(
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      searchDir(fullPath, pattern, results, maxResults);
+      searchDir(fullPath, baseDir, pattern, results, maxResults);
     } else if (entry.isFile()) {
       try {
         const content = fs.readFileSync(fullPath, 'utf-8');
@@ -45,7 +44,7 @@ function searchDir(
         for (let i = 0; i < lines.length && results.length < maxResults; i++) {
           if (pattern.test(lines[i])) {
             results.push({
-              file: path.relative(cwd, fullPath),
+              file: path.relative(baseDir, fullPath),
               line: i + 1,
               content: lines[i].trim().slice(0, 100),
             });
@@ -58,25 +57,20 @@ function searchDir(
 }
 
 export const searchInFiles = tool({
-  description: 'Search for text or patterns across files in the current directory.',
+  description: 'Search for text or patterns across files.',
   inputSchema: z.object({
     query: z.string().describe('Text or regex pattern to search for'),
     directory: z
       .string()
       .optional()
-      .describe('Directory to search in (default: current directory)'),
+      .describe('Absolute or relative directory to search in'),
   }),
   execute: async ({ query, directory }) => {
     try {
-      const searchDir_ = directory ? path.resolve(cwd, directory) : cwd;
-
-      if (!searchDir_.startsWith(cwd)) {
-        return { error: 'Access denied: path outside current directory' };
-      }
-
+      const baseDir = path.resolve(directory || '.');
       const pattern = new RegExp(query, 'i');
       const results: Array<{ file: string; line: number; content: string }> = [];
-      searchDir(searchDir_, pattern, results, 50);
+      searchDir(baseDir, baseDir, pattern, results, 50);
 
       if (results.length === 0) {
         return { matches: [], message: 'No matches found' };

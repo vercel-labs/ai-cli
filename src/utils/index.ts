@@ -16,6 +16,7 @@ Usage:
 
 Options:
   -m, --model   Specify AI model (default: anthropic/claude-sonnet-4.5)
+  --image       Attach an image file (png, jpg, gif, webp)
   -l, --list    List available models
   -h, --help    Show this help message
 
@@ -25,7 +26,6 @@ Commands:
 Examples:
   ai "whats up bro"
   ai -m claude-opus-4.5 "hello"
-  ai -m gpt-5.2 "hello"
-  ai -l
-  ai hello`);
+  ai --image ./screenshot.png "what is this?"
+  ai -l`);
 }
