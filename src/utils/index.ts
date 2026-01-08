@@ -15,7 +15,9 @@ Usage:
   ai -m <model> <message>
 
 Options:
-  -m, --model   Specify AI model (default: openai/gpt-5)
+  -m, --model   Specify AI model (default: anthropic/claude-sonnet-4.5)
+  --image       Attach an image file (png, jpg, gif, webp)
+  -l, --list    List available models
   -h, --help    Show this help message
 
 Commands:
@@ -23,6 +25,7 @@ Commands:
 
 Examples:
   ai "whats up bro"
-  ai -m openai/gpt-5 "hello world"
-  ai hello`);
+  ai -m claude-opus-4.5 "hello"
+  ai --image ./screenshot.png "what is this?"
+  ai -l`);
 }

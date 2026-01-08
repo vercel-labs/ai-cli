@@ -1,27 +1,15 @@
-import consola from 'consola';
+import { dim } from 'yoctocolors';
 import { setApiKey } from '../config/index.js';
+import { GATEWAY_URL } from '../utils/models.js';
 
-const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 async function validateApiKey(apiKey: string): Promise<boolean> {
   try {
-    const response = await fetch(
-      'https://ai-gateway.vercel.sh/v1/ai/language-model',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'ai-gateway-protocol-version': '0.0.1',
-          'ai-model-id': 'openai/gpt-4o-mini',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: [{ role: 'user', content: [{ type: 'text', text: 'test' }] }],
-          maxTokens: 1,
-        }),
-      },
-    );
-    return response.status !== 401;
+    const response = await fetch(`${GATEWAY_URL}/v1/credits`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    return response.ok;
   } catch {
     return false;
   }
@@ -30,14 +18,14 @@ async function validateApiKey(apiKey: string): Promise<boolean> {
 function readPassword(prompt: string): Promise<string> {
   return new Promise((resolve) => {
     process.stdout.write(prompt);
-    
+
     const stdin = process.stdin;
     stdin.setRawMode?.(true);
     stdin.resume();
     stdin.setEncoding('utf8');
 
     let password = '';
-    
+
     const onData = (char: string) => {
       switch (char) {
         case '\n':
@@ -50,6 +38,8 @@ function readPassword(prompt: string): Promise<string> {
           resolve(password);
           break;
         case '\u0003':
+          stdin.setRawMode?.(false);
+          process.stdout.write('\n');
           process.exit(1);
           break;
         case '\u007f':
@@ -69,23 +59,30 @@ function readPassword(prompt: string): Promise<string> {
           break;
       }
     };
-    
+
     stdin.on('data', onData);
   });
 }
 
+const KEY_URL =
+  'https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys&title=Go+to+AI+Gateway';
+
+const hyperlink = (text: string, url: string) =>
+  `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
+
 export async function initCommand(): Promise<void> {
-  const apiKey = await readPassword('► api key: ');
+  console.log(dim(`get key → ${hyperlink('vercel.com/ai', KEY_URL)}\n`));
+  const apiKey = await readPassword(dim('› api key: '));
 
   if (!apiKey) {
-    consola.error('key required');
+    console.error('key required');
     process.exit(1);
   }
 
   let frame = 0;
   const interval = setInterval(() => {
-    process.stdout.write(`\r${spinnerFrames[frame]} validating...`);
-    frame = (frame + 1) % spinnerFrames.length;
+    process.stdout.write(`\r${dim(frames[frame])} ${dim('validating...')}`);
+    frame = (frame + 1) % frames.length;
   }, 80);
 
   const isValid = await validateApiKey(apiKey);
@@ -93,15 +90,15 @@ export async function initCommand(): Promise<void> {
   process.stdout.write('\r\x1b[K');
 
   if (!isValid) {
-    consola.error('invalid key');
+    console.error('invalid key');
     process.exit(1);
   }
 
   try {
     setApiKey(apiKey);
-    consola.success('saved');
-  } catch (_error) {
-    consola.error('failed to save');
+    console.log(dim('saved'));
+  } catch {
+    console.error('failed to save');
     process.exit(1);
   }
 }

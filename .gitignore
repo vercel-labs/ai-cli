@@ -1,8 +1,4 @@
 node_modules
 ai
-cli
-gcp
-clack
-rc9
 gateway
-console
+.DS_Store

@@ -1,37 +1,86 @@
-import { streamText } from 'ai';
-import ora from 'ora';
-import { dim, gray } from 'yoctocolors';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { stepCountIs, streamText } from 'ai';
+import { gray } from 'yoctocolors';
+import { fileTools } from '../tools/index.js';
+import { formatError } from '../utils/errors.js';
+import { createSpinner } from '../utils/spinner.js';
 
 interface ChatOptions {
   message: string;
   model?: string;
+  image?: string;
   isPiped: boolean;
   version: string;
 }
 
+const imageTypes: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
+
+function getMimeType(filePath: string): string | null {
+  const ext = path.extname(filePath).toLowerCase();
+  return imageTypes[ext] || null;
+}
+
 export async function chatCommand(options: ChatOptions): Promise<void> {
-  const { message, model = 'openai/gpt-5', isPiped, version } = options;
+  const {
+    message,
+    model = 'anthropic/claude-sonnet-4.5',
+    image,
+    isPiped,
+    version,
+  } = options;
 
   if (!isPiped) {
     console.log(gray(`ai ${version} [${model}]`));
   }
 
-  try {
-    let thinkingBuffer = '';
-    let hasSeenContent = false;
-    let spinner: ReturnType<typeof ora> | null = null;
-
-    if (!isPiped) {
-      spinner = ora({
-        text: dim('Thinking...'),
-        color: 'gray',
-        spinner: 'dots',
-      }).start();
+  let imageData: { type: 'image'; image: string; mimeType: string } | null =
+    null;
+  if (image) {
+    const resolved = path.resolve(image);
+    if (!fs.existsSync(resolved)) {
+      console.error(`image not found: ${image}`);
+      process.exit(1);
     }
+    const mimeType = getMimeType(resolved);
+    if (!mimeType) {
+      console.error('unsupported format. use: png, jpg, gif, webp');
+      process.exit(1);
+    }
+    const buffer = fs.readFileSync(resolved);
+    imageData = {
+      type: 'image',
+      image: buffer.toString('base64'),
+      mimeType,
+    };
+  }
+
+  const spinner = !isPiped ? createSpinner() : null;
+  let hasSeenContent = false;
+  let reasoning = '';
+
+  try {
+    spinner?.start('thinking...');
+
+    const content: Array<
+      | { type: 'text'; text: string }
+      | { type: 'image'; image: string; mimeType: string }
+    > = [{ type: 'text', text: message }];
+    if (imageData) content.unshift(imageData);
 
     const result = streamText({
       model: model,
-      prompt: message,
+      system:
+        'You are a helpful CLI assistant. Output plain text only - no markdown formatting, no emojis. Be concise. Always use TypeScript (not JavaScript) unless told otherwise.',
+      messages: [{ role: 'user', content }],
+      tools: fileTools,
+      stopWhen: stepCountIs(5),
       providerOptions: {
         openai: {
           reasoningEffort: 'high',
@@ -46,46 +95,27 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
     for await (const part of result.fullStream) {
       if (part.type === 'reasoning-delta' && part.text) {
-        thinkingBuffer += part.text;
-
-        if (spinner && thinkingBuffer) {
-          const cleaned = thinkingBuffer.replace(/\s+/g, ' ').trim();
-          const termWidth = process.stdout.columns || 80;
-          const maxWidth = termWidth - 4;
-
-          if (cleaned.length <= maxWidth) {
-            spinner.text = dim(cleaned);
-          } else {
-            const start = Math.max(0, cleaned.length - maxWidth);
-            const window = cleaned.substring(start, start + maxWidth);
-            spinner.text = dim(window);
-          }
-        }
+        reasoning += part.text;
+        spinner?.update(reasoning);
+      } else if (part.type === 'tool-call') {
+        spinner?.update(`${part.toolName}...`);
       } else if (part.type === 'text-delta') {
         if (!hasSeenContent) {
           hasSeenContent = true;
-          if (spinner) {
-            spinner.stop();
-            spinner = null;
-          }
+          spinner?.stop();
         }
         process.stdout.write(part.text);
       }
     }
 
-    if (spinner) {
-      spinner.stop();
-    }
+    if (!hasSeenContent) spinner?.stop();
 
     if (!isPiped) {
       console.log();
     }
   } catch (error) {
-    if (error instanceof Error && error.message.includes('authentication')) {
-      console.error('invalid key. run: ai init');
-    } else {
-      console.error('error');
-    }
+    spinner?.stop();
+    console.error(formatError(error));
     process.exit(1);
   }
 }
