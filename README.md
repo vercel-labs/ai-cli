@@ -1,6 +1,6 @@
 # ai-cli
 
-AI CLI using OpenAI's open source model.
+AI CLI using Vercel AI Gateway
 
 ## Installation
 
@@ -10,35 +10,136 @@ npm install -g ai-cli
 
 ## Setup
 
-Set your AI Gateway API key in your shell configuration:
-
 ```bash
-# Add to ~/.zshrc or ~/.bashrc
-export AI_GATEWAY_API_KEY=your-api-key
+ai init
 ```
 
-Get your API key at https://vercel.com/docs/ai-gateway
+Get your API key from [Vercel AI Gateway](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys&title=Go+to+AI+Gateway)
 
 ## Usage
 
 ```bash
-ai "whats up bro"
-ai hello
-echo "explain this code" | ai
-ai -m openai/gpt-5 "who is rauchg"
+ai                           # interactive mode
+ai "hello"                   # single message
+ai -m gpt-5 "hello"          # use specific model
+ai --image ./img.png "what?" # analyze image
+ai -l                        # list available models
+echo "explain this" | ai     # pipe input
 ```
 
 ## Options
 
-- `-m, --model` - Specify AI model (default: openai/gpt-5)
-- `-h, --help` - Show help message
+- `-m, --model` - model (default: anthropic/claude-sonnet-4.5)
+- `--image` - attach image file (png, jpg, gif, webp)
+- `-l, --list` - list available models
+- `-h, --help` - help
+
+## Interactive Mode
+
+Type `ai` to enter interactive mode with file access and chat history.
+
+### Commands
+
+**Chat**
+- `/new` - start new chat
+- `/chats` - list saved chats
+- `/chat <n>` - load chat by number
+- `/delete` - delete current chat
+- `/purge` - delete all chats
+- `/clear` - clear screen and history
+
+**Files**
+- `/copy` - copy last response to clipboard
+- `/rollback` - view/undo file changes
+- `/diff` - view recent file changes
+
+**Context**
+- `/context` - show token usage and loaded context files
+- `/compress` - compress chat history
+- `/usage` - show chat stats and cost
+
+**Models**
+- `/list` - select model (with search)
+- `/model` - show current model
+
+**Processes**
+- `/processes` - manage background processes
+
+**Memory**
+- `/memory` - view saved memories
+- `/memory clear` - clear all memories
+
+**Settings**
+- `/alias` - manage command shortcuts
+- `/settings` - configure preferences
+- `/init` - setup api key
+- `/credits` - show balance
+- `/storage` - show storage info
+- `/version` - show version
+- `/help` - show commands
+
+**Exit**
+- `exit` or `quit`
+
+## Context Files
+
+The CLI automatically loads context files into the AI's system prompt:
+
+- `CLAUDE.md` - project instructions
+- `CLAUDE.local.md` - local instructions (not committed)
+- `AGENTS.md` - agent-specific instructions
+- `.cursorrules` - cursor rules
+- `.cursor/rules/*.md` - cursor rule files (supports globs and alwaysApply)
+- `~/CLAUDE.md` - global instructions
+
+Use `/context` to see which files are loaded.
+
+## Aliases
+
+Create custom command shortcuts:
+
+```bash
+/alias h help      # /h → /help
+/alias c copy      # /c → /copy
+/alias m model     # /m → /model
+/alias -d h        # remove alias
+/alias             # list all aliases
+```
+
+Aliases are stored in `~/.airc` and shown in `/help`.
+
+## Tools
+
+The AI can interact with your system:
+
+**Files**
+- read/write/edit files
+- create folders
+- rename/move/copy/delete files
+- search in files
+- find files by pattern
+
+**Commands**
+- run shell commands (build, test, install)
+- start background processes (dev servers)
+- manage running processes
+
+**Memory**
+- say "remember X" to save facts across sessions
+- ask "what do you remember" to recall
 
 ## Switching Models
 
-You can use any model available through Vercel AI Gateway by using the `-m` flag:
+Supports fuzzy matching:
 
 ```bash
-ai -m claude-4-sonnet "who am i"
-ai -m openai/gpt-4o "count to 3"
-ai -m anthropic/claude-4.1-opus "spend my money"
+ai -m claude-4       # → anthropic/claude-sonnet-4
+ai -m gpt-5          # → openai/gpt-5
+ai -m sonnet         # → finds a sonnet model
 ```
+
+## Storage
+
+- Config: `~/.airc`
+- Chats: `~/.ai-chats/`
+- Memories: `~/.ai-memories`
