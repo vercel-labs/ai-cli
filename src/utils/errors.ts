@@ -1,6 +1,9 @@
+import { logError } from './errorlog.js';
+
 type ApiError = Error & { statusCode?: number; cause?: Error };
 
 export function formatError(error: unknown): string {
+  logError(error);
   const err = error as ApiError;
   const msg = err.message?.toLowerCase() || '';
   const causeMsg = err.cause?.message?.toLowerCase() || '';
