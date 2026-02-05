@@ -1,16 +1,41 @@
 import * as fs from 'node:fs';
+import { execSync } from 'node:child_process';
 import { createUnifiedDiff } from '../../utils/diff.js';
 import { getStack, getOperation } from '../../utils/undo.js';
 import type { CommandHandler } from './types.js';
 
 export const diff: CommandHandler = (_ctx, args) => {
-  const items = getStack();
+  const arg = args?.trim();
 
-  if (items.length === 0) {
-    return { output: 'no recent changes' };
+  if (arg === 'git') {
+    try {
+      const output = execSync('git diff', { encoding: 'utf-8', maxBuffer: 1024 * 1024 });
+      if (!output.trim()) {
+        return { output: 'no unstaged changes' };
+      }
+      return { output: output.trim() };
+    } catch {
+      return { output: 'not a git repository' };
+    }
   }
 
-  const arg = args?.trim();
+  if (arg === 'staged') {
+    try {
+      const output = execSync('git diff --staged', { encoding: 'utf-8', maxBuffer: 1024 * 1024 });
+      if (!output.trim()) {
+        return { output: 'no staged changes' };
+      }
+      return { output: output.trim() };
+    } catch {
+      return { output: 'not a git repository' };
+    }
+  }
+
+  const items = getStack();
+
+  if (items.length === 0 && !arg) {
+    return { output: 'no recent changes (try /diff git)' };
+  }
 
   if (!arg) {
     const lines = ['recent changes (use /diff <n> to view):'];

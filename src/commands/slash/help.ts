@@ -21,7 +21,10 @@ const details: Record<string, string> = {
   /rollback <n>      undo change by number`,
 
   diff: `/diff
-  shows recent file changes made by AI`,
+  /diff              list AI file changes
+  /diff <n>          show specific change
+  /diff git          git diff (unstaged)
+  /diff staged       git diff --staged`,
 
   compress: `/compress
   compresses chat history to save context space
