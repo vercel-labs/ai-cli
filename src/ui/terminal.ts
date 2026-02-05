@@ -101,36 +101,40 @@ export async function terminal(model: string, version: string): Promise<void> {
       const imgBuffer = getClipboardImage();
       if (imgBuffer) {
         pendingImage = { data: imgBuffer.toString('base64'), mimeType: 'image/png' };
-        const line = (rl as ReadlineInternal).line;
+        const internal = rl as ReadlineInternal;
+        const line = internal.line;
+        const cursor = internal.cursor;
+        const marker = '[image]';
+        const newLine = line.slice(0, cursor) + marker + line.slice(cursor);
+        internal.line = newLine;
+        internal.cursor = cursor + marker.length;
         const prefix = commandMode ? '/ ' : '› ';
-        process.stdout.write('\r' + ansi.eraseLine + dim(prefix) + dim('[image] ') + line);
+        process.stdout.write('\r' + ansi.eraseLine + dim(prefix) + newLine);
       }
       return;
     }
 
     if (!commandMode && rl.line === '' && str === '/') {
       commandMode = true;
-      const prefix = pendingImage ? '[image] / ' : '/ ';
-      rl.setPrompt(dim(prefix));
-      process.stdout.write('\r' + ansi.eraseLine + dim(prefix));
+      rl.setPrompt(dim('/ '));
+      process.stdout.write('\r' + ansi.eraseLine + dim('/ '));
       return;
     }
 
     if (commandMode && rl.line === '' && (str === '\x7f' || str === '\b')) {
       commandMode = false;
-      const prefix = pendingImage ? '[image] › ' : '› ';
-      rl.setPrompt(dim(prefix));
-      process.stdout.write('\r' + ansi.eraseLine + dim(prefix));
+      rl.setPrompt(dim('› '));
+      process.stdout.write('\r' + ansi.eraseLine + dim('› '));
       return;
     }
 
     if (str === '\x1b' && str.length === 1) {
       commandMode = false;
-      const prefix = pendingImage ? '[image] › ' : '› ';
-      rl.setPrompt(dim(prefix));
+      pendingImage = null;
+      rl.setPrompt(dim('› '));
       (rl as ReadlineInternal).line = '';
       (rl as ReadlineInternal).cursor = 0;
-      process.stdout.write('\r' + ansi.eraseLine + dim(prefix));
+      process.stdout.write('\r' + ansi.eraseLine + dim('› '));
       return;
     }
 
@@ -515,8 +519,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   function prompt() {
     const spacing = getSetting('spacing');
     process.stdout.write('\n'.repeat(spacing));
-    const prefix = pendingImage ? '[image] › ' : '› ';
-    rl.setPrompt(dim(prefix));
+    rl.setPrompt(dim('› '));
     rl.prompt();
   }
 
