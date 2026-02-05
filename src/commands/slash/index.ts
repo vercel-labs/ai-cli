@@ -2,10 +2,8 @@ import { getAliases } from '../../config/index.js';
 import { alias } from './alias.js';
 import { chat, restoreHistory } from './chat.js';
 import { clear } from './clear.js';
-import { commit } from './commit.js';
 import { compress } from './compress.js';
 import { copy } from './copy.js';
-import { diff } from './diff.js';
 import { git } from './git.js';
 import { help } from './help.js';
 import { info } from './info.js';
@@ -42,9 +40,7 @@ export const commands: Record<string, CommandHandler> = {
   context: usage,
   memory,
   rollback,
-  commit,
   copy,
-  diff,
   git,
   settings,
   rules,

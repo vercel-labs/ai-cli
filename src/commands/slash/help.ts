@@ -20,22 +20,14 @@ const details: Record<string, string> = {
   /rollback          list recent file changes
   /rollback <n>      undo change by number`,
 
-  diff: `/diff
-  /diff              list AI file changes
-  /diff <n>          show specific change
-  /diff git          git diff (unstaged)
-  /diff staged       git diff --staged`,
-
   git: `/git
   /git diff          unstaged changes
   /git staged        staged changes
   /git status        file status
   /git branch        list branches
-  /git branch <n>    switch/create branch`,
-
-  commit: `/commit
-  /commit            ai reads changes and generates message
-  /commit all        commit even if diff is large`,
+  /git branch <n>    switch/create branch
+  /git commit        ai reads changes and commits
+  /git push          push to remote`,
 
   compress: `/compress
   compresses chat history to save context space
@@ -112,9 +104,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /clear       clear chat',
     '  /copy        copy response',
     '  /rollback    undo changes',
-    '  /diff        file changes',
     '  /git         git commands',
-    '  /commit      auto commit',
     '  /compress    compress history',
     '  /usage       stats',
     '  /processes   processes',

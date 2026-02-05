@@ -55,7 +55,10 @@ Respond with ONLY the commit message, nothing else.`;
   return `${mainType}: update ${files.length} files`;
 }
 
+const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+
 export const commit: CommandHandler = async (ctx, args) => {
+  process.stderr.write(dim('checking...\r'));
   const statusResult = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
   if (statusResult.error || statusResult.status !== 0) {
     return { output: 'not a git repository' };
@@ -110,12 +113,15 @@ export const commit: CommandHandler = async (ctx, args) => {
     return { output: `diff too large (${Math.round(totalDiff / 1000)}kb). use /commit all to force.` };
   }
 
+  process.stderr.write(dim('generating message...\r'));
   const message = await generateMessage(ctx.model, allFiles, diffs);
   if (!message) {
     return { output: 'could not generate commit message' };
   }
 
+  process.stderr.write(dim('committing...\r'));
   const commitResult = spawnSync('git', ['commit', '-m', message], { encoding: 'utf-8' });
+  process.stderr.write('            \r');
   if (commitResult.status !== 0) {
     const err = commitResult.stderr?.trim() || 'commit failed';
     return { output: err };
