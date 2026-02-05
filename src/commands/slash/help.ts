@@ -27,8 +27,15 @@ const details: Record<string, string> = {
   /diff staged       git diff --staged`,
 
   git: `/git
-  /git diff          git diff (unstaged)
-  /git staged        git diff --staged`,
+  /git diff          unstaged changes
+  /git staged        staged changes
+  /git status        file status
+  /git branch        list branches
+  /git branch <n>    switch/create branch`,
+
+  commit: `/commit
+  /commit            auto-generate commit message
+  /commit all        commit even if diff is large`,
 
   compress: `/compress
   compresses chat history to save context space
@@ -106,7 +113,8 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /copy        copy response',
     '  /rollback    undo changes',
     '  /diff        file changes',
-    '  /git         git diff',
+    '  /git         git commands',
+    '  /commit      auto commit',
     '  /compress    compress history',
     '  /usage       stats',
     '  /processes   processes',

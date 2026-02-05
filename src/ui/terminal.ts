@@ -1,4 +1,5 @@
 import * as readline from 'node:readline';
+import { spawnSync } from 'node:child_process';
 import { PassThrough } from 'node:stream';
 import ansi from 'ansi-escapes';
 import { type ModelMessage } from 'ai';
@@ -63,9 +64,21 @@ export async function terminal(model: string, version: string): Promise<void> {
   updateCapabilities(currentModel);
 
   function updateTitle() {
-    const modelShort = currentModel.split('/').pop() || currentModel;
-    const costStr = cost > 0 ? ` $${cost.toFixed(2)}` : '';
-    setTitle(`ai-cli ${modelShort}${costStr}`);
+    const branchResult = spawnSync('git', ['branch', '--show-current'], { encoding: 'utf-8' });
+    const branch = branchResult.status === 0 ? branchResult.stdout?.trim() : '';
+
+    if (branch) {
+      const diffResult = spawnSync('git', ['diff', '--shortstat'], { encoding: 'utf-8' });
+      const stat = diffResult.stdout?.trim() || '';
+      const adds = stat.match(/(\d+) insertion/)?.[1] || '0';
+      const dels = stat.match(/(\d+) deletion/)?.[1] || '0';
+      const changes = stat ? ` +${adds} -${dels}` : '';
+      setTitle(`${branch}${changes}`);
+    } else {
+      const modelShort = currentModel.split('/').pop() || currentModel;
+      const costStr = cost > 0 ? ` $${cost.toFixed(2)}` : '';
+      setTitle(`${modelShort}${costStr}`);
+    }
   }
 
   const inputStream = new PassThrough();
