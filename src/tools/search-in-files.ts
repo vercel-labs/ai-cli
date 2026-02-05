@@ -77,8 +77,8 @@ export const searchInFiles = tool({
       }
 
       return { matches: results, total: results.length };
-    } catch (e) {
-      return { error: `Search failed: ${(e as Error).message}` };
+    } catch {
+      return { error: `search failed: ${query}` };
     }
   },
 });

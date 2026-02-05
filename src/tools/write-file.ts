@@ -34,8 +34,8 @@ export const writeFile = tool({
       fs.writeFileSync(fullPath, content, 'utf-8');
 
       return { message: `${verb}d ${filePath}`, silent: true };
-    } catch (e) {
-      return { error: `Failed to write file: ${(e as Error).message}` };
+    } catch {
+      return { error: `write failed: ${filePath}` };
     }
   },
 });

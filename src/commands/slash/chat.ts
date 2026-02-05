@@ -1,14 +1,53 @@
-import { type Chat, listChats, searchChats } from '../../config/chats.js';
+import { type Chat, createChat, deleteAllChats, deleteChat, listChats, searchChats } from '../../config/chats.js';
 import type { CommandHandler, CommandResult } from './types.js';
 
-export const chat: CommandHandler = (_ctx, args) => {
-  const query = args?.trim() || '';
+const PAGE_SIZE = 10;
+
+export const chat: CommandHandler = (ctx, args) => {
+  const query = args?.trim().toLowerCase() || '';
+  const allChats = listChats();
+
+  if (query === 'new' || query === 'n') {
+    const chat = createChat(ctx.model);
+    return { chat, tokens: 0, cost: 0, clearHistory: true, clearScreen: true };
+  }
+
+  if (query === 'delete all') {
+    if (allChats.length === 0) {
+      return { output: 'no chats' };
+    }
+    const deleted = deleteAllChats();
+    const chat = createChat(ctx.model);
+    return { chat, tokens: 0, cost: 0, clearHistory: true, clearScreen: true, output: `deleted ${deleted} chat(s)` };
+  }
+
+  if (query === 'delete' || query === 'd') {
+    if (!ctx.chat || ctx.chat.messages.length === 0) {
+      return { output: 'nothing to delete' };
+    }
+    deleteChat(ctx.chat.id);
+    return { chat: null, tokens: 0, cost: 0, clearHistory: true, clearScreen: true, output: 'deleted' };
+  }
+
   if (!query) {
-    return { output: 'usage: /chat <number or search>' };
+    if (allChats.length === 0) {
+      return { output: 'no saved chats' };
+    }
+    const lines: string[] = ['saved chats:'];
+    for (let i = 0; i < Math.min(allChats.length, PAGE_SIZE); i++) {
+      const c = allChats[i];
+      const date = new Date(c.updatedAt).toLocaleDateString();
+      const prefix = ctx.chat && c.id === ctx.chat.id ? '› ' : '  ';
+      lines.push(`${prefix}${i + 1}. ${c.title} (${date})`);
+    }
+    if (allChats.length > PAGE_SIZE) {
+      lines.push(`  ... and ${allChats.length - PAGE_SIZE} more`);
+    }
+    lines.push('\n/chat <n> | new | delete | delete all');
+    return { output: lines.join('\n') };
   }
 
   const num = Number.parseInt(query, 10);
-  const allChats = listChats();
   let found: Chat | undefined;
 
   if (!Number.isNaN(num) && num > 0 && num <= allChats.length) {
@@ -19,7 +58,7 @@ export const chat: CommandHandler = (_ctx, args) => {
   }
 
   if (!found) {
-    return { output: 'chat not found' };
+    return { output: 'not found' };
   }
 
   const result: CommandResult = {

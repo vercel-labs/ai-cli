@@ -3,6 +3,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { log as debug } from '../utils/debug.js';
 import { confirm } from './confirm.js';
+import { mask } from '../utils/mask.js';
 
 const cwd = process.cwd();
 const TIMEOUT = 60000;
@@ -10,7 +11,7 @@ const INACTIVITY = 30000;
 
 export const runCommand = tool({
   description:
-    'Run a command that exits quickly (build, install, test, lint, git). NEVER use for dev/start/watch/serve - those need startProcess.',
+    'Run shell commands. Use for: date, pwd, ls, git, npm/bun commands, build, test, etc. NEVER use for dev/start/watch/serve - those need startProcess.',
   inputSchema: z.object({
     command: z.string().describe('The shell command to execute'),
   }),
@@ -64,7 +65,7 @@ export const runCommand = tool({
         clearInterval(checkInactivity);
         clearTimeout(totalTimeout);
 
-        const output = chunks.join('').trim();
+        const output = mask(chunks.join('').trim());
         const result = output ? `$ ${command}\n${output}` : `$ ${command}`;
 
         if (killed) {

@@ -1,145 +1,223 @@
 # ai-cli
 
-AI CLI using Vercel AI Gateway
+minimal terminal AI assistant
 
-## Installation
+## install
 
 ```bash
 npm install -g ai-cli
 ```
 
-## Setup
+## setup
 
 ```bash
 ai init
 ```
 
-Get your API key from [Vercel AI Gateway](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys&title=Go+to+AI+Gateway)
+get your API key from [Vercel AI Gateway](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys&title=Go+to+AI+Gateway)
 
-## Usage
+## usage
 
 ```bash
 ai                           # interactive mode
 ai "hello"                   # single message
 ai -m gpt-5 "hello"          # use specific model
-ai --image ./img.png "what?" # analyze image
-ai -l                        # list available models
+ai --image ./img.png "what?" # analyze image (single message)
+ai -l                        # list models
 echo "explain this" | ai     # pipe input
+
+# in interactive mode, ctrl+v to paste image from clipboard
 ```
 
-## Options
+## options
 
 - `-m, --model` - model (default: anthropic/claude-sonnet-4.5)
-- `--image` - attach image file (png, jpg, gif, webp)
-- `-l, --list` - list available models
+- `--image` - attach image file
+- `-l, --list` - list models
 - `-h, --help` - help
 
-## Interactive Mode
+## commands
 
-Type `ai` to enter interactive mode with file access and chat history.
+### chat
+- `/new` - new chat
+- `/chats` - list chats
+- `/chat <n>` - load chat
+- `/delete` - delete chat
+- `/clear` - clear screen
 
-### Commands
+### files
+- `/copy` - copy response
+- `/rollback` - undo changes
 
-**Chat**
-- `/new` - start new chat
-- `/chats` - list saved chats
-- `/chat <n>` - load chat by number
-- `/delete` - delete current chat
-- `/purge` - delete all chats
-- `/clear` - clear screen and history
+### git
+- `/git status` - file status
+- `/git diff` - unstaged changes
+- `/git staged` - staged changes
+- `/git branch` - list/switch branches
+- `/git commit` - ai-generated commit message
+- `/git push` - push to remote
+- `/git log` - recent commits
+- `/git stash` - stash/pop changes
 
-**Files**
-- `/copy` - copy last response to clipboard
-- `/rollback` - view/undo file changes
-- `/diff` - view recent file changes
+### context
+- `/usage` - token usage and cost
+- `/compress` - compress history
 
-**Context**
-- `/context` - show token usage and loaded context files
-- `/compress` - compress chat history
-- `/usage` - show chat stats and cost
+### model
+- `/list` - select model
+- `/model` - current model
 
-**Models**
-- `/list` - select model (with search)
-- `/model` - show current model
+### system
+- `/processes` - background processes
+- `/memory` - saved memories
+- `/mcp` - mcp servers
+- `/settings` - preferences
+- `/alias` - shortcuts
+- `/help` - commands
 
-**Processes**
-- `/processes` - manage background processes
+## skills
 
-**Memory**
-- `/memory` - view saved memories
-- `/memory clear` - clear all memories
+skills extend the AI with specialized capabilities. they follow the [Agent Skills](https://agentskills.io) open standard.
 
-**Settings**
-- `/alias` - manage command shortcuts
-- `/settings` - configure preferences
-- `/init` - setup api key
-- `/credits` - show balance
-- `/storage` - show storage info
-- `/version` - show version
-- `/help` - show commands
-
-**Exit**
-- `exit` or `quit`
-
-## Context Files
-
-The CLI automatically loads context files into the AI's system prompt:
-
-- `CLAUDE.md` - project instructions
-- `CLAUDE.local.md` - local instructions (not committed)
-- `AGENTS.md` - agent-specific instructions
-- `.cursorrules` - cursor rules
-- `.cursor/rules/*.md` - cursor rule files (supports globs and alwaysApply)
-- `~/CLAUDE.md` - global instructions
-
-Use `/context` to see which files are loaded.
-
-## Aliases
-
-Create custom command shortcuts:
+### managing skills
 
 ```bash
-/alias h help      # /h → /help
-/alias c copy      # /c → /copy
-/alias m model     # /m → /model
-/alias -d h        # remove alias
-/alias             # list all aliases
+/skills                    # list installed
+/skills add <url>          # install from git
+/skills remove <name>      # uninstall
+/skills show <name>        # view content
+/skills create <name>      # create new
+/skills path               # show directory
 ```
 
-Aliases are stored in `~/.airc` and shown in `/help`.
+### installing skills
 
-## Tools
+shorthand (like skills.sh):
 
-The AI can interact with your system:
+```bash
+/skills add vercel-labs/agent-skills/skills/react-best-practices
+/skills add anthropics/skills/skills/pdf
+/skills add owner/repo
+```
 
-**Files**
-- read/write/edit files
-- create folders
-- rename/move/copy/delete files
-- search in files
-- find files by pattern
+full github url:
 
-**Commands**
-- run shell commands (build, test, install)
-- start background processes (dev servers)
-- manage running processes
+```bash
+/skills add https://github.com/anthropics/skills/tree/main/skills/pdf
+```
 
-**Memory**
-- say "remember X" to save facts across sessions
-- ask "what do you remember" to recall
+local path:
 
-## Switching Models
+```bash
+/skills add /path/to/skill
+```
 
-Supports fuzzy matching:
+### creating skills
+
+```bash
+/skills create my-skill
+```
+
+creates `~/.ai-cli/skills/my-skill/SKILL.md`
+
+## rules
+
+custom instructions loaded into every conversation:
+
+- `~/.ai-cli/AGENTS.md` - global rules
+- `./AGENTS.md` - project rules
+
+manage with `/rules`:
+
+```bash
+/rules show    # view rules
+/rules edit    # open in editor
+/rules clear   # remove rules
+/rules path    # show path
+```
+
+## tools
+
+the AI can:
+
+**files** - read, write, edit, delete, copy, rename, search
+
+**commands** - run shell commands, background processes
+
+**memory** - save facts across sessions ("remember X")
+
+**web** - search, fetch urls, check weather
+
+## mcp
+
+connect to external tools via [model context protocol](https://modelcontextprotocol.io):
+
+```bash
+/mcp                                    # list servers
+/mcp add weather http https://mcp.example.com
+/mcp add db stdio npx @example/mcp-db
+/mcp remove weather                     # remove server
+/mcp reload                             # reconnect all
+```
+
+### transports
+
+- **http** - HTTP endpoint
+- **sse** - server-sent events
+- **stdio** - spawn local process
+
+### config
+
+servers stored in `~/.ai-cli/mcp.json`:
+
+```json
+{
+  "servers": {
+    "weather": {
+      "type": "http",
+      "url": "https://mcp.example.com"
+    },
+    "db": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@example/mcp-db"]
+    }
+  }
+}
+```
+
+environment variables expand with `${VAR}` or `${VAR:-default}`.
+
+mcp tools are prefixed with server name (e.g., `weather_get_forecast`).
+
+## models
+
+supports fuzzy matching:
 
 ```bash
 ai -m claude-4       # → anthropic/claude-sonnet-4
 ai -m gpt-5          # → openai/gpt-5
-ai -m sonnet         # → finds a sonnet model
+ai -m sonnet         # → finds sonnet model
 ```
 
-## Storage
+## storage
 
-- Config: `~/.airc`
-- Chats: `~/.ai-chats/`
-- Memories: `~/.ai-memories`
+all data in `~/.ai-cli/`:
+
+```
+~/.ai-cli/
+├── config.json      # settings and api key
+├── mcp.json         # mcp servers
+├── chats/           # chat history
+├── memories.json    # saved memories
+├── skills/          # installed skills
+└── AGENTS.md        # global rules
+```
+
+## environment
+
+alternatively set your API key:
+
+```bash
+export AI_GATEWAY_API_KEY=your-key
+```

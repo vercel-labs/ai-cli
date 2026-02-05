@@ -18,9 +18,7 @@ function loadGitignore(dir: string): Set<string> {
         }
       }
     }
-  } catch {
-    // ignore errors reading gitignore
-  }
+  } catch {}
   return patterns;
 }
 
@@ -84,8 +82,8 @@ export const listDirectory = tool({
       const root = path.basename(fullPath) || fullPath;
       const tree = `${root}/\n${lines.join('\n')}`;
       return { tree, path: fullPath };
-    } catch (e) {
-      return { error: `Failed to list directory: ${(e as Error).message}` };
+    } catch {
+      return { error: `list failed: ${dirPath}` };
     }
   },
 });

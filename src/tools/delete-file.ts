@@ -40,8 +40,8 @@ export const deleteFile = tool({
           fs.unlinkSync(fullPath);
         }
         deleted.push(filePath);
-      } catch (e) {
-        errors.push(`${filePath}: ${(e as Error).message}`);
+      } catch {
+        errors.push(`failed: ${filePath}`);
       }
     }
 

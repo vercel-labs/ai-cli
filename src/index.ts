@@ -4,10 +4,11 @@ import { initCommand } from './commands/init.js';
 import { inkCommand } from './commands/ink.js';
 import { listModels } from './commands/models.js';
 import { getApiKey, getModel } from './config/index.js';
+import { getSetting } from './config/settings.js';
 import { readStdin, showHelp } from './utils/index.js';
 import { resolveModel } from './utils/models.js';
 
-// @ts-ignore - defined by esbuild
+declare const __VERSION__: string;
 const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.2';
 
 interface Args {
@@ -49,8 +50,9 @@ async function main() {
     process.exit(0);
   }
 
-  const defaultModel = 'anthropic/claude-sonnet-4.5';
-  const savedModel = getModel();
+  const hardcodedDefault = 'anthropic/claude-sonnet-4.5';
+  const settingsModel = getSetting('model');
+  const savedModel = getModel() || settingsModel || hardcodedDefault;
 
   if (args._.includes('init')) {
     await initCommand();
@@ -59,7 +61,7 @@ async function main() {
       process.env.AI_GATEWAY_API_KEY = apiKey;
       globalThis.AI_SDK_LOG_WARNINGS = false;
       console.log();
-      await inkCommand({ model: savedModel || defaultModel, version });
+      await inkCommand({ model: savedModel, version });
     }
     return;
   }
@@ -76,7 +78,7 @@ async function main() {
   const modelArg = args['--model'];
   const model = modelArg
     ? await resolveModel(modelArg)
-    : savedModel || defaultModel;
+    : savedModel;
 
   let message = args._.join(' ');
 
