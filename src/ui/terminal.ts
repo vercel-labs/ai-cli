@@ -400,7 +400,9 @@ export async function terminal(model: string, version: string): Promise<void> {
         printHeader: () => {},
       };
 
-      showStatus('...');
+      if (resolved === 'git' && args?.startsWith('commit')) {
+        showStatus('checking changes...');
+      }
       const res = await handler(ctx, args);
       if (statusText) {
         process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
