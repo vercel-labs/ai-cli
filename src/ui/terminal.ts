@@ -52,7 +52,15 @@ export async function terminal(model: string, version: string): Promise<void> {
   let pendingImage: { data: string; mimeType: string } | null = null;
   let capabilities: ModelCapabilities = { vision: true, tools: true, reasoning: false };
 
-  getModelCapabilities(currentModel).then(c => { capabilities = c; }).catch(() => {});
+  async function updateCapabilities(modelId: string): Promise<void> {
+    try {
+      capabilities = await getModelCapabilities(modelId);
+    } catch {
+      capabilities = { vision: true, tools: true, reasoning: false };
+    }
+  }
+
+  updateCapabilities(currentModel);
 
   function updateTitle() {
     const modelShort = currentModel.split('/').pop() || currentModel;
@@ -69,6 +77,10 @@ export async function terminal(model: string, version: string): Promise<void> {
     terminal: true,
     escapeCodeTimeout: 50,
   });
+
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
 
   process.stdin.on('data', (chunk: Buffer) => {
     const str = chunk.toString();
@@ -317,7 +329,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         if (selected) {
           saveModel(selected);
           currentModel = selected;
-          getModelCapabilities(selected).then(c => { capabilities = c; }).catch(() => {});
+          await updateCapabilities(selected);
           updateTitle();
           addMessage('info', `switched to ${selected}`);
           printMessage({ type: 'info', content: `switched to ${selected}` });
@@ -384,7 +396,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         }
         if (res.model) {
           currentModel = res.model;
-          getModelCapabilities(res.model).then(c => { capabilities = c; }).catch(() => {});
+          await updateCapabilities(res.model);
         }
         if (res.chat !== undefined) chat = res.chat;
         if (res.tokens !== undefined) tokens = res.tokens;
