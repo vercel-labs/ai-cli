@@ -246,20 +246,6 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     callbacks.onPending('');
   }
 
-  if (silent) {
-    chat.messages.push({ role: 'user', content: message });
-    if (chat.messages.length === 2 && chat.title === 'New chat') {
-      chat.title = message.slice(0, 50).trim();
-    }
-    result.usage.then(u => {
-      if (u?.totalTokens) callbacks.onTokens(t => t + (u.totalTokens ?? 0));
-    }).catch(() => {});
-    (result.providerMetadata as Promise<ProviderMeta | undefined>).then(m => {
-      if (m?.gateway?.cost) callbacks.onCost(c => c + (Number.parseFloat(m.gateway!.cost!) || 0));
-    }).catch(() => {});
-    return chat;
-  }
-
   let response;
   try {
     response = await result.response;
@@ -268,7 +254,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     throw e;
   }
 
-  const needsContinuation = !buffer && (searchResults || fetchContent);
+  const needsContinuation = !silent && !buffer && (searchResults || fetchContent);
 
   if (needsContinuation) {
     callbacks.onStatus('thinking...');
