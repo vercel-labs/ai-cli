@@ -16,7 +16,7 @@ export const renameFile = tool({
       const fullNewPath = path.resolve(newPath);
 
       if (!fs.existsSync(fullOldPath)) {
-        return { error: `File not found: ${oldPath}` };
+        return { error: `not found: ${oldPath}` };
       }
 
       const newDir = path.dirname(fullNewPath);
@@ -27,8 +27,8 @@ export const renameFile = tool({
       saveRename(oldPath, newPath);
       fs.renameSync(fullOldPath, fullNewPath);
       return { message: `renamed to ${newPath}`, silent: true };
-    } catch (e) {
-      return { error: `Failed to rename: ${(e as Error).message}` };
+    } catch {
+      return { error: `rename failed: ${oldPath}` };
     }
   },
 });

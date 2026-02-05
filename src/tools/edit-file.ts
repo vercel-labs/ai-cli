@@ -31,13 +31,13 @@ export const editFile = tool({
       const fullPath = path.resolve(filePath);
 
       if (!fs.existsSync(fullPath)) {
-        return { error: `File not found: ${filePath}` };
+        return { error: `not found: ${filePath}` };
       }
 
       const content = fs.readFileSync(fullPath, 'utf-8');
 
       if (!content.includes(oldText)) {
-        return { error: 'Could not find text to replace. Check whitespace and context.' };
+        return { error: 'text not found' };
       }
 
       const diff = shortDiff(oldText, newText);
@@ -51,8 +51,8 @@ export const editFile = tool({
       fs.writeFileSync(fullPath, updated, 'utf-8');
 
       return { message: `edited ${filePath}`, silent: true };
-    } catch (e) {
-      return { error: `Failed to edit: ${(e as Error).message}` };
+    } catch {
+      return { error: `edit failed: ${filePath}` };
     }
   },
 });

@@ -20,7 +20,7 @@ export const fileInfo = tool({
       const fullPath = path.resolve(filePath);
 
       if (!fs.existsSync(fullPath)) {
-        return { error: `Not found: ${filePath}` };
+        return { error: `not found: ${filePath}` };
       }
 
       const stats = fs.statSync(fullPath);
@@ -35,8 +35,8 @@ export const fileInfo = tool({
         modified: stats.mtime.toISOString(),
         created: stats.birthtime.toISOString(),
       };
-    } catch (e) {
-      return { error: `Failed to get info: ${(e as Error).message}` };
+    } catch {
+      return { error: `info failed: ${filePath}` };
     }
   },
 });

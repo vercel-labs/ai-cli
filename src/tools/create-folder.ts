@@ -13,13 +13,13 @@ export const createFolder = tool({
       const fullPath = path.resolve(folderPath);
 
       if (fs.existsSync(fullPath)) {
-        return { error: `Folder already exists: ${folderPath}` };
+        return { error: `exists: ${folderPath}` };
       }
 
       fs.mkdirSync(fullPath, { recursive: true });
       return { message: `created ${folderPath}`, silent: true };
-    } catch (e) {
-      return { error: `Failed to create folder: ${(e as Error).message}` };
+    } catch {
+      return { error: `create failed: ${folderPath}` };
     }
   },
 });

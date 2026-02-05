@@ -69,12 +69,12 @@ export const findFiles = tool({
       findInDir(searchDir, searchDir, pattern, results, 100);
 
       if (results.length === 0) {
-        return { files: [], message: 'No files found' };
+        return { files: [], message: 'No files found', silent: true };
       }
 
       return { files: results, total: results.length };
-    } catch (e) {
-      return { error: `Find failed: ${(e as Error).message}` };
+    } catch {
+      return { error: `find failed: ${pattern}` };
     }
   },
 });

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { mask } from '../utils/mask.js';
 
 export const readFile = tool({
   description:
@@ -12,7 +13,7 @@ export const readFile = tool({
   execute: async ({ filePath }) => {
     try {
       const fullPath = path.resolve(filePath);
-      const content = fs.readFileSync(fullPath, 'utf-8');
+      const content = mask(fs.readFileSync(fullPath, 'utf-8'));
       const lines = content.split('\n').length;
       if (lines > 500) {
         return {
@@ -22,8 +23,8 @@ export const readFile = tool({
         };
       }
       return { content, truncated: false, totalLines: lines };
-    } catch (e) {
-      return { error: `Failed to read file: ${(e as Error).message}` };
+    } catch {
+      return { error: `read failed: ${filePath}` };
     }
   },
 });
