@@ -48,11 +48,6 @@ const details: Record<string, string> = {
   /settings search parallel|perplexity
   /settings steps <1-50>        max tool steps`,
 
-  image: `/image
-  /image             paste image from clipboard
-  /image <path>      attach image from file
-  /image clear       remove attached image`,
-
   skills: `/skills
   /skills            list installed skills
   /skills add <url>  install skill
@@ -94,7 +89,6 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /chat        chats',
     '  /clear       clear chat',
     '  /copy        copy response',
-    '  /image       attach image',
     '  /rollback    undo changes',
     '  /diff        view changes',
     '  /compress    compress history',
@@ -109,6 +103,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /info        info',
     '  exit         quit',
     '',
+    'ctrl+v to paste image',
     '/help <cmd> for details',
   ];
 

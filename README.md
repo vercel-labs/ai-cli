@@ -22,9 +22,11 @@ get your API key from [Vercel AI Gateway](https://vercel.com/d?to=%2F%5Bteam%5D%
 ai                           # interactive mode
 ai "hello"                   # single message
 ai -m gpt-5 "hello"          # use specific model
-ai --image ./img.png "what?" # analyze image
+ai --image ./img.png "what?" # analyze image (single message)
 ai -l                        # list models
 echo "explain this" | ai     # pipe input
+
+# in interactive mode, ctrl+v to paste image from clipboard
 ```
 
 ## options
@@ -45,7 +47,6 @@ echo "explain this" | ai     # pipe input
 
 ### files
 - `/copy` - copy response
-- `/image` - attach image (clipboard or path)
 - `/rollback` - undo changes
 - `/diff` - view changes
 

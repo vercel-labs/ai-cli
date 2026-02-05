@@ -6,7 +6,6 @@ import { compress } from './compress.js';
 import { copy } from './copy.js';
 import { diff } from './diff.js';
 import { help } from './help.js';
-import { image, getPendingImage, hasPendingImage, clearPendingImage } from './image.js';
 import { info } from './info.js';
 import { init } from './init.js';
 import { logsFull } from './logs.js';
@@ -22,7 +21,7 @@ import { rollback } from './rollback.js';
 import { usage } from './usage.js';
 import { xix } from './xix.js';
 
-export { restoreHistory, getPendingImage, hasPendingImage, clearPendingImage };
+export { restoreHistory };
 export type { CommandHandler, CommandResult, Context } from './types.js';
 
 export const commands: Record<string, CommandHandler> = {
@@ -46,8 +45,6 @@ export const commands: Record<string, CommandHandler> = {
   rules,
   skills,
   alias,
-  image,
-  paste: image,
   xix,
   'logs-full': logsFull,
   logs: logsFull,
