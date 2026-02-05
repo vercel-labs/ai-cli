@@ -81,7 +81,7 @@ export async function getModelCapabilities(modelId: string): Promise<ModelCapabi
   const tags = model?.tags || [];
 
   const capabilities: ModelCapabilities = {
-    vision: tags.includes('vision'),
+    vision: tags.includes('vision') || tags.includes('file-input'),
     tools: tags.includes('tool-use'),
     reasoning: tags.includes('reasoning'),
   };
