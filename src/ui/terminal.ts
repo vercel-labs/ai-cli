@@ -462,12 +462,17 @@ export async function terminal(model: string, version: string): Promise<void> {
           messages.length = 0;
           const display = res.chat.display?.length ? res.chat.display : res.chat.messages.map((m) => ({ type: m.role, content: m.content }));
           const spacing = getSetting('spacing');
+          let lastType = '';
           for (const m of display) {
+            if (lastType === 'info' && m.type !== 'info') {
+              process.stdout.write('\n'.repeat(spacing));
+            }
             addMessage(m.type as MessageType, m.content);
             printMessage({ type: m.type as MessageType, content: m.content });
             if (m.type !== 'user' && m.type !== 'info') {
               process.stdout.write('\n'.repeat(spacing));
             }
+            lastType = m.type;
           }
         } else if (chat) {
           chat.display = messages.map((m) => ({ type: m.type, content: m.content }));
