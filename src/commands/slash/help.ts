@@ -28,6 +28,7 @@ const details: Record<string, string> = {
   /git branch <n>    switch/create branch
   /git commit        ai reads changes and commits
   /git push          push to remote
+  /git pull          pull from remote
   /git log [n]       recent commits
   /git stash         stash changes
   /git stash pop     pop stash`,

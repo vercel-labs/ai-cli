@@ -1,5 +1,5 @@
 import { type ModelMessage, streamText, stepCountIs } from 'ai';
-import { getTools, loadMcpTools } from '../tools/index.js';
+import { getTools, loadMcpTools, setSlashModel } from '../tools/index.js';
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
 import { getContextWindow, shouldCompress, summarizeHistory } from '../utils/context.js';
@@ -71,6 +71,7 @@ interface ProviderMeta {
 export async function streamChat(options: StreamOptions): Promise<Chat> {
   const { model, message, history, tokens, summary, pm, callbacks } = options;
   let chat = options.chat ?? getOrCreateChat(model);
+  setSlashModel(model);
 
   debug(`input: ${message.slice(0, 50)}${message.length > 50 ? '...' : ''}`);
   const historyLen = history.length;
@@ -108,17 +109,6 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   const steps = getSetting('steps') || 10;
   const useTools = options.hasTools !== false;
-  const mcpTools = useTools ? await loadMcpTools() : {};
-  const result = streamText({
-    model,
-    system: sys,
-    messages: history,
-    tools: useTools ? getTools(mcpTools) : undefined,
-    stopWhen: stepCountIs(steps),
-    providerOptions: { openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' } },
-    headers: { 'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli', 'X-Title': 'ai-cli' },
-    abortSignal: options.abortSignal,
-  });
 
   let silent = false;
   let buffer = '';
@@ -126,6 +116,24 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   let streamError: Error | null = null;
   let searchResults: Array<{ title?: string; url?: string; snippet?: string; excerpt?: string }> | null = null;
   let fetchContent: string | null = null;
+
+  let result;
+  try {
+    const mcpTools = useTools ? await loadMcpTools() : {};
+    result = streamText({
+      model,
+      system: sys,
+      messages: history,
+      tools: useTools ? getTools(mcpTools) : undefined,
+      stopWhen: stepCountIs(steps),
+      providerOptions: { openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' } },
+      headers: { 'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli', 'X-Title': 'ai-cli' },
+      abortSignal: options.abortSignal,
+    });
+  } catch (e) {
+    history.length = historyLen;
+    throw e;
+  }
 
   try {
     for await (const part of result.fullStream) {

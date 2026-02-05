@@ -135,6 +135,14 @@ export const git: CommandHandler = (ctx, args) => {
     return { output: result.stderr?.includes('Everything up-to-date') ? 'up to date' : 'pushed' };
   }
 
+  if (sub === 'pull') {
+    const result = spawnSync('git', ['pull'], { encoding: 'utf-8' });
+    if (result.status !== 0) {
+      return { output: result.stderr?.trim() || 'pull failed' };
+    }
+    return { output: result.stdout?.includes('Already up to date') ? 'up to date' : 'pulled' };
+  }
+
   if (sub === 'log' || sub === 'l') {
     const n = param ? parseInt(param, 10) : 10;
     const result = spawnSync('git', ['log', `--oneline`, `-${isNaN(n) ? 10 : n}`], { encoding: 'utf-8' });
@@ -192,5 +200,5 @@ export const git: CommandHandler = (ctx, args) => {
     return { output: formatBranches(result.stdout || '') };
   }
 
-  return { output: 'usage: /git diff|staged|status|branch|commit|push|log|stash' };
+  return { output: 'usage: /git diff|staged|status|branch|commit|push|pull|log|stash' };
 };

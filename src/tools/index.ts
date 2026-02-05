@@ -14,10 +14,13 @@ import { renameFile } from './rename-file.js';
 import { runCommand } from './run-command.js';
 import { getSearchTool } from './search.js';
 import { searchInFiles } from './search-in-files.js';
+import { slash, setSlashModel } from './slash.js';
 import { startProcess } from './start-process.js';
 import { weather } from './weather.js';
 import { writeFile } from './write-file.js';
 import { getMcpTools } from '../utils/mcp.js';
+
+export { setSlashModel };
 
 let cachedMcpTools: Record<string, unknown> | null = null;
 
@@ -52,6 +55,7 @@ export function getTools(mcpTools?: Record<string, unknown>) {
     readProcessLogs,
     killProcess,
     memory,
+    slash,
     ...getSearchTool(),
     ...(mcpTools || {}),
   };

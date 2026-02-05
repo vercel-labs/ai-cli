@@ -57,7 +57,7 @@ export function resolveCommand(cmd: string): string {
   return aliases[cmd] || cmd;
 }
 
-const gitSubs = ['diff', 'staged', 'status', 'branch', 'commit', 'push', 'log', 'stash'];
+const gitSubs = ['diff', 'staged', 'status', 'branch', 'commit', 'push', 'pull', 'log', 'stash'];
 
 export function getCompletions(line: string): [string[], string] {
   if (!line.startsWith('/')) return [[], line];
