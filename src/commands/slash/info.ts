@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { listChats } from '../../config/chats.js';
+import { GATEWAY_URL } from '../../utils/models.js';
 import type { CommandHandler } from './types.js';
 
 function formatBytes(bytes: number): string {
@@ -21,7 +22,7 @@ function getDirSize(dirPath: string): number {
   return size;
 }
 
-export const storage: CommandHandler = () => {
+export const info: CommandHandler = async (ctx) => {
   const home = os.homedir();
   const configPath = path.join(home, '.airc');
   const chatsDir = path.join(home, '.ai-chats');
@@ -32,11 +33,31 @@ export const storage: CommandHandler = () => {
   const chatsSize = getDirSize(chatsDir);
   const chatCount = listChats().length;
 
-  const output = `storage:
-  config: ${configPath} (${formatBytes(configSize)})
-  chats:  ${chatsDir}/ (${formatBytes(chatsSize)}, ${chatCount} chats)
-  total:  ${formatBytes(configSize + chatsSize)}
+  let balance = '...';
+  try {
+    const res = await fetch(`${GATEWAY_URL}/v1/credits`, {
+      headers: {
+        Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY}`,
+      },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { balance: string };
+      balance = `$${Number.parseFloat(data.balance).toFixed(2)}`;
+    }
+  } catch {}
 
-use /purge to delete all chats`;
-  return { output };
+  const link = '\x1b]8;;https://x.com/nishimiya\x07x.com/nishimiya\x1b]8;;\x07';
+  const lines = [
+    `ai v${ctx.version}`,
+    `model: ${ctx.model}`,
+    `balance: ${balance}`,
+    '',
+    'storage:',
+    `  config: ${formatBytes(configSize)}`,
+    `  chats:  ${formatBytes(chatsSize)} (${chatCount} chats)`,
+    '',
+    `feedback: ${link}`,
+  ];
+
+  return { output: lines.join('\n') };
 };

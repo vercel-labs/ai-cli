@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
+import { CHATS_DIR, ensureChatsDir } from './paths.js';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'tool';
@@ -23,14 +23,6 @@ export interface Chat {
   summary?: string;
   createdAt: number;
   updatedAt: number;
-}
-
-const CHATS_DIR = path.join(os.homedir(), '.ai-chats');
-
-function ensureChatsDir() {
-  if (!fs.existsSync(CHATS_DIR)) {
-    fs.mkdirSync(CHATS_DIR, { recursive: true });
-  }
 }
 
 function getChatPath(id: string) {
@@ -88,9 +80,7 @@ export function listChats(): Chat[] {
       try {
         const data = fs.readFileSync(path.join(CHATS_DIR, file), 'utf-8');
         chats.push(JSON.parse(data) as Chat);
-      } catch {
-        // skip invalid files
-      }
+      } catch {}
     }
     return chats.sort((a, b) => b.updatedAt - a.updatedAt);
   } catch {

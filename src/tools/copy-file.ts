@@ -15,7 +15,7 @@ export const copyFile = tool({
       const fullDestPath = path.resolve(destPath);
 
       if (!fs.existsSync(fullSourcePath)) {
-        return { error: `Source file not found: ${sourcePath}` };
+        return { error: `not found: ${sourcePath}` };
       }
 
       const destDir = path.dirname(fullDestPath);
@@ -25,8 +25,8 @@ export const copyFile = tool({
 
       fs.copyFileSync(fullSourcePath, fullDestPath);
       return { message: `copied to ${destPath}`, silent: true };
-    } catch (e) {
-      return { error: `Failed to copy: ${(e as Error).message}` };
+    } catch {
+      return { error: `copy failed: ${sourcePath}` };
     }
   },
 });

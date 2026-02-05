@@ -1,27 +1,26 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
 import { tool } from 'ai';
 import { z } from 'zod';
-
-const memoryFile = path.join(os.homedir(), '.ai-memories');
+import { MEMORIES_FILE, ensureBaseDir } from '../config/paths.js';
 
 function loadMemories(): string[] {
   try {
-    if (fs.existsSync(memoryFile)) {
-      return fs.readFileSync(memoryFile, 'utf-8').split('\n').filter(Boolean);
+    if (fs.existsSync(MEMORIES_FILE)) {
+      const data = JSON.parse(fs.readFileSync(MEMORIES_FILE, 'utf-8'));
+      return Array.isArray(data) ? data : [];
     }
   } catch {}
   return [];
 }
 
 function saveMemories(memories: string[]): void {
-  fs.writeFileSync(memoryFile, memories.join('\n') + '\n', 'utf-8');
+  ensureBaseDir();
+  fs.writeFileSync(MEMORIES_FILE, JSON.stringify(memories, null, 2), 'utf-8');
 }
 
 export const memory = tool({
   description:
-    'Save or recall facts for future sessions. Stored in ~/.ai-memories. Use when user says "remember". After saving, do NOT respond - stay completely silent.',
+    'Save or recall user preferences for future sessions. ONLY use when user explicitly says "remember this" or "save this". Do NOT use for questions like "what time is it" - use runCommand instead.',
   inputSchema: z.object({
     action: z.enum(['save', 'list', 'clear']).describe('Action to perform'),
     fact: z.string().optional().describe('Fact to save (required for save)'),
@@ -48,8 +47,8 @@ export const memory = tool({
     }
 
     if (action === 'clear') {
-      if (fs.existsSync(memoryFile)) {
-        fs.unlinkSync(memoryFile);
+      if (fs.existsSync(MEMORIES_FILE)) {
+        fs.unlinkSync(MEMORIES_FILE);
       }
       return { message: 'memories cleared', silent: true };
     }

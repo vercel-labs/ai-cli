@@ -7,7 +7,14 @@ export interface Model {
   tags?: string[];
 }
 
+export interface ModelCapabilities {
+  vision: boolean;
+  tools: boolean;
+  reasoning: boolean;
+}
+
 let cachedModels: Model[] | null = null;
+const capabilitiesCache: Map<string, ModelCapabilities> = new Map();
 
 export async function fetchModels(): Promise<Model[]> {
   if (cachedModels) return cachedModels;
@@ -62,4 +69,31 @@ export async function resolveModel(query: string): Promise<string> {
 
   console.error(`no model found for "${query}"`);
   process.exit(1);
+}
+
+export async function getModelCapabilities(modelId: string): Promise<ModelCapabilities> {
+  if (capabilitiesCache.has(modelId)) {
+    return capabilitiesCache.get(modelId)!;
+  }
+
+  const models = await fetchModels();
+  const model = models.find((m) => m.id === modelId);
+  const tags = model?.tags || [];
+
+  const capabilities: ModelCapabilities = {
+    vision: tags.includes('vision') || tags.includes('file-input'),
+    tools: tags.includes('tool-use'),
+    reasoning: tags.includes('reasoning'),
+  };
+
+  capabilitiesCache.set(modelId, capabilities);
+  return capabilities;
+}
+
+export function hasVision(capabilities: ModelCapabilities): boolean {
+  return capabilities.vision;
+}
+
+export function hasTools(capabilities: ModelCapabilities): boolean {
+  return capabilities.tools;
 }
