@@ -1,34 +1,77 @@
 import * as fs from 'node:fs';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createUnifiedDiff } from '../../utils/diff.js';
 import { getStack, getOperation } from '../../utils/undo.js';
 import type { CommandHandler } from './types.js';
 
+const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
+const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
+const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
+const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+
+function formatGitDiff(raw: string): string {
+  const chunks = raw.split(/^diff --git /m).filter(Boolean);
+  const formatted: string[] = [];
+  const maxLines = 40;
+
+  for (const chunk of chunks) {
+    const lines = chunk.split('\n');
+    const headerLine = lines[0] || '';
+    const match = headerLine.match(/b\/(.+)$/);
+    const file = match ? match[1] : headerLine;
+
+    const adds = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
+    const dels = lines.filter(l => l.startsWith('-') && !l.startsWith('---')).length;
+
+    if (adds + dels > maxLines) {
+      const stat = `+${adds} -${dels}`;
+      formatted.push(`${cyan(file)} ${dim(stat)}`);
+      continue;
+    }
+
+    formatted.push(cyan(file));
+
+    for (const line of lines.slice(1)) {
+      if (line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')) {
+        continue;
+      } else if (line.startsWith('@@')) {
+        continue;
+      } else if (line.startsWith('-')) {
+        formatted.push(red(line));
+      } else if (line.startsWith('+')) {
+        formatted.push(green(line));
+      }
+    }
+    formatted.push('');
+  }
+
+  return formatted.join('\n').trim();
+}
+
 export const diff: CommandHandler = (_ctx, args) => {
   const arg = args?.trim();
 
-  if (arg === 'git') {
-    try {
-      const output = execSync('git diff', { encoding: 'utf-8', maxBuffer: 1024 * 1024 });
-      if (!output.trim()) {
-        return { output: 'no unstaged changes' };
-      }
-      return { output: output.trim() };
-    } catch {
-      return { output: 'not a git repository' };
-    }
-  }
+  if (arg === 'git' || arg === 'staged') {
+    const gitArgs = arg === 'staged'
+      ? ['diff', '--staged', '--', ':!dist', ':!*.min.js', ':!*.min.css', ':!package-lock.json', ':!pnpm-lock.yaml', ':!yarn.lock']
+      : ['diff', '--', ':!dist', ':!*.min.js', ':!*.min.css', ':!package-lock.json', ':!pnpm-lock.yaml', ':!yarn.lock'];
 
-  if (arg === 'staged') {
-    try {
-      const output = execSync('git diff --staged', { encoding: 'utf-8', maxBuffer: 1024 * 1024 });
-      if (!output.trim()) {
-        return { output: 'no staged changes' };
-      }
-      return { output: output.trim() };
-    } catch {
-      return { output: 'not a git repository' };
+    const result = spawnSync('git', gitArgs, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+    if (result.error) {
+      return { output: 'git not found' };
     }
+    if (result.status !== 0) {
+      const err = result.stderr?.trim() || '';
+      if (err.includes('not a git repository')) {
+        return { output: 'not a git repository' };
+      }
+      return { output: err || 'git error' };
+    }
+    const output = result.stdout?.trim() || '';
+    if (!output) {
+      return { output: arg === 'staged' ? 'no staged changes' : 'no unstaged changes' };
+    }
+    return { output: formatGitDiff(output) };
   }
 
   const items = getStack();
