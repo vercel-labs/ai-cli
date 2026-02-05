@@ -1,10 +1,16 @@
+import * as os from 'node:os';
 import { loadContextFiles, buildContextPrompt } from './context.js';
-import { getSetting } from '../config/settings.js';
+import { loadAllSkills, matchSkills, type Skill } from '../skills/index.js';
 
-export function buildSystemPrompt(pm: { pm: string; run: string }, summary?: string): string {
+export function buildSystemPrompt(pm: { pm: string; run: string }, summary?: string, userMessage?: string): string {
+  const cwd = process.cwd();
+  const platform = os.platform();
+  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const contextFiles = loadContextFiles();
   const contextPrompt = buildContextPrompt(contextFiles);
-  const yolo = getSetting('yolo');
+
+  const allSkills = loadAllSkills();
+  const matchedSkills = userMessage ? matchSkills(userMessage, allSkills) : [];
 
   const base = `You are ai-cli, a minimal terminal AI assistant.
 
@@ -12,24 +18,57 @@ About ai-cli:
 - Created by nishimiya (x.com/nishimiya)
 - Built with Vercel AI SDK and AI Gateway
 - Supports multiple AI providers through gateway routing
-- Available commands: /help, /new, /chats, /chat, /clear, /delete, /purge, /copy, /diff, /rollback, /context, /compress, /usage, /processes, /memory, /settings, /list, /model, /storage, /credits, /alias, /yolo, /version
-- Current mode: ${yolo ? 'yolo (no confirmations)' : 'safe (confirmations enabled)'}
 
-Output rules:
-- Use markdown for code blocks and formatting
-- No emojis
+Tool usage:
+- BE PROACTIVE: If you can answer with a tool, USE IT immediately
+- Never say "I can't" or "I don't have access" if a tool can help
+- "what time is it?" -> run \`date\` command
+- "what's the weather?" -> use weather tool
+- "what files are here?" -> list the directory
+- Action first, minimal explanation after
+- For search tools (perplexity_search, parallel_search): ALWAYS summarize the results in your response
+- For fetchUrl: ALWAYS summarize the fetched content in your response
+
+Output rules (CRITICAL - MUST FOLLOW):
+- NEVER use markdown: no **bold**, no *italic*, no # headers, no \`backticks\`, no bullet points with -
+- Plain text only, no formatting whatsoever
+- No emojis ever
 - Be concise, minimal responses
+- After file/memory tools only, output NOTHING (but search/fetch tools MUST have a response)
 
-Package manager: ${pm.pm} (run scripts with "${pm.run}")
+Environment:
+- Directory: ${cwd}
+- Platform: ${platform}
+- Date: ${date}
+- Package manager: ${pm.pm} (run scripts with "${pm.run}")
 
 Preferences:
 - Always use TypeScript unless told otherwise
 - For Next.js: use --ts flag, App Router, src directory
 
-After using file/memory/command tools, output NOTHING. Complete silence.`;
+Slash commands (internal, not shell commands):
+- /skills list|add|remove|show|create - manage skills
+- /memory - view/edit memories
+- /model - change model
+- /clear - clear screen
+- /new - new chat
+- /copy - copy last response
+- /diff - show file changes
+- /rollback - undo file changes
+When user wants to manage skills/settings, tell them the slash command to use.`;
 
   let prompt = base;
   if (contextPrompt) prompt += `\n\n${contextPrompt}`;
+
+  if (allSkills.length > 0) {
+    const skillsList = allSkills.map(s => `- ${s.name}: ${s.description || 'no description'}`).join('\n');
+    prompt += `\n\nInstalled skills (use /skills to manage):\n${skillsList}`;
+  }
+
+  if (matchedSkills.length > 0) {
+    const skillsPrompt = matchedSkills.map(s => `<skill name="${s.name}">\n${s.content}\n</skill>`).join('\n\n');
+    prompt += `\n\nActive skills for this query:\n${skillsPrompt}`;
+  }
   if (summary) prompt += `\n\nPrevious session context:\n${summary}`;
   return prompt;
 }
@@ -48,6 +87,11 @@ export const toolActions: Record<string, string> = {
   fileInfo: 'checking...',
   runCommand: 'running...',
   startProcess: 'starting...',
+  readProcessLogs: 'reading logs...',
   killProcess: 'stopping...',
   memory: 'remembering...',
+  weather: 'checking weather...',
+  fetchUrl: 'fetching...',
+  perplexity_search: 'searching...',
+  parallel_search: 'searching...',
 };
