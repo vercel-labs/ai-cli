@@ -400,7 +400,12 @@ export async function terminal(model: string, version: string): Promise<void> {
         printHeader: () => {},
       };
 
+      showStatus('...');
       const res = await handler(ctx, args);
+      if (statusText) {
+        process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+        statusText = '';
+      }
       if (res) {
         if (res.clearScreen) {
           process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
