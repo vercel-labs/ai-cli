@@ -175,6 +175,16 @@ export async function terminal(model: string, version: string): Promise<void> {
       return;
     }
 
+    if (str === '\x1b[1;3D' || str === '\x1bb') {
+      inputStream.write('\x1bb');
+      return;
+    }
+
+    if (str === '\x1b[1;3C' || str === '\x1bf') {
+      inputStream.write('\x1bf');
+      return;
+    }
+
     inputStream.write(chunk);
   });
 
