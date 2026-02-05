@@ -56,3 +56,26 @@ export function resolveCommand(cmd: string): string {
   const aliases = getAliases();
   return aliases[cmd] || cmd;
 }
+
+const gitSubs = ['diff', 'staged', 'status', 'branch', 'commit', 'push', 'log', 'stash'];
+
+export function getCompletions(line: string): [string[], string] {
+  if (!line.startsWith('/')) return [[], line];
+
+  const input = line.slice(1);
+  const parts = input.split(' ');
+
+  if (parts.length === 1) {
+    const cmdNames = Object.keys(commands).filter(c => !c.includes('-'));
+    const matches = cmdNames.filter(c => c.startsWith(input));
+    return [matches.map(m => '/' + m), line];
+  }
+
+  if (parts[0] === 'git' && parts.length === 2) {
+    const sub = parts[1];
+    const matches = gitSubs.filter(s => s.startsWith(sub));
+    return [matches.map(m => '/git ' + m), line];
+  }
+
+  return [[], line];
+}

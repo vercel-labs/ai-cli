@@ -48,9 +48,16 @@ echo "explain this" | ai     # pipe input
 ### files
 - `/copy` - copy response
 - `/rollback` - undo changes
-- `/diff` - AI file changes
-- `/git diff` - git diff (colored, clean)
+
+### git
+- `/git status` - file status
+- `/git diff` - unstaged changes
 - `/git staged` - staged changes
+- `/git branch` - list/switch branches
+- `/git commit` - ai-generated commit message
+- `/git push` - push to remote
+- `/git log` - recent commits
+- `/git stash` - stash/pop changes
 
 ### context
 - `/usage` - token usage and cost

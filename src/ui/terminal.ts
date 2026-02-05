@@ -8,7 +8,7 @@ import { setModel as saveModel } from '../config/index.js';
 import { formatError } from '../utils/errors.js';
 import { detectPackageManager } from '../utils/package-manager.js';
 import { killAllProcesses } from '../utils/processes.js';
-import { commands, restoreHistory, resolveCommand } from '../commands/slash/index.js';
+import { commands, restoreHistory, resolveCommand, getCompletions } from '../commands/slash/index.js';
 import { getClipboardImage } from '../utils/clipboard.js';
 import { renderMarkdown } from '../utils/markdown.js';
 import { wrap, createStreamWrap } from '../utils/wrap.js';
@@ -89,6 +89,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     prompt: dim('› '),
     terminal: true,
     escapeCodeTimeout: 50,
+    completer: (line: string) => getCompletions(line),
   });
 
   if (process.stdin.isTTY) {
@@ -141,6 +142,29 @@ export async function terminal(model: string, version: string): Promise<void> {
       return;
     }
 
+    if (str === '\t' && commandMode) {
+      const internal = rl as ReadlineInternal;
+      const [completions] = getCompletions('/' + internal.line);
+      if (completions.length === 1) {
+        const completed = completions[0].slice(1);
+        internal.line = completed;
+        internal.cursor = completed.length;
+        process.stdout.write('\r' + ansi.eraseLine + dim('/ ') + completed);
+      } else if (completions.length > 1) {
+        const common = completions.reduce((a, b) => {
+          let i = 0;
+          while (i < a.length && i < b.length && a[i] === b[i]) i++;
+          return a.slice(0, i);
+        }).slice(1);
+        if (common.length > internal.line.length) {
+          internal.line = common;
+          internal.cursor = common.length;
+          process.stdout.write('\r' + ansi.eraseLine + dim('/ ') + common);
+        }
+      }
+      return;
+    }
+
     if (str === '\x1b' && str.length === 1) {
       commandMode = false;
       pendingImage = null;
@@ -156,7 +180,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   function cleanup() {
     killAllProcesses();
-    process.stdout.write(ansi.cursorShow);
+    process.stdout.write('\n' + ansi.cursorShow);
     rl.close();
     process.exit(0);
   }

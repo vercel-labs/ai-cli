@@ -135,6 +135,39 @@ export const git: CommandHandler = (ctx, args) => {
     return { output: result.stderr?.includes('Everything up-to-date') ? 'up to date' : 'pushed' };
   }
 
+  if (sub === 'log' || sub === 'l') {
+    const n = param ? parseInt(param, 10) : 10;
+    const result = spawnSync('git', ['log', `--oneline`, `-${isNaN(n) ? 10 : n}`], { encoding: 'utf-8' });
+    if (result.error || result.status !== 0) {
+      return { output: 'not a git repository' };
+    }
+    const lines = result.stdout?.trim().split('\n').filter(Boolean) || [];
+    const formatted = lines.map(line => {
+      const [hash, ...rest] = line.split(' ');
+      return `${dim(hash)} ${rest.join(' ')}`;
+    });
+    return { output: formatted.join('\n') || 'no commits' };
+  }
+
+  if (sub === 'stash') {
+    if (param === 'pop' || param === 'p') {
+      const result = spawnSync('git', ['stash', 'pop'], { encoding: 'utf-8' });
+      if (result.status !== 0) {
+        return { output: result.stderr?.trim() || 'stash pop failed' };
+      }
+      return { output: 'popped' };
+    }
+    if (param === 'list' || param === 'l') {
+      const result = spawnSync('git', ['stash', 'list'], { encoding: 'utf-8' });
+      return { output: result.stdout?.trim() || 'no stashes' };
+    }
+    const result = spawnSync('git', ['stash'], { encoding: 'utf-8' });
+    if (result.status !== 0) {
+      return { output: result.stderr?.trim() || 'stash failed' };
+    }
+    return { output: result.stdout?.includes('No local changes') ? 'nothing to stash' : 'stashed' };
+  }
+
   if (sub === 'branch' || sub === 'b') {
     if (param) {
       const result = spawnSync('git', ['checkout', param], { encoding: 'utf-8' });
@@ -159,5 +192,5 @@ export const git: CommandHandler = (ctx, args) => {
     return { output: formatBranches(result.stdout || '') };
   }
 
-  return { output: 'usage: /git diff|staged|status|branch|commit|push' };
+  return { output: 'usage: /git diff|staged|status|branch|commit|push|log|stash' };
 };
