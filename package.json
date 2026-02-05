@@ -26,6 +26,7 @@
   ],
   "scripts": {
     "build": "node build.mjs",
+    "test": "bun test",
     "lint": "biome lint .",
     "format": "biome format . --write",
     "check": "biome check .",
