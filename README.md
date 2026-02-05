@@ -48,7 +48,9 @@ echo "explain this" | ai     # pipe input
 ### files
 - `/copy` - copy response
 - `/rollback` - undo changes
-- `/diff` - view changes
+- `/diff` - AI file changes
+- `/git diff` - git diff (colored, clean)
+- `/git staged` - staged changes
 
 ### context
 - `/usage` - token usage and cost

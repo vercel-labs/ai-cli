@@ -26,6 +26,10 @@ const details: Record<string, string> = {
   /diff git          git diff (unstaged)
   /diff staged       git diff --staged`,
 
+  git: `/git
+  /git diff          git diff (unstaged)
+  /git staged        git diff --staged`,
+
   compress: `/compress
   compresses chat history to save context space
   auto-triggers at 75% context usage`,
@@ -101,7 +105,8 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /clear       clear chat',
     '  /copy        copy response',
     '  /rollback    undo changes',
-    '  /diff        view changes',
+    '  /diff        file changes',
+    '  /git         git diff',
     '  /compress    compress history',
     '  /usage       stats',
     '  /processes   processes',
@@ -115,7 +120,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /info        info',
     '  exit         quit',
     '',
-    'ctrl+v to paste image',
+    'ctrl+v to paste images',
     '/help <cmd> for details',
   ];
 

@@ -5,6 +5,7 @@ import { clear } from './clear.js';
 import { compress } from './compress.js';
 import { copy } from './copy.js';
 import { diff } from './diff.js';
+import { git } from './git.js';
 import { help } from './help.js';
 import { info } from './info.js';
 import { init } from './init.js';
@@ -42,6 +43,7 @@ export const commands: Record<string, CommandHandler> = {
   rollback,
   copy,
   diff,
+  git,
   settings,
   rules,
   skills,
