@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { stepCountIs, streamText } from 'ai';
 import { gray } from 'yoctocolors';
-import { fileTools } from '../tools/index.js';
+import { getTools } from '../tools/index.js';
 import { formatError } from '../utils/errors.js';
 import { createSpinner } from '../utils/spinner.js';
 
@@ -79,7 +79,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       system:
         'You are a helpful CLI assistant. Output plain text only - no markdown formatting, no emojis. Be concise. Always use TypeScript (not JavaScript) unless told otherwise.',
       messages: [{ role: 'user', content }],
-      tools: fileTools,
+      tools: getTools(),
       stopWhen: stepCountIs(5),
       providerOptions: {
         openai: {
