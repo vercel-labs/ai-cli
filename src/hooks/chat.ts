@@ -33,6 +33,7 @@ interface StreamOptions {
   callbacks: StreamCallbacks;
   abortSignal?: AbortSignal;
   image?: PendingImage | null;
+  hasTools?: boolean;
 }
 
 interface ToolInput {
@@ -106,11 +107,12 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   history.push({ role: 'user', content: options.image ? userContent : message });
 
   const steps = getSetting('steps') || 10;
+  const useTools = options.hasTools !== false;
   const result = streamText({
     model,
     system: sys,
     messages: history,
-    tools: getTools(),
+    tools: useTools ? getTools() : undefined,
     stopWhen: stepCountIs(steps),
     providerOptions: { openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' } },
     headers: { 'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli', 'X-Title': 'ai-cli' },

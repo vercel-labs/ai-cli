@@ -14,7 +14,7 @@ import { wrap, createStreamWrap } from '../utils/wrap.js';
 import { mask } from '../utils/mask.js';
 import { getSetting } from '../config/settings.js';
 import { streamChat } from '../hooks/chat.js';
-import { fetchModels, scoreMatch } from '../utils/models.js';
+import { fetchModels, scoreMatch, getModelCapabilities, type ModelCapabilities } from '../utils/models.js';
 import type { Chat } from '../config/chats.js';
 import type { Context } from '../commands/slash/types.js';
 
@@ -50,6 +50,9 @@ export async function terminal(model: string, version: string): Promise<void> {
   let selectMode = false;
   let commandMode = false;
   let pendingImage: { data: string; mimeType: string } | null = null;
+  let capabilities: ModelCapabilities = { vision: true, tools: true, reasoning: false };
+
+  getModelCapabilities(currentModel).then(c => { capabilities = c; }).catch(() => {});
 
   function updateTitle() {
     const modelShort = currentModel.split('/').pop() || currentModel;
@@ -76,6 +79,13 @@ export async function terminal(model: string, version: string): Promise<void> {
     }
 
     if (str === '\x16') {
+      if (!capabilities.vision) {
+        process.stdout.write('\r' + ansi.eraseLine + dim('› ') + dim('[model does not support images]'));
+        setTimeout(() => {
+          process.stdout.write('\r' + ansi.eraseLine + dim('› ') + (rl as ReadlineInternal).line);
+        }, 1500);
+        return;
+      }
       const imgBuffer = getClipboardImage();
       if (imgBuffer) {
         pendingImage = { data: imgBuffer.toString('base64'), mimeType: 'image/png' };
@@ -307,6 +317,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         if (selected) {
           saveModel(selected);
           currentModel = selected;
+          getModelCapabilities(selected).then(c => { capabilities = c; }).catch(() => {});
           updateTitle();
           addMessage('info', `switched to ${selected}`);
           printMessage({ type: 'info', content: `switched to ${selected}` });
@@ -371,7 +382,10 @@ export async function terminal(model: string, version: string): Promise<void> {
           addMessage('info', res.output);
           printMessage({ type: 'info', content: res.output });
         }
-        if (res.model) currentModel = res.model;
+        if (res.model) {
+          currentModel = res.model;
+          getModelCapabilities(res.model).then(c => { capabilities = c; }).catch(() => {});
+        }
         if (res.chat !== undefined) chat = res.chat;
         if (res.tokens !== undefined) tokens = res.tokens;
         if (res.cost !== undefined) cost = res.cost;
@@ -461,6 +475,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         },
         abortSignal: controller.signal,
         image: pendingImage,
+        hasTools: capabilities.tools,
       });
 
       pendingImage = null;
