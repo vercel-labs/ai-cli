@@ -8,7 +8,6 @@ import { git } from './git.js';
 import { help } from './help.js';
 import { info } from './info.js';
 import { init } from './init.js';
-import { logsFull } from './logs.js';
 import { mcp } from './mcp.js';
 import { memory } from './memory.js';
 import { model } from './model.js';
@@ -48,8 +47,6 @@ export const commands: Record<string, CommandHandler> = {
   mcp,
   alias,
   xix,
-  'logs-full': logsFull,
-  logs: logsFull,
 };
 
 export function resolveCommand(cmd: string): string {
