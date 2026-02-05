@@ -1,5 +1,5 @@
 import { type ModelMessage, streamText, stepCountIs } from 'ai';
-import { getTools, loadMcpTools, setSlashModel } from '../tools/index.js';
+import { getTools, loadMcpTools } from '../tools/index.js';
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
 import { getContextWindow, shouldCompress, summarizeHistory } from '../utils/context.js';
@@ -71,7 +71,6 @@ interface ProviderMeta {
 export async function streamChat(options: StreamOptions): Promise<Chat> {
   const { model, message, history, tokens, summary, pm, callbacks } = options;
   let chat = options.chat ?? getOrCreateChat(model);
-  setSlashModel(model);
 
   debug(`input: ${message.slice(0, 50)}${message.length > 50 ? '...' : ''}`);
   const historyLen = history.length;
