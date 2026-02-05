@@ -463,13 +463,15 @@ export async function terminal(model: string, version: string): Promise<void> {
           const display = res.chat.display?.length ? res.chat.display : res.chat.messages.map((m) => ({ type: m.role, content: m.content }));
           const spacing = getSetting('spacing');
           let lastType = '';
-          for (const m of display) {
+          for (let i = 0; i < display.length; i++) {
+            const m = display[i];
+            const isLast = i === display.length - 1;
             if (lastType === 'info' && m.type !== 'info') {
               process.stdout.write('\n'.repeat(spacing));
             }
             addMessage(m.type as MessageType, m.content);
             printMessage({ type: m.type as MessageType, content: m.content });
-            if (m.type !== 'user' && m.type !== 'info') {
+            if (!isLast && m.type !== 'user' && m.type !== 'info') {
               process.stdout.write('\n'.repeat(spacing));
             }
             lastType = m.type;
