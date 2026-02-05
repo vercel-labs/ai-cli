@@ -326,6 +326,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         selectMode = true;
         const selected = await selectModel();
         selectMode = false;
+        if (process.stdin.isTTY) process.stdin.setRawMode(true);
         if (selected) {
           saveModel(selected);
           currentModel = selected;
