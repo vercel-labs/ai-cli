@@ -34,7 +34,7 @@ const details: Record<string, string> = {
   /git branch <n>    switch/create branch`,
 
   commit: `/commit
-  /commit            auto-generate commit message
+  /commit            ai reads changes and generates message
   /commit all        commit even if diff is large`,
 
   compress: `/compress
