@@ -17,8 +17,22 @@ import { searchInFiles } from './search-in-files.js';
 import { startProcess } from './start-process.js';
 import { weather } from './weather.js';
 import { writeFile } from './write-file.js';
+import { getMcpTools } from '../utils/mcp.js';
 
-export function getTools() {
+let cachedMcpTools: Record<string, unknown> | null = null;
+
+export async function loadMcpTools(): Promise<Record<string, unknown>> {
+  if (!cachedMcpTools) {
+    cachedMcpTools = await getMcpTools();
+  }
+  return cachedMcpTools;
+}
+
+export function clearMcpCache(): void {
+  cachedMcpTools = null;
+}
+
+export function getTools(mcpTools?: Record<string, unknown>) {
   return {
     weather,
     fetchUrl,
@@ -39,5 +53,6 @@ export function getTools() {
     killProcess,
     memory,
     ...getSearchTool(),
+    ...(mcpTools || {}),
   };
 }

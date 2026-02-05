@@ -8,6 +8,7 @@ export const CHATS_DIR = path.join(BASE_DIR, 'chats');
 export const MEMORIES_FILE = path.join(BASE_DIR, 'memories.json');
 export const RULES_FILE = path.join(BASE_DIR, 'AGENTS.md');
 export const SKILLS_DIR = path.join(BASE_DIR, 'skills');
+export const MCP_FILE = path.join(BASE_DIR, 'mcp.json');
 
 export function ensureBaseDir(): void {
   if (!fs.existsSync(BASE_DIR)) {

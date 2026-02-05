@@ -61,6 +61,7 @@ echo "explain this" | ai     # pipe input
 ### system
 - `/processes` - background processes
 - `/memory` - saved memories
+- `/mcp` - mcp servers
 - `/settings` - preferences
 - `/alias` - shortcuts
 - `/help` - commands
@@ -138,6 +139,48 @@ the AI can:
 
 **web** - search, fetch urls, check weather
 
+## mcp
+
+connect to external tools via [model context protocol](https://modelcontextprotocol.io):
+
+```bash
+/mcp                                    # list servers
+/mcp add weather http https://mcp.example.com
+/mcp add db stdio npx @example/mcp-db
+/mcp remove weather                     # remove server
+/mcp reload                             # reconnect all
+```
+
+### transports
+
+- **http** - HTTP endpoint
+- **sse** - server-sent events
+- **stdio** - spawn local process
+
+### config
+
+servers stored in `~/.ai-cli/mcp.json`:
+
+```json
+{
+  "servers": {
+    "weather": {
+      "type": "http",
+      "url": "https://mcp.example.com"
+    },
+    "db": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@example/mcp-db"]
+    }
+  }
+}
+```
+
+environment variables expand with `${VAR}` or `${VAR:-default}`.
+
+mcp tools are prefixed with server name (e.g., `weather_get_forecast`).
+
 ## models
 
 supports fuzzy matching:
@@ -155,6 +198,7 @@ all data in `~/.ai-cli/`:
 ```
 ~/.ai-cli/
 ├── config.json      # settings and api key
+├── mcp.json         # mcp servers
 ├── chats/           # chat history
 ├── memories.json    # saved memories
 ├── skills/          # installed skills

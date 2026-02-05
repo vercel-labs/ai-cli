@@ -1,5 +1,5 @@
 import { type ModelMessage, streamText, stepCountIs } from 'ai';
-import { getTools } from '../tools/index.js';
+import { getTools, loadMcpTools } from '../tools/index.js';
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
 import { getContextWindow, shouldCompress, summarizeHistory } from '../utils/context.js';
@@ -108,11 +108,12 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   const steps = getSetting('steps') || 10;
   const useTools = options.hasTools !== false;
+  const mcpTools = useTools ? await loadMcpTools() : {};
   const result = streamText({
     model,
     system: sys,
     messages: history,
-    tools: useTools ? getTools() : undefined,
+    tools: useTools ? getTools(mcpTools) : undefined,
     stopWhen: stepCountIs(steps),
     providerOptions: { openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' } },
     headers: { 'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli', 'X-Title': 'ai-cli' },

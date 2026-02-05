@@ -1,6 +1,7 @@
 import * as os from 'node:os';
 import { loadContextFiles, buildContextPrompt } from './context.js';
 import { loadAllSkills, matchSkills, type Skill } from '../skills/index.js';
+import { getMcpStatus } from './mcp.js';
 
 export function buildSystemPrompt(pm: { pm: string; run: string }, summary?: string, userMessage?: string): string {
   const cwd = process.cwd();
@@ -48,6 +49,7 @@ Preferences:
 
 Slash commands (internal, not shell commands):
 - /skills list|add|remove|show|create - manage skills
+- /mcp list|add|remove|reload - manage mcp servers
 - /memory - view/edit memories
 - /model - change model
 - /clear - clear screen
@@ -55,7 +57,7 @@ Slash commands (internal, not shell commands):
 - /copy - copy last response
 - /diff - show file changes
 - /rollback - undo file changes
-When user wants to manage skills/settings, tell them the slash command to use.`;
+When user wants to manage skills/settings/mcp, tell them the slash command to use.`;
 
   let prompt = base;
   if (contextPrompt) prompt += `\n\n${contextPrompt}`;
@@ -69,6 +71,14 @@ When user wants to manage skills/settings, tell them the slash command to use.`;
     const skillsPrompt = matchedSkills.map(s => `<skill name="${s.name}">\n${s.content}\n</skill>`).join('\n\n');
     prompt += `\n\nActive skills for this query:\n${skillsPrompt}`;
   }
+
+  const mcpServers = getMcpStatus();
+  const connectedMcp = mcpServers.filter(s => s.connected);
+  if (connectedMcp.length > 0) {
+    const mcpList = connectedMcp.map(s => `- ${s.name}`).join('\n');
+    prompt += `\n\nMCP servers connected (tools prefixed with server name):\n${mcpList}`;
+  }
+
   if (summary) prompt += `\n\nPrevious session context:\n${summary}`;
   return prompt;
 }

@@ -69,6 +69,14 @@ const details: Record<string, string> = {
   /alias <name> <cmd>     create alias
   /alias remove <name>    remove alias`,
 
+  mcp: `/mcp
+  /mcp                    list mcp servers
+  /mcp add <name> <type> <target>
+                          add server (stdio|http|sse)
+  /mcp remove <name>      remove server
+  /mcp reload             reconnect all servers
+  /mcp get <name>         show server config`,
+
   info: `/info
   shows version, current model, balance, storage, and feedback link`,
 };
@@ -97,6 +105,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /memory      memories',
     '  /skills      skills',
     '  /rules       rules',
+    '  /mcp         mcp servers',
     '  /settings    settings',
     '  /model       model',
     '  /alias       shortcuts',

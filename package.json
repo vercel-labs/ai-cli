@@ -34,6 +34,7 @@
   "type": "module",
   "dependencies": {
     "@ai-sdk/gateway": "3.0.34",
+    "@ai-sdk/mcp": "^1.0.18",
     "@mozilla/readability": "^0.6.0",
     "linkedom": "^0.18.12"
   }
