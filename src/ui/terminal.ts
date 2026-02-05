@@ -401,6 +401,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       };
 
       const showCommitStatus = resolved === 'git' && args?.startsWith('commit');
+      rl.pause();
       if (showCommitStatus) {
         process.stdout.write(dim('checking changes...'));
       }
@@ -408,6 +409,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       if (showCommitStatus) {
         process.stdout.write('\r' + ansi.eraseLine);
       }
+      rl.resume();
       if (res) {
         if (res.clearScreen) {
           process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
