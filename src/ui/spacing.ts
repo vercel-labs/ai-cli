@@ -20,8 +20,9 @@ export class SpacingController {
   }
 
   /**
-   * Called after a confirmation choice is rendered/accepted/denied.
-   * Confirm UI itself acts like a user message boundary.
+   * Called after a confirmation choice is denied/cancelled.
+   * The "› no" line acts like a user message boundary — a new gap
+   * is needed before the next output.
    */
   markAfterConfirm(): void {
     this.needsGapBeforeOutput = true;
