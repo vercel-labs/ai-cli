@@ -64,15 +64,17 @@ echo "explain this" | ai     # pipe input
 - `/compress` - compress history
 
 ### model
-- `/list` - select model
-- `/model` - current model
+- `/model` - select model interactively
+- `/model <query>` - switch to matching model
 
 ### system
+- `/info` - version, model, balance, storage
 - `/processes` - background processes
 - `/memory` - saved memories
 - `/mcp` - mcp servers
 - `/settings` - preferences
 - `/alias` - shortcuts
+- `/purge` - delete all chats
 - `/help` - commands
 
 ## skills

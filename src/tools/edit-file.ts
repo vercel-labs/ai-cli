@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { log as debug } from '../utils/debug.js';
+import { pathError, safePath } from '../utils/safe-path.js';
 import { saveWrite } from '../utils/undo.js';
 import { confirm } from './confirm.js';
 
@@ -10,8 +11,8 @@ function shortDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n').slice(0, 5);
   const newLines = newText.split('\n').slice(0, 5);
   const lines: string[] = [];
-  for (const line of oldLines) lines.push(`- ${line}`);
-  for (const line of newLines) lines.push(`+ ${line}`);
+  for (const line of oldLines) lines.push(`\x1b[31m- ${line}\x1b[39m`);
+  for (const line of newLines) lines.push(`\x1b[32m+ ${line}\x1b[39m`);
   const more =
     Math.max(oldText.split('\n').length, newText.split('\n').length) - 5;
   if (more > 0) lines.push(`  ... ${more} more lines`);
@@ -31,10 +32,13 @@ export const editFile = tool({
   execute: async ({ filePath, oldText, newText }) => {
     debug(`editFile: ${filePath}`);
     try {
-      const fullPath = path.resolve(filePath);
+      const fullPath = safePath(filePath);
+      if (!fullPath) return { error: pathError(filePath) };
 
       if (!fs.existsSync(fullPath)) {
-        return { error: `not found: ${filePath}` };
+        return {
+          error: `file not found: ${filePath}. Check <project-files> for the correct path.`,
+        };
       }
 
       const content = fs.readFileSync(fullPath, 'utf-8');
@@ -44,16 +48,18 @@ export const editFile = tool({
       }
 
       const diff = shortDiff(oldText, newText);
-      const ok = await confirm(`edit ${path.basename(filePath)}?\n${diff}`);
+      const ok = await confirm(`Edit ${path.basename(filePath)}?\n${diff}`, {
+        tool: 'editFile',
+      });
       if (!ok) {
-        return { message: 'cancelled', silent: true };
+        return { error: 'User denied this action. Do not retry.' };
       }
 
       saveWrite(fullPath);
       const updated = content.replace(oldText, newText);
       fs.writeFileSync(fullPath, updated, 'utf-8');
 
-      return { message: `edited ${filePath}`, silent: true };
+      return { message: `Edited ${filePath}`, silent: true };
     } catch {
       return { error: `edit failed: ${filePath}` };
     }

@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { logError } from '../utils/errorlog.js';
 import { CHATS_DIR, ensureChatsDir } from './paths.js';
 
 export interface ChatMessage {
@@ -66,7 +67,8 @@ export function loadChat(id: string): Chat | null {
   try {
     const data = fs.readFileSync(getChatPath(id), 'utf-8');
     return JSON.parse(data) as Chat;
-  } catch {
+  } catch (e) {
+    logError(e);
     return null;
   }
 }
@@ -80,10 +82,13 @@ export function listChats(): Chat[] {
       try {
         const data = fs.readFileSync(path.join(CHATS_DIR, file), 'utf-8');
         chats.push(JSON.parse(data) as Chat);
-      } catch {}
+      } catch (e) {
+        logError(e);
+      }
     }
     return chats.sort((a, b) => b.updatedAt - a.updatedAt);
-  } catch {
+  } catch (e) {
+    logError(e);
     return [];
   }
 }

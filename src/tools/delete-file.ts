@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 import { saveDelete } from '../utils/undo.js';
 import { confirm } from './confirm.js';
 
@@ -14,21 +15,33 @@ export const deleteFile = tool({
     const deleted: string[] = [];
     const errors: string[] = [];
 
-    const names = paths.map((p) => path.basename(p)).join(', ');
-    const ok = await confirm(`delete ${names}?`);
-    if (!ok) {
-      return { message: 'cancelled', silent: true };
+    // Validate paths before prompting the user
+    const validPaths: { filePath: string; fullPath: string }[] = [];
+    for (const filePath of paths) {
+      const fullPath = safePath(filePath);
+      if (!fullPath) {
+        errors.push(pathError(filePath));
+        continue;
+      }
+      if (!fs.existsSync(fullPath)) {
+        errors.push(`not found: ${filePath}`);
+        continue;
+      }
+      validPaths.push({ filePath, fullPath });
     }
 
-    for (const filePath of paths) {
+    if (validPaths.length === 0) {
+      return { error: errors.join(', ') };
+    }
+
+    const names = validPaths.map((p) => path.basename(p.filePath)).join(', ');
+    const ok = await confirm(`Delete ${names}?`, { tool: 'deleteFile' });
+    if (!ok) {
+      return { error: 'User denied this action. Do not retry.' };
+    }
+
+    for (const { filePath, fullPath } of validPaths) {
       try {
-        const fullPath = path.resolve(filePath);
-
-        if (!fs.existsSync(fullPath)) {
-          errors.push(`not found: ${filePath}`);
-          continue;
-        }
-
         const stat = fs.statSync(fullPath);
         const isDir = stat.isDirectory();
 
@@ -49,7 +62,7 @@ export const deleteFile = tool({
       return { error: errors.join(', ') };
     }
 
-    const msg = `deleted ${deleted.join(', ')}`;
+    const msg = `Deleted ${deleted.join(', ')}`;
     return {
       message: errors.length ? `${msg} (errors: ${errors.join(', ')})` : msg,
       silent: true,

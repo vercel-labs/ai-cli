@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 
 function loadGitignore(dir: string): Set<string> {
   const patterns = new Set<string>();
@@ -62,7 +63,7 @@ function buildTree(
 
 export const listDirectory = tool({
   description:
-    'List files and directories recursively as a tree. Respects .gitignore. Returns a pre-formatted tree. Show output directly without code fences.',
+    'List files and directories as a tree. Only use when the project file tree in the system prompt is insufficient (e.g. a directory was collapsed). Prefer readFile, searchInFiles, or findFiles instead.',
   inputSchema: z.object({
     dirPath: z
       .string()
@@ -75,7 +76,8 @@ export const listDirectory = tool({
   }),
   execute: async ({ dirPath = '.', depth = 3 }) => {
     try {
-      const fullPath = path.resolve(dirPath);
+      const fullPath = safePath(dirPath);
+      if (!fullPath) return { error: pathError(dirPath) };
       const ignored = loadGitignore(fullPath);
       const maxDepth = Math.min(depth, 5);
       const lines = buildTree(fullPath, ignored, '', 0, maxDepth);

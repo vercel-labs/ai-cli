@@ -92,11 +92,3 @@ export async function getModelCapabilities(
   capabilitiesCache.set(modelId, capabilities);
   return capabilities;
 }
-
-export function hasVision(capabilities: ModelCapabilities): boolean {
-  return capabilities.vision;
-}
-
-export function hasTools(capabilities: ModelCapabilities): boolean {
-  return capabilities.tools;
-}

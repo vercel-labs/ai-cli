@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ensureSkillsDir, SKILLS_DIR } from '../../config/paths.js';
@@ -96,9 +96,16 @@ export const skills: CommandHandler = async (_ctx, args) => {
       } else if (parsed) {
         await downloadGithubFolder(parsed.repo, '', dest);
       } else if (target.startsWith('http')) {
-        execSync(`git clone --depth 1 "${target}" "${dest}"`, {
-          stdio: 'pipe',
-        });
+        const result = spawnSync(
+          'git',
+          ['clone', '--depth', '1', target, dest],
+          { stdio: 'pipe' },
+        );
+        if (result.status !== 0) {
+          throw new Error(
+            result.stderr?.toString().trim() || 'git clone failed',
+          );
+        }
         const gitDir = path.join(dest, '.git');
         if (fs.existsSync(gitDir)) fs.rmSync(gitDir, { recursive: true });
       } else if (fs.existsSync(target)) {

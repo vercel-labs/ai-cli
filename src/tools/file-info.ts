@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -19,7 +20,8 @@ export const fileInfo = tool({
   }),
   execute: async ({ filePath }) => {
     try {
-      const fullPath = path.resolve(filePath);
+      const fullPath = safePath(filePath);
+      if (!fullPath) return { error: pathError(filePath) };
 
       if (!fs.existsSync(fullPath)) {
         return { error: `not found: ${filePath}` };

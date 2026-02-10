@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { logError } from '../utils/errorlog.js';
 import { CONFIG_FILE, ensureBaseDir } from './paths.js';
 
 export interface Config {
@@ -36,7 +37,9 @@ function migrateOldConfig(): Config | null {
       if (modelMatch) migrated.model = modelMatch[1].trim();
       fs.unlinkSync(oldRc);
     }
-  } catch {}
+  } catch (e) {
+    logError(e);
+  }
 
   try {
     if (fs.existsSync(oldSettings)) {
@@ -44,7 +47,9 @@ function migrateOldConfig(): Config | null {
       migrated = { ...migrated, ...data };
       fs.unlinkSync(oldSettings);
     }
-  } catch {}
+  } catch (e) {
+    logError(e);
+  }
 
   if (Object.keys(migrated).length > 0) {
     return migrated;
@@ -66,7 +71,9 @@ export function getConfig(): Config {
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
       return merged;
     }
-  } catch {}
+  } catch (e) {
+    logError(e);
+  }
   return { ...defaults };
 }
 

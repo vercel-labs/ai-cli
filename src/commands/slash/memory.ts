@@ -1,16 +1,18 @@
 import * as fs from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
+import { MEMORIES_FILE } from '../../config/paths.js';
+import { migrateOldMemories } from '../../utils/memory-migration.js';
 import type { CommandHandler } from './types.js';
 
-const memoryFile = path.join(os.homedir(), '.ai-memories');
-
 function loadMemories(): string[] {
+  migrateOldMemories();
   try {
-    if (fs.existsSync(memoryFile)) {
-      return fs.readFileSync(memoryFile, 'utf-8').split('\n').filter(Boolean);
+    if (fs.existsSync(MEMORIES_FILE)) {
+      const data = JSON.parse(fs.readFileSync(MEMORIES_FILE, 'utf-8'));
+      return Array.isArray(data) ? data : [];
     }
-  } catch {}
+  } catch {
+    // Corrupt or unreadable memories file
+  }
   return [];
 }
 
@@ -18,8 +20,8 @@ export const memory: CommandHandler = (_ctx, args) => {
   const action = args?.trim().toLowerCase();
 
   if (action === 'clear') {
-    if (fs.existsSync(memoryFile)) {
-      fs.unlinkSync(memoryFile);
+    if (fs.existsSync(MEMORIES_FILE)) {
+      fs.unlinkSync(MEMORIES_FILE);
       return { output: 'memories cleared' };
     }
     return { output: 'no memories to clear' };

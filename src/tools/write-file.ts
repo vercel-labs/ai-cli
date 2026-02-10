@@ -3,8 +3,34 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { log as debug } from '../utils/debug.js';
+import { pathError, safePath } from '../utils/safe-path.js';
 import { saveWrite } from '../utils/undo.js';
 import { confirm } from './confirm.js';
+
+function writeDiff(oldContent: string | null, newContent: string): string {
+  const PREVIEW = 5;
+  const lines: string[] = [];
+
+  if (oldContent !== null) {
+    // Existing file – show removed / added (first N lines each)
+    const oldLines = oldContent.split('\n').slice(0, PREVIEW);
+    const newLines = newContent.split('\n').slice(0, PREVIEW);
+    for (const l of oldLines) lines.push(`\x1b[31m- ${l}\x1b[39m`);
+    for (const l of newLines) lines.push(`\x1b[32m+ ${l}\x1b[39m`);
+    const more =
+      Math.max(oldContent.split('\n').length, newContent.split('\n').length) -
+      PREVIEW;
+    if (more > 0) lines.push(`  ... ${more} more lines`);
+  } else {
+    // New file – show additions only
+    const newLines = newContent.split('\n').slice(0, PREVIEW);
+    for (const l of newLines) lines.push(`\x1b[32m+ ${l}\x1b[39m`);
+    const more = newContent.split('\n').length - PREVIEW;
+    if (more > 0) lines.push(`  ... ${more} more lines`);
+  }
+
+  return lines.join('\n');
+}
 
 export const writeFile = tool({
   description:
@@ -16,13 +42,19 @@ export const writeFile = tool({
   execute: async ({ filePath, content }) => {
     debug(`writeFile: ${filePath} (${content.length} chars)`);
     try {
-      const fullPath = path.resolve(filePath);
-      const exists = fs.existsSync(fullPath);
-      const verb = exists ? 'update' : 'create';
+      const fullPath = safePath(filePath);
+      if (!fullPath) return { error: pathError(filePath) };
 
-      const ok = await confirm(`${verb} ${filePath}?`);
+      const exists = fs.existsSync(fullPath);
+      const verb = exists ? 'Update' : 'Create';
+      const oldContent = exists ? fs.readFileSync(fullPath, 'utf-8') : null;
+      const diff = writeDiff(oldContent, content);
+
+      const ok = await confirm(`${verb} ${path.basename(filePath)}?\n${diff}`, {
+        tool: 'writeFile',
+      });
       if (!ok) {
-        return { message: 'cancelled', silent: true };
+        return { error: 'User denied this action. Do not retry.' };
       }
 
       saveWrite(fullPath);

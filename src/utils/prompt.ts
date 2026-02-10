@@ -1,6 +1,10 @@
 import * as os from 'node:os';
 import { loadAllSkills, matchSkills } from '../skills/index.js';
-import { buildContextPrompt, loadContextFiles } from './context.js';
+import {
+  buildContextPrompt,
+  getProjectFiles,
+  loadContextFiles,
+} from './context.js';
 import { getMcpStatus } from './mcp.js';
 
 export function buildSystemPrompt(
@@ -34,10 +38,16 @@ Tool usage:
 - Never say "I can't" or "I don't have access" if a tool can help
 - "what time is it?" -> run \`date\` command
 - "what's the weather?" -> use weather tool
-- "what files are here?" -> list the directory
-- Action first, minimal explanation after
 - For search tools (perplexity_search, parallel_search): ALWAYS summarize the results in your response
 - For fetchUrl: ALWAYS summarize the fetched content in your response
+- If a tool call is denied by the user, do NOT retry it or attempt workarounds
+
+Finding files (IMPORTANT - follow this order):
+1. Check <project-files> FIRST. It lists every file in the project. Use it to locate files by path, then readFile or editFile directly.
+2. Need to find code by content? Use searchInFiles (e.g. "export const metadata").
+3. Need to find files by name pattern? Use findFiles (e.g. "*.tsx", "layout.*").
+4. Need a code overview? Use codeOutline to see exports and function signatures without reading entire files.
+5. ONLY use listDirectory if project-files was truncated and you need to explore a collapsed directory.
 
 Output rules (CRITICAL - MUST FOLLOW):
 - NEVER use markdown: no **bold**, no *italic*, no # headers, no \`backticks\`, no bullet points with -
@@ -70,6 +80,12 @@ Slash commands (tell user to type these):
 When user asks to commit, push, or switch models, tell them the slash command to type.`;
 
   let prompt = base;
+
+  const projectFiles = getProjectFiles(cwd);
+  if (projectFiles) {
+    prompt += `\n\n<project-files>\n${projectFiles}\n</project-files>`;
+  }
+
   if (contextPrompt) prompt += `\n\n${contextPrompt}`;
 
   if (allSkills.length > 0) {
@@ -108,6 +124,8 @@ export const toolActions: Record<string, string> = {
   listDirectory: 'listing...',
   findFiles: 'searching...',
   searchInFiles: 'searching...',
+  codeOutline: 'analyzing...',
+  semanticSearch: 'searching...',
   fileInfo: 'checking...',
   runCommand: 'running...',
   startProcess: 'starting...',
