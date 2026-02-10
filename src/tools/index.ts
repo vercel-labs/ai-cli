@@ -1,4 +1,5 @@
 import { getMcpTools } from '../utils/mcp.js';
+import { codeOutline } from './code-outline.js';
 import { copyFile } from './copy-file.js';
 import { createFolder } from './create-folder.js';
 import { deleteFile } from './delete-file.js';
@@ -15,6 +16,7 @@ import { renameFile } from './rename-file.js';
 import { runCommand } from './run-command.js';
 import { getSearchTool } from './search.js';
 import { searchInFiles } from './search-in-files.js';
+import { semanticSearch } from './semantic-search.js';
 import { startProcess } from './start-process.js';
 import { weather } from './weather.js';
 import { writeFile } from './write-file.js';
@@ -47,6 +49,8 @@ export function getTools(mcpTools?: Record<string, unknown>) {
     listDirectory,
     findFiles,
     searchInFiles,
+    codeOutline,
+    semanticSearch,
     fileInfo,
     runCommand,
     startProcess,

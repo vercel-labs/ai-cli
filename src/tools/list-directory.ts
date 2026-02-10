@@ -62,7 +62,7 @@ function buildTree(
 
 export const listDirectory = tool({
   description:
-    'List files and directories recursively as a tree. Respects .gitignore. Returns a pre-formatted tree. Show output directly without code fences.',
+    'List files and directories as a tree. Only use when the project file tree in the system prompt is insufficient (e.g. a directory was collapsed). Prefer readFile, searchInFiles, or findFiles instead.',
   inputSchema: z.object({
     dirPath: z
       .string()
