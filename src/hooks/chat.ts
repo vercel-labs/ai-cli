@@ -130,29 +130,29 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   }> | null = null;
   let fetchContent: string | null = null;
 
-  // biome-ignore lint/suspicious/noExplicitAny: streamText generic type varies by call site
-  let result: any;
-  try {
-    const mcpTools = useTools ? await loadMcpTools() : {};
-    result = streamText({
-      model,
-      system: sys,
-      messages: history,
-      tools: useTools ? getTools(mcpTools) : undefined,
-      stopWhen: stepCountIs(steps),
-      providerOptions: {
-        openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
-      },
-      headers: {
-        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
-        'X-Title': 'ai-cli',
-      },
-      abortSignal: options.abortSignal,
-    });
-  } catch (e) {
-    history.length = historyLen;
-    throw e;
-  }
+  const result = await (async () => {
+    try {
+      const mcpTools = useTools ? await loadMcpTools() : {};
+      return streamText({
+        model,
+        system: sys,
+        messages: history,
+        tools: useTools ? getTools(mcpTools) : undefined,
+        stopWhen: stepCountIs(steps),
+        providerOptions: {
+          openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+        },
+        headers: {
+          'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
+          'X-Title': 'ai-cli',
+        },
+        abortSignal: options.abortSignal,
+      });
+    } catch (e) {
+      history.length = historyLen;
+      throw e;
+    }
+  })();
 
   try {
     for await (const part of result.fullStream) {
@@ -314,14 +314,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     return chat;
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: response type from streamText result
-  let response: any;
-  try {
-    response = await result.response;
-  } catch (e) {
-    history.length = historyLen;
-    throw e;
-  }
+  const response = await result.response.then(
+    (r) => r,
+    (e: unknown) => {
+      history.length = historyLen;
+      throw e;
+    },
+  );
 
   const needsContinuation = !buffer && (searchResults || fetchContent);
 

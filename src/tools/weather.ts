@@ -1,6 +1,22 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 
+interface WeatherApiResponse {
+  current_condition?: Array<{
+    weatherDesc?: Array<{ value?: string }>;
+    temp_C?: string;
+    temp_F?: string;
+    FeelsLikeC?: string;
+    FeelsLikeF?: string;
+    humidity?: string;
+    windspeedKmph?: string;
+    winddir16Point?: string;
+  }>;
+  nearest_area?: Array<{
+    areaName?: Array<{ value?: string }>;
+  }>;
+}
+
 export const weather = tool({
   description: 'Get current weather for a location',
   inputSchema: z.object({
@@ -17,8 +33,7 @@ export const weather = tool({
       if (!res.ok) {
         return { error: 'failed to fetch weather' };
       }
-      // biome-ignore lint/suspicious/noExplicitAny: external weather API response
-      const data = (await res.json()) as Record<string, any>;
+      const data = (await res.json()) as WeatherApiResponse;
       const current = data.current_condition?.[0];
       if (!current) {
         return { error: 'no weather data' };
