@@ -10,6 +10,7 @@ import {
   restoreHistory,
 } from '../commands/slash/index.js';
 import { setConfirmHandler } from '../tools/confirm.js';
+import { killRunningCommand } from '../tools/run-command.js';
 import type { Context } from '../commands/slash/types.js';
 import { addRule } from '../utils/permissions.js';
 import type { Chat } from '../config/chats.js';
@@ -238,6 +239,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     if (confirmMode) return;
 
     if (busy && (str === '\x1b' || str === '\x03') && abortController) {
+      killRunningCommand();
       abortController.abort();
       return;
     }
@@ -942,6 +944,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   rl.on('close', cleanup);
   rl.on('SIGINT', () => {
     if (busy && abortController) {
+      killRunningCommand();
       abortController.abort();
       abortController = null;
       busy = false;

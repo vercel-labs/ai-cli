@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { log as debug } from '../utils/debug.js';
@@ -8,6 +8,16 @@ import { confirm } from './confirm.js';
 const cwd = process.cwd();
 const TIMEOUT = 60000;
 const INACTIVITY = 30000;
+
+let activeProc: ChildProcess | null = null;
+
+/** Kill the currently running command, if any. */
+export function killRunningCommand(): void {
+  if (activeProc) {
+    activeProc.kill('SIGTERM');
+    activeProc = null;
+  }
+}
 
 export const runCommand = tool({
   description:
@@ -42,6 +52,7 @@ export const runCommand = tool({
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
+      activeProc = proc;
 
       const checkInactivity = setInterval(() => {
         if (Date.now() - lastActivity > INACTIVITY) {
@@ -65,6 +76,7 @@ export const runCommand = tool({
       proc.stderr?.on('data', onData);
 
       proc.on('close', (code) => {
+        activeProc = null;
         clearInterval(checkInactivity);
         clearTimeout(totalTimeout);
 
@@ -72,7 +84,7 @@ export const runCommand = tool({
         const result = output ? `$ ${command}\n${output}` : `$ ${command}`;
 
         if (killed) {
-          resolve({ error: 'Command timed out', output: result });
+          resolve({ error: 'Command cancelled', output: result });
         } else if (code === 0) {
           resolve({ output: result, silent: true });
         } else {
@@ -81,6 +93,7 @@ export const runCommand = tool({
       });
 
       proc.on('error', (err) => {
+        activeProc = null;
         clearInterval(checkInactivity);
         clearTimeout(totalTimeout);
         resolve({ error: err.message, output: `$ ${command}` });
