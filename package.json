@@ -29,6 +29,8 @@
     "test": "bun test",
     "lint": "biome lint .",
     "format": "biome format . --write",
+    "typecheck": "tsc --noEmit",
+    "format:check": "biome format .",
     "check": "biome check .",
     "prepublishOnly": "bun run build"
   },
