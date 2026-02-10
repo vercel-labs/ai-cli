@@ -72,6 +72,8 @@ export async function terminal(model: string, version: string): Promise<void> {
   let selectMode = false;
   let confirmMode = false;
   let commandMode = false;
+  let editStreamRendered = false;
+  let editStreamLineCount = 0;
   let pendingImage: { data: string; mimeType: string } | null = null;
   let capabilities: ModelCapabilities = {
     vision: true,
@@ -159,12 +161,19 @@ export async function terminal(model: string, version: string): Promise<void> {
         const bodyLines = actionLines.slice(1);
         const hasBody = bodyLines.length > 0;
 
-        lock.write(`${dim(headerLine)}\n`);
-        if (hasBody) {
-          for (const line of bodyLines) {
-            lock.write(`  ${line}\n`);
-          }
+        if (editStreamRendered) {
+          // Diff was already streamed to screen — just add spacing
+          editStreamRendered = false;
+          editStreamLineCount = 0;
           lock.write('\n');
+        } else {
+          lock.write(`${dim(headerLine)}\n`);
+          if (hasBody) {
+            for (const line of bodyLines) {
+              lock.write(`  ${line}\n`);
+            }
+            lock.write('\n');
+          }
         }
 
         const render = () => {
@@ -810,6 +819,38 @@ export async function terminal(model: string, version: string): Promise<void> {
               'info',
               `${label}${truncated ? `\n  ${truncated}` : ''}`,
             );
+          },
+          onEditStream: (filePath, oldLines, newLines, more) => {
+            clearStatus();
+
+            // Clear previously rendered streaming lines
+            for (let i = 0; i < editStreamLineCount; i++) {
+              out.write(
+                ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft,
+              );
+            }
+
+            const basename = filePath.includes('/')
+              ? (filePath.split('/').pop() ?? filePath)
+              : filePath;
+            const lines: string[] = [];
+            lines.push(dim(`Edit ${basename}?`));
+            for (const line of oldLines) {
+              lines.push(`  \x1b[31m- ${line}\x1b[39m`);
+            }
+            for (const line of newLines) {
+              lines.push(`  \x1b[32m+ ${line}\x1b[39m`);
+            }
+            if (more > 0) {
+              lines.push(dim(`    ... ${more} more lines`));
+            }
+
+            for (const line of lines) {
+              out.write(`${line}\n`);
+            }
+
+            editStreamLineCount = lines.length;
+            editStreamRendered = true;
           },
           onTokens: (fn) => {
             tokens = fn(tokens);
