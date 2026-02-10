@@ -354,17 +354,33 @@ export async function terminal(model: string, version: string): Promise<void> {
     statusText = text;
   }
 
-  function truncateToolOutput(text: string): string {
+  function formatToolOutput(text: string): string {
     const TAIL = 5;
     const lines = text.split('\n');
-    // First line is typically "$ command"; keep it as the header
-    if (lines.length <= TAIL + 1) return text;
-    const header = lines[0];
-    const body = lines.slice(1);
-    if (body.length <= TAIL) return text;
-    const hidden = body.length - TAIL;
-    const tail = body.slice(-TAIL).join('\n');
-    return `${header}\n  ... ${hidden} lines ...\n${tail}`;
+
+    // Command output: first line is "$ command"
+    if (lines[0]?.startsWith('$ ')) {
+      const command = lines[0].slice(2);
+      const body = lines.slice(1);
+      const header = `Ran ${command}`;
+
+      if (body.length === 0) return header;
+
+      if (body.length > TAIL) {
+        const hidden = body.length - TAIL;
+        const tail = body.slice(-TAIL).map((l) => `  ${l}`);
+        return `${header}\n  ... ${hidden} lines ...\n${tail.join('\n')}`;
+      }
+      return `${header}\n${body.map((l) => `  ${l}`).join('\n')}`;
+    }
+
+    // Other tool output (trees, answers, etc.): indent all lines
+    if (lines.length > TAIL) {
+      const hidden = lines.length - TAIL;
+      const tail = lines.slice(-TAIL).map((l) => `  ${l}`);
+      return `  ... ${hidden} lines ...\n${tail.join('\n')}`;
+    }
+    return lines.map((l) => `  ${l}`).join('\n');
   }
 
   function printMessage(msg: Message) {
@@ -379,7 +395,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         break;
       }
       case 'tool':
-        out.write(`${dim(truncateToolOutput(mask(msg.content)))}\n`);
+        out.write(`${dim(formatToolOutput(mask(msg.content)))}\n\n`);
         break;
       case 'info':
         out.write(`${dim(wrap(msg.content))}\n`);
@@ -716,6 +732,20 @@ export async function terminal(model: string, version: string): Promise<void> {
               streamWrap.reset();
             }
             addMessage(type, content);
+          },
+          onReasoning: (text, durationMs) => {
+            clearStatus();
+            const seconds = Math.round(durationMs / 1000);
+            const label =
+              seconds > 0 ? `thought for ${seconds}s` : 'thought briefly';
+            const truncated = text.replace(/\s+/g, ' ').trim().slice(0, 80);
+            out.write(`${dim(label)}\n`);
+            if (truncated) out.write(`${dim(`  ${truncated}`)}\n`);
+            out.write('\n');
+            addMessage(
+              'info',
+              `${label}${truncated ? `\n  ${truncated}` : ''}`,
+            );
           },
           onTokens: (fn) => {
             tokens = fn(tokens);

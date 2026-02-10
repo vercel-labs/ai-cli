@@ -24,6 +24,7 @@ interface StreamCallbacks {
     type: 'info' | 'tool' | 'assistant' | 'error',
     content: string,
   ) => void;
+  onReasoning: (text: string, durationMs: number) => void;
   onTokens: (fn: (t: number) => number) => void;
   onCost: (fn: (c: number) => number) => void;
   onSummary: (summary: string) => void;
@@ -127,6 +128,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   let silent = false;
   let buffer = '';
   let reasoning = '';
+  let reasoningStart = 0;
   let streamError: Error | null = null;
   let searchResults: Array<{
     title?: string;
@@ -156,6 +158,14 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       throw e;
     }
   })();
+
+  const flushReasoning = () => {
+    if (reasoning && reasoningStart) {
+      callbacks.onReasoning(reasoning, Date.now() - reasoningStart);
+      reasoning = '';
+      reasoningStart = 0;
+    }
+  };
 
   try {
     for await (const part of result.fullStream) {
@@ -191,6 +201,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         case 'reasoning-delta': {
           const rp = part as { text?: string };
           if (rp.text) {
+            if (!reasoningStart) reasoningStart = Date.now();
             reasoning += rp.text;
             callbacks.onStatus(
               reasoning.replace(/\s+/g, ' ').trim().slice(-80),
@@ -200,6 +211,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'tool-call': {
+          flushReasoning();
           const tc = part as {
             toolName: string;
             input?: ToolInput;
@@ -212,7 +224,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           } else if (tc.toolName === 'parallel_search' && input?.objective) {
             status = `searching: ${input.objective.slice(0, 60)}`;
           } else if (tc.toolName === 'runCommand' && input?.command) {
-            status = `$ ${input.command.slice(0, 70)}`;
+            status = `Running ${input.command.slice(0, 70)}`;
           } else if (tc.toolName === 'fetchUrl') {
             status = 'fetching...';
           }
@@ -264,6 +276,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'text-delta': {
+          flushReasoning();
           const td = part as { text: string };
           callbacks.onStatus('');
           buffer += td.text;
@@ -272,6 +285,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'step-finish': {
+          flushReasoning();
           const sf = part as { finishReason?: string };
           debug(`step-finish: ${sf.finishReason}`);
           break;
@@ -284,6 +298,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     streamError = e instanceof Error ? e : new Error(String(e));
   }
 
+  flushReasoning();
   callbacks.onBusy(false);
   callbacks.onStatus('');
 
