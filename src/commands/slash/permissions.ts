@@ -13,7 +13,7 @@ export const permissions: CommandHandler = (_ctx, args) => {
     const lines = rules.map((r, i) => {
       const home = process.env.HOME || '';
       const dir =
-        home && (r.directory === home || r.directory.startsWith(home + '/'))
+        home && (r.directory === home || r.directory.startsWith(`${home}/`))
           ? `~${r.directory.slice(home.length)}`
           : r.directory;
       if (r.tool === 'runCommand' && r.command) {

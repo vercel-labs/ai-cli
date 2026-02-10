@@ -142,6 +142,7 @@ interface ToolInput {
   command?: string;
   dirPath?: string;
   filePath?: string;
+  paths?: string[];
 }
 
 interface ToolOutput {
@@ -731,12 +732,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   if (chat.messages.length === 2 && chat.title === 'New chat') {
     const first = chat.messages.find((m) => m.role === 'user');
     if (first) {
-      const raw = first.content;
-      const text =
-        typeof raw === 'string'
-          ? raw
-          : ((raw.find((p: any) => p.type === 'text') as any)?.text ?? '');
-      chat.title = text.slice(0, 50).trim();
+      chat.title = first.content.slice(0, 50).trim();
     }
   }
 
