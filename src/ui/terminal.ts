@@ -827,7 +827,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     process.stdout.write(ansi.cursorHide);
     rl.pause();
-    out.write('\n\n');
+    out.write('\n');
 
     try {
       const updatedChat = await streamChat({
