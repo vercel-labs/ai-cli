@@ -50,6 +50,7 @@ interface Message {
 }
 
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+const dimmer = (s: string) => `\x1b[2m\x1b[90m${s}\x1b[0m`;
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
 
 export async function terminal(model: string, version: string): Promise<void> {
@@ -433,9 +434,18 @@ export async function terminal(model: string, version: string): Promise<void> {
         out.write(`${wrap(mask(content))}\n`);
         break;
       }
-      case 'tool':
-        out.write(`${dim(formatToolOutput(mask(msg.content)))}\n\n`);
+      case 'tool': {
+        const formatted = formatToolOutput(mask(msg.content));
+        const nlIdx = formatted.indexOf('\n');
+        if (nlIdx >= 0) {
+          const header = formatted.slice(0, nlIdx);
+          const body = formatted.slice(nlIdx + 1);
+          out.write(`${dim(header)}\n${dimmer(body)}\n\n`);
+        } else {
+          out.write(`${dim(formatted)}\n\n`);
+        }
         break;
+      }
       case 'info':
         out.write(`${dim(wrap(msg.content))}\n`);
         break;
