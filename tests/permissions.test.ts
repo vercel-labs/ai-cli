@@ -11,6 +11,7 @@ import { cleanupTestDir, resetTestDir } from './helpers/mock-paths.js';
 import {
   addRule,
   clearRules,
+  invalidatePermissionsCache,
   isAllowed,
   listRules,
   removeRule,
@@ -19,6 +20,7 @@ import {
 describe('permissions', () => {
   beforeEach(() => {
     resetTestDir();
+    invalidatePermissionsCache();
   });
 
   afterEach(() => {
