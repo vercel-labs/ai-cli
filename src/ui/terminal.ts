@@ -411,7 +411,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     const markdown = getSetting('markdown');
     switch (msg.type) {
       case 'user':
-        out.write(`${dim('› ') + wrap(msg.content)}\n`);
+        out.write(`${dim('› ') + wrap(msg.content)}\n\n`);
         break;
       case 'assistant': {
         const content = markdown ? renderMarkdown(msg.content) : msg.content;
@@ -699,6 +699,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     process.stdout.write(ansi.cursorHide);
     rl.pause();
+    out.write('\n');
 
     try {
       const updatedChat = await streamChat({
