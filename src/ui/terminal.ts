@@ -37,6 +37,7 @@ import { detectPackageManager } from '../utils/package-manager.js';
 import { killAllProcesses } from '../utils/processes.js';
 import { createStreamWrap, wrap } from '../utils/wrap.js';
 import { Output } from './output.js';
+import { SpacingController } from './spacing.js';
 
 interface ReadlineInternal extends readline.Interface {
   line: string;
@@ -51,12 +52,17 @@ interface Message {
   content: string;
 }
 
-const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
-const dimmer = (s: string) => `\x1b[2m\x1b[90m${s}\x1b[0m`;
+import { dim, dimmer, green, red } from '../utils/color.js';
+
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
+
+function trimLeadingBlankLines(text: string): string {
+  return text.replace(/^(?:\r?\n)+/, '');
+}
 
 export async function terminal(model: string, version: string): Promise<void> {
   const out = new Output();
+  const spacing = new SpacingController((text) => out.write(text));
 
   let currentModel = model;
   let chat: Chat | null = null;
@@ -194,18 +200,34 @@ export async function terminal(model: string, version: string): Promise<void> {
         const bodyLines = actionLines.slice(1);
         const hasBody = bodyLines.length > 0;
 
+        // Track how many lines the confirm UI occupies (excluding options line)
+        let confirmLineCount = 0;
         if (editStreamRendered) {
           // Diff was already streamed to screen — just add spacing
+          confirmLineCount = editStreamLineCount + 1; // streamed lines + blank
           editStreamRendered = false;
           editStreamLineCount = 0;
           lock.write('\n');
         } else {
-          lock.write(`${dim(headerLine)}\n`);
+          // Dim the verb and punctuation but keep the subject readable.
+          // Confirm actions follow "Verb subject?" pattern.
+          const qIdx = headerLine.lastIndexOf('?');
+          const spIdx = headerLine.indexOf(' ');
+          if (spIdx > 0 && qIdx > spIdx) {
+            const verb = headerLine.slice(0, spIdx + 1);
+            const subject = headerLine.slice(spIdx + 1, qIdx);
+            const punct = headerLine.slice(qIdx);
+            lock.write(`${dim(verb)}${subject}${dim(punct)}\n`);
+          } else {
+            lock.write(`${dim(headerLine)}\n`);
+          }
+          confirmLineCount = 1; // header line
           if (hasBody) {
             for (const line of bodyLines) {
               lock.write(`  ${line}\n`);
             }
             lock.write('\n');
+            confirmLineCount += bodyLines.length + 1; // body + blank
           }
         }
 
@@ -220,10 +242,33 @@ export async function terminal(model: string, version: string): Promise<void> {
 
         const finish = (choice: string) => {
           process.stdin.removeListener('keypress', onKey);
-          lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
+          const accepted = choice === 'yes' || choice === 'always';
+
+          if (accepted) {
+            // Erase the confirm prompt entirely — the tool result will
+            // describe what happened (e.g. "Ran ...", "Edited ...").
+            lock.write(`\r${ansi.eraseLine}`); // clear options line
+            for (let i = 0; i < confirmLineCount; i++) {
+              lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
+            }
+            // Don't request another gap — the blank line originally
+            // written by beforeStatus() is still in the terminal above
+            // the cursor and serves as the one-line separator.
+            spacing.markAfterConfirmAccepted();
+          } else {
+            lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
+            // Treat confirm choices like user messages for spacing.
+            spacing.markAfterConfirm();
+          }
+
           // Release lock BEFORE resolving so downstream writes render again
           confirmMode = false;
           lock.release();
+          // If a status update was queued while the lock was held (e.g.
+          // "Running …"), show it now so the user sees progress.
+          if (accepted && pendingStatusText) {
+            showStatus(pendingStatusText);
+          }
           if (choice === 'always') {
             // Persist the rule for this tool/command in this directory
             if (opts?.tool) {
@@ -413,8 +458,11 @@ export async function terminal(model: string, version: string): Promise<void> {
   const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   let spinnerTimer: ReturnType<typeof setInterval> | null = null;
   let spinnerIdx = 0;
+  /** Status text queued while the output was locked (e.g. during a confirm). */
+  let pendingStatusText: string | null = null;
 
   function clearStatus() {
+    pendingStatusText = null;
     if (spinnerTimer) {
       clearInterval(spinnerTimer);
       spinnerTimer = null;
@@ -430,8 +478,21 @@ export async function terminal(model: string, version: string): Promise<void> {
       clearInterval(spinnerTimer);
       spinnerTimer = null;
     }
-    if (statusText) {
+    // If the output is locked (e.g. a confirm modal owns the terminal),
+    // queue the status for later — writing through out.write() would be
+    // silently dropped, and the spinnerTimer would fire after the lock
+    // is released and corrupt cursor positions.
+    if (out.locked) {
+      pendingStatusText = text;
+      return;
+    }
+    pendingStatusText = null;
+    const hadStatus = Boolean(statusText);
+    if (hadStatus) {
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+    }
+    if (!hadStatus) {
+      spacing.beforeStatus();
     }
     spinnerIdx = 0;
     out.write(`${dim(`${spinnerFrames[0]} ${text}`)}\n`);
@@ -489,14 +550,15 @@ export async function terminal(model: string, version: string): Promise<void> {
     return lines.map((l) => `  ${l}`).join('\n');
   }
 
-  function printMessage(msg: Message) {
+  function printMessage(msg: Message, trailing = true) {
     const markdown = getSetting('markdown');
     switch (msg.type) {
       case 'user':
-        out.write(`${dim('› ') + wrap(msg.content)}\n\n`);
+        out.write(`${dim('› ') + wrap(msg.content)}\n${trailing ? '\n' : ''}`);
         break;
       case 'assistant': {
-        const content = markdown ? renderMarkdown(msg.content) : msg.content;
+        const assistant = trimLeadingBlankLines(msg.content);
+        const content = markdown ? renderMarkdown(assistant) : assistant;
         out.write(`${wrap(mask(content))}\n`);
         break;
       }
@@ -506,15 +568,32 @@ export async function terminal(model: string, version: string): Promise<void> {
         if (nlIdx >= 0) {
           const header = formatted.slice(0, nlIdx);
           const body = formatted.slice(nlIdx + 1);
-          out.write(`${dim(header)}\n${dimmer(body)}\n\n`);
+          out.write(`${dim(header)}\n${dimmer(body)}\n${trailing ? '\n' : ''}`);
         } else {
-          out.write(`${dim(formatted)}\n\n`);
+          out.write(`${dim(formatted)}\n${trailing ? '\n' : ''}`);
         }
         break;
       }
-      case 'info':
-        out.write(`${dim(wrap(msg.content))}\n\n`);
+      case 'info': {
+        // Highlight the subject in "Verb subject" messages (e.g. "Deleted blog/")
+        const nlIdx = msg.content.indexOf('\n');
+        const firstLine =
+          nlIdx >= 0 ? msg.content.slice(0, nlIdx) : msg.content;
+        const spaceIdx = firstLine.indexOf(' ');
+        if (spaceIdx > 0) {
+          const verb = firstLine.slice(0, spaceIdx + 1);
+          const subject = firstLine.slice(spaceIdx + 1);
+          out.write(`${dim(verb)}${subject}\n`);
+        } else {
+          out.write(`${dim(firstLine)}\n`);
+        }
+        if (nlIdx >= 0) {
+          // Body lines (e.g. diff from editFile) — preserve original colors
+          out.write(`${msg.content.slice(nlIdx + 1)}\n`);
+        }
+        if (trailing) out.write('\n');
         break;
+      }
       case 'error':
         out.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
         break;
@@ -783,6 +862,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     addMessage('user', msg);
 
     busy = true;
+    spacing.markUserSubmit();
     const controller = new AbortController();
     abortController = controller;
     streamBuffer = '';
@@ -791,7 +871,6 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     process.stdout.write(ansi.cursorHide);
     rl.pause();
-    out.write('\n');
 
     try {
       const updatedChat = await streamChat({
@@ -807,8 +886,9 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (s) {
               if (!statusText && streamBuffer) {
                 const remaining = streamWrap.flush();
-                out.write(`${remaining}\n\n`);
+                out.write(`${remaining}\n`);
                 streamBuffer = '';
+                spacing.markAfterBareMessage();
               }
               showStatus(s);
             } else {
@@ -816,31 +896,41 @@ export async function terminal(model: string, version: string): Promise<void> {
             }
           },
           onPending: (text) => {
-            clearStatus();
-            if (text.length > streamBuffer.length) {
-              const newText = text.slice(streamBuffer.length);
+            const normalized = trimLeadingBlankLines(text);
+            if (normalized.length > streamBuffer.length) {
+              clearStatus();
+              if (!streamBuffer) {
+                spacing.beforeOutput();
+              }
+              const newText = normalized.slice(streamBuffer.length);
               const wrapped = streamWrap.write(mask(newText));
               out.write(wrapped);
-              streamBuffer = text;
+              streamBuffer = normalized;
             }
           },
           onMessage: (type, content) => {
             clearStatus();
+            spacing.beforeOutput();
+            const normalizedContent =
+              type === 'assistant' ? trimLeadingBlankLines(content) : content;
             if (type === 'assistant') {
               if (streamBuffer) {
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n`);
               } else {
-                printMessage({ type, content });
+                printMessage({ type, content: normalizedContent }, false);
               }
               streamBuffer = '';
               streamWrap.reset();
             } else {
-              printMessage({ type, content });
+              printMessage({ type, content: normalizedContent }, false);
             }
-            addMessage(type, content);
+            addMessage(type, normalizedContent);
+            spacing.markAfterBareMessage();
           },
           onRecord: (type, content) => {
+            const normalizedContent =
+              type === 'assistant' ? trimLeadingBlankLines(content) : content;
             // Finalize stream wrap without re-rendering text
             if (type === 'assistant' && streamBuffer) {
               const remaining = streamWrap.flush();
@@ -848,18 +938,20 @@ export async function terminal(model: string, version: string): Promise<void> {
               out.write('\n');
               streamBuffer = '';
               streamWrap.reset();
+              spacing.markAfterBareMessage();
             }
-            addMessage(type, content);
+            addMessage(type, normalizedContent);
           },
           onReasoning: (text, durationMs) => {
             clearStatus();
+            spacing.beforeOutput();
             const seconds = Math.round(durationMs / 1000);
             const label =
               seconds > 0 ? `thought for ${seconds}s` : 'thought briefly';
             const truncated = text.replace(/\s+/g, ' ').trim().slice(0, 80);
             out.write(`${dim(label)}\n`);
             if (truncated) out.write(`${dim(`  ${truncated}`)}\n`);
-            out.write('\n');
+            spacing.markAfterBareMessage();
             addMessage(
               'info',
               `${label}${truncated ? `\n  ${truncated}` : ''}`,
@@ -867,6 +959,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           },
           onEditStream: (filePath, oldLines, newLines, more) => {
             clearStatus();
+            spacing.beforeOutput();
 
             // Clear previously rendered streaming lines
             for (let i = 0; i < editStreamLineCount; i++) {
@@ -879,10 +972,10 @@ export async function terminal(model: string, version: string): Promise<void> {
             const lines: string[] = [];
             lines.push(dim(`Edit ${basename}?`));
             for (const line of oldLines) {
-              lines.push(`  \x1b[31m- ${line}\x1b[39m`);
+              lines.push(`  ${red(`- ${line}`)}`);
             }
             for (const line of newLines) {
-              lines.push(`  \x1b[32m+ ${line}\x1b[39m`);
+              lines.push(`  ${green(`+ ${line}`)}`);
             }
             if (more > 0) {
               lines.push(dim(`    ... ${more} more lines`));
@@ -926,6 +1019,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     } catch (e) {
       clearStatus();
       if ((e as Error).name !== 'AbortError') {
+        spacing.beforeOutput();
         addAndPrint('error', formatError(e));
       }
     }
@@ -939,8 +1033,8 @@ export async function terminal(model: string, version: string): Promise<void> {
   }
 
   function prompt() {
-    const spacing = getSetting('spacing') ?? 1;
-    process.stdout.write('\n'.repeat(spacing));
+    const promptSpacing = getSetting('spacing') ?? 1;
+    process.stdout.write('\n'.repeat(promptSpacing));
     rl.setPrompt(dim('› '));
     rl.prompt();
   }
@@ -948,7 +1042,8 @@ export async function terminal(model: string, version: string): Promise<void> {
   process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
   updateTitle();
   addAndPrint('info', `ai ${version} [${currentModel}]`);
-  addAndPrint('info', 'type /help for commands');
+  addMessage('info', 'type /help for commands');
+  out.write(`${dim('type /help for commands')}\n`);
 
   readline.emitKeypressEvents(process.stdin);
   if (process.stdin.isTTY) process.stdin.setRawMode(true);

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { green, red } from '../utils/color.js';
 import { log as debug } from '../utils/debug.js';
 import { pathError, safePath } from '../utils/safe-path.js';
 import { saveWrite } from '../utils/undo.js';
@@ -15,8 +16,8 @@ function writeDiff(oldContent: string | null, newContent: string): string {
     // Existing file – show removed / added (first N lines each)
     const oldLines = oldContent.split('\n').slice(0, PREVIEW);
     const newLines = newContent.split('\n').slice(0, PREVIEW);
-    for (const l of oldLines) lines.push(`\x1b[31m- ${l}\x1b[39m`);
-    for (const l of newLines) lines.push(`\x1b[32m+ ${l}\x1b[39m`);
+    for (const l of oldLines) lines.push(red(`- ${l}`));
+    for (const l of newLines) lines.push(green(`+ ${l}`));
     const more =
       Math.max(oldContent.split('\n').length, newContent.split('\n').length) -
       PREVIEW;
@@ -24,7 +25,7 @@ function writeDiff(oldContent: string | null, newContent: string): string {
   } else {
     // New file – show additions only
     const newLines = newContent.split('\n').slice(0, PREVIEW);
-    for (const l of newLines) lines.push(`\x1b[32m+ ${l}\x1b[39m`);
+    for (const l of newLines) lines.push(green(`+ ${l}`));
     const more = newContent.split('\n').length - PREVIEW;
     if (more > 0) lines.push(`  ... ${more} more lines`);
   }

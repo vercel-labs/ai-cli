@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { stepCountIs, streamText } from 'ai';
-import { gray } from 'yoctocolors';
+import { gray } from '../utils/color.js';
 import { getTools } from '../tools/index.js';
 import { AI_CLI_HEADERS } from '../utils/constants.js';
 import { formatError } from '../utils/errors.js';

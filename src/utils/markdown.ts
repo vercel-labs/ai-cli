@@ -1,13 +1,4 @@
-const colors = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  cyan: '\x1b[36m',
-  yellow: '\x1b[33m',
-  green: '\x1b[32m',
-  magenta: '\x1b[35m',
-  blue: '\x1b[34m',
-};
+import { bold, cyan, dim, isColorEnabled, magenta, yellow } from './color.js';
 
 const keywords = [
   'const',
@@ -62,31 +53,24 @@ const keywords = [
 ];
 
 function highlightCode(code: string): string {
+  if (!isColorEnabled()) return code;
+
   let result = code;
 
-  result = result.replace(/(\/\/[^\n]*)/g, `${colors.dim}$1${colors.reset}`);
-  result = result.replace(
-    /(\/\*[\s\S]*?\*\/)/g,
-    `${colors.dim}$1${colors.reset}`,
-  );
-
-  result = result.replace(
-    /("[^"]*"|'[^']*'|`[^`]*`)/g,
-    `${colors.yellow}$1${colors.reset}`,
-  );
-
-  result = result.replace(
-    /\b(\d+\.?\d*)\b/g,
-    `${colors.magenta}$1${colors.reset}`,
-  );
+  result = result.replace(/(\/\/[^\n]*)/g, (_, m) => dim(m));
+  result = result.replace(/(\/\*[\s\S]*?\*\/)/g, (_, m) => dim(m));
+  result = result.replace(/("[^"]*"|'[^']*'|`[^`]*`)/g, (_, m) => yellow(m));
+  result = result.replace(/\b(\d+\.?\d*)\b/g, (_, m) => magenta(m));
 
   const keywordPattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
-  result = result.replace(keywordPattern, `${colors.cyan}$1${colors.reset}`);
+  result = result.replace(keywordPattern, (_, m) => cyan(m));
 
   return result;
 }
 
 export function renderMarkdown(text: string): string {
+  if (!isColorEnabled()) return text;
+
   let result = text;
 
   result = result.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => {
@@ -95,17 +79,9 @@ export function renderMarkdown(text: string): string {
     return lines.map((line: string) => `    ${line}`).join('\n');
   });
 
-  result = result.replace(/`([^`]+)`/g, `${colors.cyan}$1${colors.reset}`);
-
-  result = result.replace(
-    /\*\*([^*]+)\*\*/g,
-    `${colors.bold}$1${colors.reset}`,
-  );
-
-  result = result.replace(
-    /^#{1,6}\s+(.+)$/gm,
-    `${colors.bold}$1${colors.reset}`,
-  );
+  result = result.replace(/`([^`]+)`/g, (_, m) => cyan(m));
+  result = result.replace(/\*\*([^*]+)\*\*/g, (_, m) => bold(m));
+  result = result.replace(/^#{1,6}\s+(.+)$/gm, (_, m) => bold(m));
 
   return result;
 }

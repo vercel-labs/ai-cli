@@ -118,6 +118,26 @@ export function getProjectFiles(cwd?: string): string {
   }
   if (files.length === 0) return '';
 
+  // Include top-level directories from the filesystem so untracked folders
+  // (e.g. cloned repos, build output) are visible to the model.
+  const topDirsFromFiles = new Set(
+    files.filter((f) => f.includes('/')).map((f) => f.split('/')[0]),
+  );
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const e of entries) {
+      if (
+        e.isDirectory() &&
+        !e.name.startsWith('.') &&
+        !topDirsFromFiles.has(e.name)
+      ) {
+        files.push(`${e.name}/`);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   // Simple flat list — the model needs actual paths, not summaries
   if (files.length <= FILE_CAP) {
     return files.join('\n');

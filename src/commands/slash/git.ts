@@ -1,11 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { cyan, dim, green, red } from '../../utils/color.js';
 import { commit } from './commit.js';
 import type { CommandHandler } from './types.js';
-
-const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
-const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
-const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
-const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 
 function formatGitDiff(raw: string): string {
   const chunks = raw.split(/^diff --git /m).filter(Boolean);

@@ -41,6 +41,7 @@ Tool usage:
 - For search tools (perplexity_search, parallel_search): ALWAYS summarize the results in your response
 - For fetchUrl: ALWAYS summarize the fetched content in your response
 - If a tool call is denied by the user, do NOT retry it or attempt workarounds
+- When the user mentions a name that matches a file or directory in <project-files>, treat it as that file/directory. Check <project-files> BEFORE interpreting names semantically.
 
 Finding files (IMPORTANT - follow this order):
 1. Check <project-files> FIRST. It lists every file in the project. Use it to locate files by path, then readFile or editFile directly.

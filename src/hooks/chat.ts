@@ -164,9 +164,73 @@ interface ProviderMeta {
   gateway?: GatewayMeta;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+let spacingSequenceTurn = 0;
+
 export async function streamChat(options: StreamOptions): Promise<Chat> {
   const { model, message, history, tokens, summary, pm, callbacks } = options;
   const chat = options.chat ?? getOrCreateChat(model);
+
+  if (process.env.AI_CLI_TEST_SCENARIO === 'spacing-running') {
+    callbacks.onBusy(true);
+    callbacks.onStatus('thinking...');
+    callbacks.onPending('');
+    await sleep(40);
+    callbacks.onStatus('Running cd blog && npm install');
+    await sleep(200);
+    callbacks.onStatus('');
+    callbacks.onMessage('tool', '$ cd blog && npm install\ninstalled');
+    callbacks.onBusy(false);
+    callbacks.onStatus('');
+    chat.messages.push({ role: 'user', content: message });
+    return chat;
+  }
+
+  if (process.env.AI_CLI_TEST_SCENARIO === 'spacing-leading-newlines') {
+    callbacks.onBusy(true);
+    callbacks.onStatus('thinking...');
+    callbacks.onPending('');
+    await sleep(40);
+    callbacks.onStatus('');
+    const text =
+      '\n\n\nThere is no node_modules directory visible in the project.';
+    callbacks.onPending(text);
+    callbacks.onRecord('assistant', text);
+    callbacks.onBusy(false);
+    callbacks.onStatus('');
+    chat.messages.push({ role: 'user', content: message });
+    return chat;
+  }
+
+  if (process.env.AI_CLI_TEST_SCENARIO === 'spacing-sequence') {
+    callbacks.onBusy(true);
+    callbacks.onStatus('thinking...');
+    callbacks.onPending('');
+    await sleep(30);
+    callbacks.onStatus('');
+
+    if (spacingSequenceTurn === 0) {
+      callbacks.onMessage('error', 'not found: blog/node_modules');
+      callbacks.onMessage(
+        'assistant',
+        'No node_modules directory found in the blog folder.',
+      );
+    } else {
+      callbacks.onStatus('Running cd blog && npm install');
+      await sleep(180);
+      callbacks.onStatus('');
+      callbacks.onMessage('tool', '$ cd blog && npm install\ninstalled');
+    }
+
+    spacingSequenceTurn += 1;
+    callbacks.onBusy(false);
+    callbacks.onStatus('');
+    chat.messages.push({ role: 'user', content: message });
+    return chat;
+  }
 
   debug(`input: ${message.slice(0, 50)}${message.length > 50 ? '...' : ''}`);
   const historyLen = history.length;
@@ -397,8 +461,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             status = `Editing ${f}`;
             currentToolLabel = '';
           } else if (tc.toolName === 'deleteFile') {
-            const f = input?.paths?.[0] || 'file';
-            status = `Deleting ${f}`;
+            status = 'Deleting';
             currentToolLabel = '';
           } else if (tc.toolName === 'copyFile') {
             status = 'Copying file';

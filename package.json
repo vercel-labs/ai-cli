@@ -5,6 +5,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.1.4",
     "@types/node": "^24.1.0",
+    "@xterm/headless": "^6.0.0",
     "ai": "6.0.71",
     "ansi-escapes": "^7.3.0",
     "arg": "^5.0.2",
@@ -26,7 +27,8 @@
   ],
   "scripts": {
     "build": "node build.mjs",
-    "test": "bun test",
+    "test": "bun test tests/*.test.ts",
+    "test:e2e": "bun test tests/e2e/",
     "lint": "biome lint .",
     "format": "biome format . --write",
     "typecheck": "tsc --noEmit",

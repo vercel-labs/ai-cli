@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { green, red } from '../utils/color.js';
 import { log as debug } from '../utils/debug.js';
 import { pathError, safePath } from '../utils/safe-path.js';
 import { saveWrite } from '../utils/undo.js';
@@ -11,8 +12,8 @@ function shortDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n').slice(0, 5);
   const newLines = newText.split('\n').slice(0, 5);
   const lines: string[] = [];
-  for (const line of oldLines) lines.push(`\x1b[31m- ${line}\x1b[39m`);
-  for (const line of newLines) lines.push(`\x1b[32m+ ${line}\x1b[39m`);
+  for (const line of oldLines) lines.push(red(`- ${line}`));
+  for (const line of newLines) lines.push(green(`+ ${line}`));
   const more =
     Math.max(oldText.split('\n').length, newText.split('\n').length) - 5;
   if (more > 0) lines.push(`  ... ${more} more lines`);
@@ -59,7 +60,14 @@ export const editFile = tool({
       const updated = content.replace(oldText, newText);
       fs.writeFileSync(fullPath, updated, 'utf-8');
 
-      return { message: `Edited ${filePath}`, silent: true };
+      const indentedDiff = diff
+        .split('\n')
+        .map((l) => `  ${l}`)
+        .join('\n');
+      return {
+        message: `Edited ${filePath}\n${indentedDiff}`,
+        silent: true,
+      };
     } catch {
       return { error: `edit failed: ${filePath}` };
     }

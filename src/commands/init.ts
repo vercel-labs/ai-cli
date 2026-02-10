@@ -1,4 +1,4 @@
-import { dim } from 'yoctocolors';
+import { dim } from '../utils/color.js';
 import { setApiKey } from '../config/index.js';
 import { GATEWAY_URL } from '../utils/models.js';
 
