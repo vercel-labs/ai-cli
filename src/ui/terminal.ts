@@ -74,6 +74,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   let selectMode = false;
   let confirmMode = false;
   let needsSpacingAfterConfirm = false;
+  let gapBeforeFirstStatus = false;
   let commandMode = false;
   let cmdSuggestionCount = 0; // number of suggestion lines currently rendered
   let editStreamRendered = false;
@@ -469,6 +470,12 @@ export async function terminal(model: string, version: string): Promise<void> {
     if (statusText) {
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
     }
+    // After a user prompt, `out.write('\n')` places the cursor on the
+    // gap row.  Push the spinner one row lower so the gap stays visible.
+    if (gapBeforeFirstStatus) {
+      gapBeforeFirstStatus = false;
+      out.write('\n');
+    }
     spinnerIdx = 0;
     out.write(`${dim(`${spinnerFrames[0]} ${text}`)}\n`);
     statusText = text;
@@ -845,7 +852,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     process.stdout.write(ansi.cursorHide);
     rl.pause();
-    out.write('\n');
+    gapBeforeFirstStatus = true;
 
     try {
       const updatedChat = await streamChat({
@@ -882,9 +889,9 @@ export async function terminal(model: string, version: string): Promise<void> {
             clearStatus();
             if (needsSpacingAfterConfirm) {
               needsSpacingAfterConfirm = false;
-              // 'info' messages (e.g. "Edited …") already land on the
-              // correct row after the confirm erase.  Other types (e.g.
-              // 'tool' for "Ran …") need an explicit blank-line gap.
+              // After confirm erase, editStream-based tools (info msgs)
+              // already land on the correct row.  Other tool result types
+              // (e.g. 'tool' for "Ran …") need an explicit blank-line gap.
               if (type !== 'info') {
                 out.write('\n');
               }
