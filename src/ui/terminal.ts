@@ -244,6 +244,8 @@ export async function terminal(model: string, version: string): Promise<void> {
             for (let i = 0; i < linesToErase; i++) {
               lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
             }
+            // Leave a blank line so the tool result has spacing from the prompt
+            lock.write('\n');
           } else {
             lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
           }
