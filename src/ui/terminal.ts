@@ -73,6 +73,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   let currentStreamWrap: ReturnType<typeof createStreamWrap> | null = null;
   let selectMode = false;
   let confirmMode = false;
+  let hadContentBeforeConfirm = false;
   let commandMode = false;
   let cmdSuggestionCount = 0; // number of suggestion lines currently rendered
   let editStreamRendered = false;
@@ -195,9 +196,12 @@ export async function terminal(model: string, version: string): Promise<void> {
         const hasBody = bodyLines.length > 0;
 
         let wasEditStream = false;
+        // Track how many lines the confirm UI occupies (excluding options line)
+        let confirmLineCount = 0;
         if (editStreamRendered) {
           // Diff was already streamed to screen — just add spacing
           wasEditStream = true;
+          confirmLineCount = editStreamLineCount + 1; // streamed lines + blank
           editStreamRendered = false;
           editStreamLineCount = 0;
           lock.write('\n');
@@ -214,11 +218,13 @@ export async function terminal(model: string, version: string): Promise<void> {
           } else {
             lock.write(`${dim(headerLine)}\n`);
           }
+          confirmLineCount = 1; // header line
           if (hasBody) {
             for (const line of bodyLines) {
               lock.write(`  ${line}\n`);
             }
             lock.write('\n');
+            confirmLineCount += bodyLines.length + 1; // body + blank
           }
         }
 
@@ -235,17 +241,21 @@ export async function terminal(model: string, version: string): Promise<void> {
           process.stdin.removeListener('keypress', onKey);
           const accepted = choice === 'yes' || choice === 'always';
 
-          if (accepted && !hasBody && !wasEditStream) {
-            // Erase the confirm prompt entirely for simple confirms (e.g.
-            // "Run: git clone ...?") — the tool result will describe what
-            // happened (e.g. "Ran git clone ..."), so keeping both is noisy.
-            const linesToErase = 1; // header line
+          if (accepted) {
+            // Erase the confirm prompt entirely — the tool result will
+            // describe what happened (e.g. "Ran ...", "Edited ...").
             lock.write(`\r${ansi.eraseLine}`); // clear options line
-            for (let i = 0; i < linesToErase; i++) {
+            for (let i = 0; i < confirmLineCount; i++) {
               lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
             }
-            // Leave a blank line so the tool result has spacing from the prompt
-            lock.write('\n');
+            // When there was streamed text before the confirm, the erased
+            // spinner line sits between that text and the cursor — add a
+            // newline so the tool result has a blank-line gap from the text.
+            // When there was NO text, the blank line from the input prompt
+            // already provides the gap.
+            if (hadContentBeforeConfirm) {
+              lock.write('\n');
+            }
           } else {
             lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
           }
@@ -821,6 +831,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     addMessage('user', msg);
 
     busy = true;
+    hadContentBeforeConfirm = false;
     const controller = new AbortController();
     abortController = controller;
     streamBuffer = '';
@@ -844,6 +855,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           onStatus: (s) => {
             if (s) {
               if (!statusText && streamBuffer) {
+                hadContentBeforeConfirm = true;
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n\n`);
                 streamBuffer = '';
@@ -865,6 +877,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           onMessage: (type, content) => {
             clearStatus();
             if (type === 'assistant') {
+              hadContentBeforeConfirm = true;
               if (streamBuffer) {
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n`);
@@ -881,6 +894,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           onRecord: (type, content) => {
             // Finalize stream wrap without re-rendering text
             if (type === 'assistant' && streamBuffer) {
+              hadContentBeforeConfirm = true;
               const remaining = streamWrap.flush();
               if (remaining) out.write(remaining);
               out.write('\n');
