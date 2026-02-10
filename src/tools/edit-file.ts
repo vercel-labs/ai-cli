@@ -48,7 +48,7 @@ export const editFile = tool({
       }
 
       const diff = shortDiff(oldText, newText);
-      const ok = await confirm(`edit ${path.basename(filePath)}?\n${diff}`);
+      const ok = await confirm(`Edit ${path.basename(filePath)}?\n${diff}`);
       if (!ok) {
         return { error: 'User denied this action. Do not retry.' };
       }
@@ -57,7 +57,7 @@ export const editFile = tool({
       const updated = content.replace(oldText, newText);
       fs.writeFileSync(fullPath, updated, 'utf-8');
 
-      return { message: `edited ${filePath}`, silent: true };
+      return { message: `Edited ${filePath}`, silent: true };
     } catch {
       return { error: `edit failed: ${filePath}` };
     }

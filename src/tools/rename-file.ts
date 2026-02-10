@@ -30,7 +30,7 @@ export const renameFile = tool({
 
       saveRename(oldPath, newPath);
       fs.renameSync(fullOldPath, fullNewPath);
-      return { message: `renamed to ${newPath}`, silent: true };
+      return { message: `Renamed to ${newPath}`, silent: true };
     } catch {
       return { error: `rename failed: ${oldPath}` };
     }

@@ -16,7 +16,7 @@ export const deleteFile = tool({
     const errors: string[] = [];
 
     const names = paths.map((p) => path.basename(p)).join(', ');
-    const ok = await confirm(`delete ${names}?`);
+    const ok = await confirm(`Delete ${names}?`);
     if (!ok) {
       return { error: 'User denied this action. Do not retry.' };
     }
@@ -54,7 +54,7 @@ export const deleteFile = tool({
       return { error: errors.join(', ') };
     }
 
-    const msg = `deleted ${deleted.join(', ')}`;
+    const msg = `Deleted ${deleted.join(', ')}`;
     return {
       message: errors.length ? `${msg} (errors: ${errors.join(', ')})` : msg,
       silent: true,

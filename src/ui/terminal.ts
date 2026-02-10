@@ -159,39 +159,32 @@ export async function terminal(model: string, version: string): Promise<void> {
         const bodyLines = actionLines.slice(1);
         const hasBody = bodyLines.length > 0;
 
+        lock.write(`${dim(headerLine)}\n`);
         if (hasBody) {
-          lock.write(`${dim(`  ${headerLine}`)}\n`);
           for (const line of bodyLines) {
-            lock.write(`${dim(`  ${line}`)}\n`);
+            lock.write(`  ${line}\n`);
           }
+          lock.write('\n');
         }
 
         const render = () => {
           const parts = options.map((opt, i) =>
-            i === selected ? `[${opt}]` : ` ${opt} `,
+            i === selected
+              ? `${dim('[')}${opt}${dim(']')}`
+              : dim(` ${opt} `),
           );
-          if (hasBody) {
-            lock.write(
-              `\r${ansi.eraseLine}${dim(`  ${parts.join('  ')}`)}`,
-            );
-          } else {
-            lock.write(
-              `\r${ansi.eraseLine}${dim(`  ${headerLine}  ${parts.join('  ')}`)}`,
-            );
-          }
+          lock.write(
+            `\r${ansi.eraseLine}${dim('› ')}${parts.join(dim('  '))}`,
+          );
         };
 
         render();
 
         const finish = (choice: string) => {
           process.stdin.removeListener('keypress', onKey);
-          if (hasBody) {
-            lock.write(`\r${ansi.eraseLine}${dim(`  ${choice}`)}\n`);
-          } else {
-            lock.write(
-              `\r${ansi.eraseLine}${dim(`  ${headerLine}  ${choice}`)}\n`,
-            );
-          }
+          lock.write(
+            `\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`,
+          );
           // Release lock BEFORE resolving so downstream writes render again
           confirmMode = false;
           lock.release();

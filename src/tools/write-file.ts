@@ -21,7 +21,7 @@ export const writeFile = tool({
       if (!fullPath) return { error: pathError(filePath) };
 
       const exists = fs.existsSync(fullPath);
-      const verb = exists ? 'update' : 'create';
+      const verb = exists ? 'Update' : 'Create';
 
       const ok = await confirm(`${verb} ${filePath}?`);
       if (!ok) {

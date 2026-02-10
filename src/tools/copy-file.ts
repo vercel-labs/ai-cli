@@ -28,7 +28,7 @@ export const copyFile = tool({
       }
 
       fs.copyFileSync(fullSourcePath, fullDestPath);
-      return { message: `copied to ${destPath}`, silent: true };
+      return { message: `Copied to ${destPath}`, silent: true };
     } catch {
       return { error: `copy failed: ${sourcePath}` };
     }
