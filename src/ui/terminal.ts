@@ -354,6 +354,19 @@ export async function terminal(model: string, version: string): Promise<void> {
     statusText = text;
   }
 
+  function truncateToolOutput(text: string): string {
+    const TAIL = 5;
+    const lines = text.split('\n');
+    // First line is typically "$ command"; keep it as the header
+    if (lines.length <= TAIL + 1) return text;
+    const header = lines[0];
+    const body = lines.slice(1);
+    if (body.length <= TAIL) return text;
+    const hidden = body.length - TAIL;
+    const tail = body.slice(-TAIL).join('\n');
+    return `${header}\n  ... ${hidden} lines ...\n${tail}`;
+  }
+
   function printMessage(msg: Message) {
     const markdown = getSetting('markdown');
     switch (msg.type) {
@@ -366,7 +379,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         break;
       }
       case 'tool':
-        out.write(`${dim(wrap(mask(msg.content)))}\n`);
+        out.write(`${dim(truncateToolOutput(mask(msg.content)))}\n`);
         break;
       case 'info':
         out.write(`${dim(wrap(msg.content))}\n`);
