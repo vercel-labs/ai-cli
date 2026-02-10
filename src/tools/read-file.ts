@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { mask } from '../utils/mask.js';
+import { pathError, safePath } from '../utils/safe-path.js';
 
 export const readFile = tool({
   description:
@@ -12,7 +12,15 @@ export const readFile = tool({
   }),
   execute: async ({ filePath }) => {
     try {
-      const fullPath = path.resolve(filePath);
+      const fullPath = safePath(filePath);
+      if (!fullPath) return { error: pathError(filePath) };
+
+      if (!fs.existsSync(fullPath)) {
+        return {
+          error: `file not found: ${filePath}. Check <project-files> for the correct path.`,
+        };
+      }
+
       const content = mask(fs.readFileSync(fullPath, 'utf-8'));
       const lines = content.split('\n').length;
       if (lines > 500) {

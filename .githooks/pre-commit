@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Pre-commit hook: run Biome formatter on all files and stage any changes.
+
+npx @biomejs/biome format . --write
+
+# Re-stage any files that were reformatted
+git add -u
+
+exit 0

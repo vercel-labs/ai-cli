@@ -1,7 +1,83 @@
+import { execFileSync, execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
+
+type Match = { file: string; line: number; content: string };
+
+/* ── ripgrep backend ─────────────────────────────────────── */
+
+function rgAvailable(): boolean {
+  try {
+    execSync('rg --version', { stdio: 'pipe', timeout: 2000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let _hasRg: boolean | null = null;
+function hasRg(): boolean {
+  if (_hasRg === null) _hasRg = rgAvailable();
+  return _hasRg;
+}
+
+function searchWithRg(
+  query: string,
+  baseDir: string,
+  max: number,
+): Match[] | null {
+  if (!hasRg()) return null;
+  try {
+    // -n = line numbers, -i = case-insensitive, --no-heading, -M = max line length
+    const out = execFileSync(
+      'rg',
+      [
+        '-n',
+        '-i',
+        '-F',
+        '--no-heading',
+        '-M',
+        '200',
+        '--max-count',
+        String(max),
+        '--',
+        query,
+      ],
+      {
+        cwd: baseDir,
+        encoding: 'utf-8',
+        timeout: 10000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const results: Match[] = [];
+    for (const line of out.split('\n')) {
+      if (!line || results.length >= max) break;
+      // Format: file:line:content
+      const m = line.match(/^(.+?):(\d+):(.*)$/);
+      if (m) {
+        results.push({
+          file: m[1],
+          line: Number.parseInt(m[2], 10),
+          content: m[3].trim().slice(0, 100),
+        });
+      }
+    }
+    return results;
+  } catch (e: unknown) {
+    // rg exits 1 when no matches — that's not an error
+    if (e && typeof e === 'object' && 'status' in e && e.status === 1) {
+      return [];
+    }
+    return null; // fall back to Node
+  }
+}
+
+/* ── Node.js fallback ────────────────────────────────────── */
 
 const IGNORED = [
   'node_modules',
@@ -13,11 +89,11 @@ const IGNORED = [
   '.cache',
 ];
 
-function searchDir(
+function searchDirNode(
   dir: string,
   baseDir: string,
   pattern: RegExp,
-  results: Array<{ file: string; line: number; content: string }>,
+  results: Match[],
   maxResults: number,
 ): void {
   if (results.length >= maxResults) return;
@@ -36,7 +112,7 @@ function searchDir(
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      searchDir(fullPath, baseDir, pattern, results, maxResults);
+      searchDirNode(fullPath, baseDir, pattern, results, maxResults);
     } else if (entry.isFile()) {
       try {
         const content = fs.readFileSync(fullPath, 'utf-8');
@@ -55,8 +131,11 @@ function searchDir(
   }
 }
 
+/* ── tool ─────────────────────────────────────────────────── */
+
 export const searchInFiles = tool({
-  description: 'Search for text or patterns across files.',
+  description:
+    'Search for text or patterns across files. Use this to find code by content (e.g. function names, imports, strings). Preferred over listDirectory for locating code.',
   inputSchema: z.object({
     query: z.string().describe('Text or regex pattern to search for'),
     directory: z
@@ -66,11 +145,24 @@ export const searchInFiles = tool({
   }),
   execute: async ({ query, directory }) => {
     try {
-      const baseDir = path.resolve(directory || '.');
-      const pattern = new RegExp(query, 'i');
-      const results: Array<{ file: string; line: number; content: string }> =
-        [];
-      searchDir(baseDir, baseDir, pattern, results, 50);
+      const baseDir = safePath(directory || '.');
+      if (!baseDir) return { error: pathError(directory || '.') };
+      const max = 50;
+
+      // Try ripgrep first
+      const rgResults = searchWithRg(query, baseDir, max);
+      if (rgResults !== null) {
+        if (rgResults.length === 0) {
+          return { matches: [], message: 'No matches found' };
+        }
+        return { matches: rgResults, total: rgResults.length };
+      }
+
+      // Fallback to Node.js walker
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(escaped, 'i');
+      const results: Match[] = [];
+      searchDirNode(baseDir, baseDir, pattern, results, max);
 
       if (results.length === 0) {
         return { matches: [], message: 'No matches found' };

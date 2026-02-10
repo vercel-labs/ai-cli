@@ -11,6 +11,7 @@ import { init } from './init.js';
 import { mcp } from './mcp.js';
 import { memory } from './memory.js';
 import { model } from './model.js';
+import { permissions } from './permissions.js';
 import { processes } from './processes.js';
 import { rollback } from './rollback.js';
 import { rules } from './rules.js';
@@ -42,6 +43,7 @@ export const commands: Record<string, CommandHandler> = {
   copy,
   git,
   settings,
+  permissions,
   rules,
   skills,
   mcp,

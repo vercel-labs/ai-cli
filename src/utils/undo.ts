@@ -16,6 +16,7 @@ export function saveWrite(filePath: string): void {
     try {
       previous = fs.readFileSync(fullPath, 'utf-8');
     } catch {
+      // File exists but unreadable (e.g. binary) - treat as no previous content
       previous = null;
     }
   }
@@ -39,7 +40,9 @@ export function saveDelete(filePath: string): void {
       timestamp: Date.now(),
     });
     if (stack.length > MAX_STACK) stack.shift();
-  } catch {}
+  } catch {
+    // File may be binary or inaccessible - skip undo tracking
+  }
 }
 
 export function saveRename(oldPath: string, newPath: string): void {
@@ -175,10 +178,4 @@ function formatTime(ts: number): string {
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   return `${Math.floor(diff / 3600)}h ago`;
-}
-
-export function getOperation(index: number): Operation | null {
-  const realIndex = stack.length - index;
-  if (realIndex < 0 || realIndex >= stack.length) return null;
-  return stack[realIndex];
 }

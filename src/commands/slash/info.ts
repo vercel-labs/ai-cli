@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { listChats } from '../../config/chats.js';
+import { CHATS_DIR, CONFIG_FILE } from '../../config/paths.js';
 import { GATEWAY_URL } from '../../utils/models.js';
 import type { CommandHandler } from './types.js';
 
@@ -14,23 +14,23 @@ function formatBytes(bytes: number): string {
 function getDirSize(dirPath: string): number {
   if (!fs.existsSync(dirPath)) return 0;
   let size = 0;
-  const files = fs.readdirSync(dirPath);
-  for (const file of files) {
-    const stat = fs.statSync(path.join(dirPath, file));
-    size += stat.size;
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      size += getDirSize(fullPath);
+    } else {
+      size += fs.statSync(fullPath).size;
+    }
   }
   return size;
 }
 
 export const info: CommandHandler = async (ctx) => {
-  const home = os.homedir();
-  const configPath = path.join(home, '.airc');
-  const chatsDir = path.join(home, '.ai-chats');
-
-  const configSize = fs.existsSync(configPath)
-    ? fs.statSync(configPath).size
+  const configSize = fs.existsSync(CONFIG_FILE)
+    ? fs.statSync(CONFIG_FILE).size
     : 0;
-  const chatsSize = getDirSize(chatsDir);
+  const chatsSize = getDirSize(CHATS_DIR);
   const chatCount = listChats().length;
 
   let balance = '...';

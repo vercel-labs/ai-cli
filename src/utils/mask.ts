@@ -34,8 +34,6 @@ const keyPrefixes = [
   'vcka_',
 ];
 
-const _valuePatterns = [/([A-Za-z0-9_-]{20,})/g];
-
 const keyValuePatterns = [
   /([A-Z_]*(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|AUTH|PRIVATE)[A-Z_]*)[=:]["']?([^"'\s\n]{8,})["']?/gi,
   /([a-z_]*(?:key|secret|token|password|credential|auth|private)[a-z_]*)[=:]["']?([^"'\s\n]{8,})["']?/gi,
@@ -46,10 +44,6 @@ const keyValuePatterns = [
 function maskValue(value: string): string {
   if (value.length <= 4) return '****';
   return value.slice(0, 4) + '*'.repeat(Math.min(value.length - 4, 16));
-}
-
-function _hasPrefixMatch(text: string): boolean {
-  return keyPrefixes.some((p) => text.startsWith(p));
 }
 
 export function mask(text: string): string {

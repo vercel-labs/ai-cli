@@ -2,14 +2,18 @@ import * as fs from 'node:fs';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { ensureBaseDir, MEMORIES_FILE } from '../config/paths.js';
+import { migrateOldMemories } from '../utils/memory-migration.js';
 
 function loadMemories(): string[] {
+  migrateOldMemories();
   try {
     if (fs.existsSync(MEMORIES_FILE)) {
       const data = JSON.parse(fs.readFileSync(MEMORIES_FILE, 'utf-8'));
       return Array.isArray(data) ? data : [];
     }
-  } catch {}
+  } catch {
+    // Corrupt or unreadable memories file - start fresh
+  }
   return [];
 }
 

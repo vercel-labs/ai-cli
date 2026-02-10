@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 
 export const createFolder = tool({
   description: 'Create a new folder/directory.',
@@ -10,7 +10,8 @@ export const createFolder = tool({
   }),
   execute: async ({ folderPath }) => {
     try {
-      const fullPath = path.resolve(folderPath);
+      const fullPath = safePath(folderPath);
+      if (!fullPath) return { error: pathError(folderPath) };
 
       if (fs.existsSync(fullPath)) {
         return { error: `exists: ${folderPath}` };
