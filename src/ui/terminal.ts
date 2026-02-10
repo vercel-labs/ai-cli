@@ -150,6 +150,11 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     if (confirmMode) return;
 
+    if (busy && (str === '\x1b' || str === '\x03') && abortController) {
+      abortController.abort();
+      return;
+    }
+
     if (selectMode || busy) {
       inputStream.write(chunk);
       return;
