@@ -38,6 +38,10 @@ export async function embed(inputs: string[]): Promise<number[][]> {
     data: EmbeddingResult[];
   };
 
+  if (!json?.data || !Array.isArray(json.data)) {
+    throw new Error('unexpected embedding response format');
+  }
+
   // Sort by index to match input order
   const sorted = json.data.sort((a, b) => a.index - b.index);
   return sorted.map((d) => d.embedding);
@@ -47,6 +51,7 @@ export async function embed(inputs: string[]): Promise<number[][]> {
  * Cosine similarity between two vectors.
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
   let dot = 0;
   let magA = 0;
   let magB = 0;

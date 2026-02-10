@@ -300,6 +300,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           debug(`tool error: ${JSON.stringify(part)}`);
           const toolErr = part as { error?: unknown };
           if (toolErr.error) logError(toolErr.error);
+          editStreamActive = false;
           callbacks.onStatus('thinking...');
           break;
         }
@@ -324,6 +325,8 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             editStreamArgs = '';
             editStreamLastCount = 0;
             callbacks.onStatus('Editing...');
+          } else {
+            editStreamActive = false;
           }
           break;
         }

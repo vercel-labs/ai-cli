@@ -171,6 +171,7 @@ export const semanticSearch = tool({
   }),
   execute: async ({ query, topK = 10 }) => {
     try {
+      const clampedTopK = Math.min(Math.max(topK, 1), 100);
       const cwd = process.cwd();
 
       // Build or update the index
@@ -193,7 +194,7 @@ export const semanticSearch = tool({
       }));
 
       scored.sort((a, b) => b.score - a.score);
-      const top = scored.slice(0, topK);
+      const top = scored.slice(0, clampedTopK);
 
       // Deduplicate by file (keep best score per file)
       const seenFiles = new Set<string>();

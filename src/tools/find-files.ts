@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 
 /* ── ripgrep --files + grep backend ──────────────────────── */
 
@@ -131,7 +132,8 @@ export const findFiles = tool({
   }),
   execute: async ({ pattern, directory }) => {
     try {
-      const searchDir = path.resolve(directory || '.');
+      const searchDir = safePath(directory || '.');
+      if (!searchDir) return { error: pathError(directory || '.') };
       const max = 100;
 
       // Try ripgrep --files first

@@ -1,4 +1,13 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'bun:test';
+import { cleanupTestDir, resetTestDir } from './helpers/mock-paths.js';
+
 import {
   addRule,
   clearRules,
@@ -8,8 +17,16 @@ import {
 } from '../src/utils/permissions.js';
 
 describe('permissions', () => {
+  beforeEach(() => {
+    resetTestDir();
+  });
+
   afterEach(() => {
     clearRules();
+  });
+
+  afterAll(() => {
+    cleanupTestDir();
   });
 
   // ── isAllowed ────────────────────────────────────────────
