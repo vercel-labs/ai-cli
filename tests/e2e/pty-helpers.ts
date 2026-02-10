@@ -104,13 +104,13 @@ export function spawnCli(
   }
 
   function write(s: string) {
-    proc.terminal!.write(s);
+    proc.terminal?.write(s);
   }
 
   function kill() {
     try {
       proc.kill();
-      proc.terminal!.close();
+      proc.terminal?.close();
     } catch {}
     xterm.dispose();
   }

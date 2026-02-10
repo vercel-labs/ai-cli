@@ -200,12 +200,10 @@ export async function terminal(model: string, version: string): Promise<void> {
         const bodyLines = actionLines.slice(1);
         const hasBody = bodyLines.length > 0;
 
-        let wasEditStream = false;
         // Track how many lines the confirm UI occupies (excluding options line)
         let confirmLineCount = 0;
         if (editStreamRendered) {
           // Diff was already streamed to screen — just add spacing
-          wasEditStream = true;
           confirmLineCount = editStreamLineCount + 1; // streamed lines + blank
           editStreamRendered = false;
           editStreamLineCount = 0;

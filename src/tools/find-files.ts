@@ -27,7 +27,8 @@ function globToRegex(pattern: string): string {
   for (const ch of pattern) {
     if (ch === '*') regex += '.*';
     else if (ch === '?') regex += '.';
-    else if ('.+^${}()|[]\\'.includes(ch)) regex += '\\' + ch;
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: literal brace chars to escape
+    else if ('.+^${}()|[]\\'.includes(ch)) regex += `\\${ch}`;
     else regex += ch;
   }
   return regex;

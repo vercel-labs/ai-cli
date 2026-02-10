@@ -11,6 +11,7 @@ import * as path from 'node:path';
 const CLI = path.resolve(import.meta.dirname, '../../dist/ai.mjs');
 
 /** ANSI escape code pattern (colors, bold, dim, etc — not cursor control) */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape detection requires literal ESC byte
 const ANSI_COLOR = /\x1b\[\d{1,3}m/;
 
 function run(
