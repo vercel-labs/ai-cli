@@ -461,10 +461,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             status = `Editing ${f}`;
             currentToolLabel = '';
           } else if (tc.toolName === 'deleteFile') {
-            // deleteFile immediately transitions to a confirm prompt ("Delete ...?")
-            // and then a result message ("Deleted ..."), so skip a transient
-            // spinner status that users typically never see.
-            status = '';
+            status = 'Deleting';
             currentToolLabel = '';
           } else if (tc.toolName === 'copyFile') {
             status = 'Copying file';
