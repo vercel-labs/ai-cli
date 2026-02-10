@@ -51,8 +51,8 @@ interface Message {
   content: string;
 }
 
-const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
-const dimmer = (s: string) => `\x1b[2m\x1b[90m${s}\x1b[0m`;
+import { dim, dimmer, green, red } from '../utils/color.js';
+
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
 
 export async function terminal(model: string, version: string): Promise<void> {
@@ -202,7 +202,18 @@ export async function terminal(model: string, version: string): Promise<void> {
           editStreamLineCount = 0;
           lock.write('\n');
         } else {
-          lock.write(`${dim(headerLine)}\n`);
+          // Dim the verb and punctuation but keep the subject readable.
+          // Confirm actions follow "Verb subject?" pattern.
+          const qIdx = headerLine.lastIndexOf('?');
+          const spIdx = headerLine.indexOf(' ');
+          if (spIdx > 0 && qIdx > spIdx) {
+            const verb = headerLine.slice(0, spIdx + 1);
+            const subject = headerLine.slice(spIdx + 1, qIdx);
+            const punct = headerLine.slice(qIdx);
+            lock.write(`${dim(verb)}${subject}${dim(punct)}\n`);
+          } else {
+            lock.write(`${dim(headerLine)}\n`);
+          }
           if (hasBody) {
             for (const line of bodyLines) {
               lock.write(`  ${line}\n`);
@@ -528,9 +539,18 @@ export async function terminal(model: string, version: string): Promise<void> {
         }
         break;
       }
-      case 'info':
-        out.write(`${dim(wrap(msg.content))}\n\n`);
+      case 'info': {
+        // Highlight the subject in "Verb subject" messages (e.g. "Deleted blog/")
+        const spaceIdx = msg.content.indexOf(' ');
+        if (spaceIdx > 0 && !msg.content.includes('\n')) {
+          const verb = msg.content.slice(0, spaceIdx + 1);
+          const subject = msg.content.slice(spaceIdx + 1);
+          out.write(`${dim(verb)}${subject}\n\n`);
+        } else {
+          out.write(`${dim(wrap(msg.content))}\n\n`);
+        }
         break;
+      }
       case 'error':
         out.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
         break;
@@ -807,7 +827,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     process.stdout.write(ansi.cursorHide);
     rl.pause();
-    out.write('\n');
+    out.write('\n\n');
 
     try {
       const updatedChat = await streamChat({
@@ -895,10 +915,10 @@ export async function terminal(model: string, version: string): Promise<void> {
             const lines: string[] = [];
             lines.push(dim(`Edit ${basename}?`));
             for (const line of oldLines) {
-              lines.push(`  \x1b[31m- ${line}\x1b[39m`);
+              lines.push(`  ${red(`- ${line}`)}`);
             }
             for (const line of newLines) {
-              lines.push(`  \x1b[32m+ ${line}\x1b[39m`);
+              lines.push(`  ${green(`+ ${line}`)}`);
             }
             if (more > 0) {
               lines.push(dim(`    ... ${more} more lines`));

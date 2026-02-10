@@ -1,4 +1,4 @@
-import { dim } from 'yoctocolors';
+import { dim } from './color.js';
 
 let enabled = false;
 let start = Date.now();

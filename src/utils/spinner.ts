@@ -1,4 +1,4 @@
-import { dim } from 'yoctocolors';
+import { dim } from './color.js';
 
 const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 

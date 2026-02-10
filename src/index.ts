@@ -16,6 +16,7 @@ interface Args {
   '--help'?: boolean;
   '--list'?: boolean;
   '--image'?: string;
+  '--no-color'?: boolean;
   _: string[];
 }
 
@@ -27,6 +28,7 @@ async function main() {
       '--help': Boolean,
       '--list': Boolean,
       '--image': String,
+      '--no-color': Boolean,
       '-m': '--model',
       '-h': '--help',
       '-l': '--list',
@@ -38,6 +40,10 @@ async function main() {
     }
     console.error('unknown error');
     process.exit(1);
+  }
+
+  if (args['--no-color']) {
+    process.env.NO_COLOR = '1';
   }
 
   if (args['--help']) {

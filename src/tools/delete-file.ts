@@ -34,7 +34,12 @@ export const deleteFile = tool({
       return { error: errors.join(', ') };
     }
 
-    const names = validPaths.map((p) => path.basename(p.filePath)).join(', ');
+    const names = validPaths
+      .map((p) => {
+        const name = path.basename(p.filePath);
+        return fs.statSync(p.fullPath).isDirectory() ? `${name}/` : name;
+      })
+      .join(', ');
     const ok = await confirm(`Delete ${names}?`, { tool: 'deleteFile' });
     if (!ok) {
       return { error: 'User denied this action. Do not retry.' };
@@ -52,7 +57,8 @@ export const deleteFile = tool({
         } else {
           fs.unlinkSync(fullPath);
         }
-        deleted.push(filePath);
+        const name = path.basename(filePath);
+        deleted.push(isDir ? `${name}/` : name);
       } catch {
         errors.push(`failed: ${filePath}`);
       }

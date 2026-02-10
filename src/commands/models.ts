@@ -1,4 +1,4 @@
-import { dim, gray } from 'yoctocolors';
+import { dim, gray } from '../utils/color.js';
 import { fetchModels, type Model } from '../utils/models.js';
 import { createSpinner } from '../utils/spinner.js';
 
