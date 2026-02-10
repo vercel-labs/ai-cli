@@ -74,6 +74,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   let selectMode = false;
   let confirmMode = false;
   let commandMode = false;
+  let cmdSuggestionCount = 0; // number of suggestion lines currently rendered
   let editStreamRendered = false;
   let editStreamLineCount = 0;
   let pendingImage: { data: string; mimeType: string } | null = null;
@@ -82,6 +83,38 @@ export async function terminal(model: string, version: string): Promise<void> {
     tools: true,
     reasoning: false,
   };
+
+  function clearCmdSuggestions(): void {
+    if (cmdSuggestionCount > 0) {
+      process.stdout.write(ansi.cursorSavePosition);
+      for (let i = 0; i < cmdSuggestionCount; i++) {
+        process.stdout.write(`\n${ansi.eraseLine}`);
+      }
+      process.stdout.write(ansi.cursorRestorePosition);
+      cmdSuggestionCount = 0;
+    }
+  }
+
+  function renderCmdSuggestions(input: string): void {
+    clearCmdSuggestions();
+    const [completions] = getCompletions(`/${input}`);
+    if (completions.length === 0) return;
+
+    process.stdout.write(ansi.cursorSavePosition);
+    const toShow = completions.slice(0, 8);
+    for (const c of toShow) {
+      process.stdout.write(`\n${ansi.eraseLine}${dim(`  ${c.slice(1)}`)}`);
+    }
+    if (completions.length > 8) {
+      process.stdout.write(
+        `\n${ansi.eraseLine}${dim(`  ... ${completions.length - 8} more`)}`,
+      );
+      cmdSuggestionCount = toShow.length + 1;
+    } else {
+      cmdSuggestionCount = toShow.length;
+    }
+    process.stdout.write(ansi.cursorRestorePosition);
+  }
 
   async function updateCapabilities(modelId: string): Promise<void> {
     try {
@@ -287,11 +320,13 @@ export async function terminal(model: string, version: string): Promise<void> {
       commandMode = true;
       rl.setPrompt(dim('/ '));
       process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}`);
+      renderCmdSuggestions('');
       return;
     }
 
     if (commandMode && rl.line === '' && (str === '\x7f' || str === '\b')) {
       commandMode = false;
+      clearCmdSuggestions();
       rl.setPrompt(dim('› '));
       process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
       return;
@@ -301,9 +336,10 @@ export async function terminal(model: string, version: string): Promise<void> {
       const internal = rl as ReadlineInternal;
       const [completions] = getCompletions(`/${internal.line}`);
       if (completions.length === 1) {
-        const completed = completions[0].slice(1);
+        const completed = `${completions[0].slice(1)} `;
         internal.line = completed;
         internal.cursor = completed.length;
+        clearCmdSuggestions();
         process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${completed}`);
       } else if (completions.length > 1) {
         const common = completions
@@ -317,6 +353,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           internal.line = common;
           internal.cursor = common.length;
           process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${common}`);
+          renderCmdSuggestions(common);
         }
       }
       return;
@@ -324,6 +361,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     if (str === '\x1b' && str.length === 1) {
       commandMode = false;
+      clearCmdSuggestions();
       pendingImage = null;
       rl.setPrompt(dim('› '));
       (rl as ReadlineInternal).line = '';
@@ -343,6 +381,14 @@ export async function terminal(model: string, version: string): Promise<void> {
     }
 
     inputStream.write(chunk);
+
+    // Update command suggestions after readline processes the keystroke
+    if (commandMode) {
+      setImmediate(() => {
+        const line = (rl as ReadlineInternal).line;
+        renderCmdSuggestions(line);
+      });
+    }
   });
 
   function cleanup() {
@@ -587,6 +633,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     let msg = line.trim();
 
     if (commandMode) {
+      clearCmdSuggestions();
       commandMode = false;
       rl.setPrompt(dim('› '));
       if (msg) {
