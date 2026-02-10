@@ -10,12 +10,30 @@ const TIMEOUT = 60000;
 const INACTIVITY = 30000;
 
 let activeProc: ChildProcess | null = null;
+let activeResolve: ((v: unknown) => void) | null = null;
 
-/** Kill the currently running command, if any. */
+/** Kill the currently running command and immediately resolve its promise. */
 export function killRunningCommand(): void {
-  if (activeProc) {
-    activeProc.kill('SIGTERM');
-    activeProc = null;
+  const proc = activeProc;
+  const resolve = activeResolve;
+  activeProc = null;
+  activeResolve = null;
+
+  if (proc?.pid) {
+    // Kill the entire process group (shell + children like npm)
+    try {
+      process.kill(-proc.pid, 'SIGTERM');
+    } catch {
+      // Process might already be dead
+      try {
+        proc.kill('SIGKILL');
+      } catch {}
+    }
+  }
+
+  // Immediately resolve so the stream can finish
+  if (resolve) {
+    resolve({ error: 'Command cancelled by user. Do not retry.' });
   }
 }
 
@@ -46,25 +64,52 @@ export const runCommand = tool({
       const chunks: string[] = [];
       let lastActivity = Date.now();
       let killed = false;
+      let resolved = false;
+
+      const done = (value: unknown) => {
+        if (resolved) return;
+        resolved = true;
+        activeProc = null;
+        activeResolve = null;
+        resolve(value);
+      };
 
       const proc = spawn(command, {
         cwd,
         shell: true,
+        detached: true, // Create process group so we can kill the whole tree
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       activeProc = proc;
+      activeResolve = done;
+
+      // Don't let the detached process keep Node alive if we exit
+      proc.unref();
+
+      const killProc = () => {
+        const pid = proc.pid;
+        if (pid) {
+          try {
+            process.kill(-pid, 'SIGTERM');
+          } catch {
+            proc.kill('SIGTERM');
+          }
+        } else {
+          proc.kill('SIGTERM');
+        }
+      };
 
       const checkInactivity = setInterval(() => {
         if (Date.now() - lastActivity > INACTIVITY) {
           killed = true;
-          proc.kill('SIGTERM');
+          killProc();
           clearInterval(checkInactivity);
         }
       }, 5000);
 
       const totalTimeout = setTimeout(() => {
         killed = true;
-        proc.kill('SIGTERM');
+        killProc();
       }, TIMEOUT);
 
       const onData = (data: Buffer) => {
@@ -76,7 +121,6 @@ export const runCommand = tool({
       proc.stderr?.on('data', onData);
 
       proc.on('close', (code) => {
-        activeProc = null;
         clearInterval(checkInactivity);
         clearTimeout(totalTimeout);
 
@@ -84,19 +128,18 @@ export const runCommand = tool({
         const result = output ? `$ ${command}\n${output}` : `$ ${command}`;
 
         if (killed) {
-          resolve({ error: 'Command cancelled', output: result });
+          done({ error: 'Command cancelled', output: result });
         } else if (code === 0) {
-          resolve({ output: result, silent: true });
+          done({ output: result, silent: true });
         } else {
-          resolve({ output: result, exitCode: code });
+          done({ output: result, exitCode: code });
         }
       });
 
       proc.on('error', (err) => {
-        activeProc = null;
         clearInterval(checkInactivity);
         clearTimeout(totalTimeout);
-        resolve({ error: err.message, output: `$ ${command}` });
+        done({ error: err.message, output: `$ ${command}` });
       });
     });
   },
