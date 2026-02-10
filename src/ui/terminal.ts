@@ -398,7 +398,22 @@ export async function terminal(model: string, version: string): Promise<void> {
       return `${header}\n${body.map((l) => `  ${l}`).join('\n')}`;
     }
 
-    // Other tool output (trees, answers, etc.): indent all lines
+    // Labeled tool output: "> Label\nbody"
+    if (lines[0]?.startsWith('> ')) {
+      const header = lines[0].slice(2);
+      const body = lines.slice(1);
+
+      if (body.length === 0) return header;
+
+      if (body.length > TAIL) {
+        const hidden = body.length - TAIL;
+        const tail = body.slice(-TAIL).map((l) => `  ${l}`);
+        return `${header}\n  ... ${hidden} lines ...\n${tail.join('\n')}`;
+      }
+      return `${header}\n${body.map((l) => `  ${l}`).join('\n')}`;
+    }
+
+    // Other tool output: indent all lines
     if (lines.length > TAIL) {
       const hidden = lines.length - TAIL;
       const tail = lines.slice(-TAIL).map((l) => `  ${l}`);
@@ -715,7 +730,8 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (s) {
               if (!statusText && streamBuffer) {
                 const remaining = streamWrap.flush();
-                out.write(`${remaining}\n`);
+                out.write(`${remaining}\n\n`);
+                streamBuffer = '';
               }
               showStatus(s);
             } else {

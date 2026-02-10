@@ -54,6 +54,8 @@ interface ToolInput {
   query?: string;
   objective?: string;
   command?: string;
+  dirPath?: string;
+  filePath?: string;
 }
 
 interface ToolOutput {
@@ -129,6 +131,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   let buffer = '';
   let reasoning = '';
   let reasoningStart = 0;
+  let currentToolLabel = '';
   let streamError: Error | null = null;
   let searchResults: Array<{
     title?: string;
@@ -221,12 +224,22 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           const input = tc.input;
           if (tc.toolName === 'perplexity_search' && input?.query) {
             status = `searching: ${input.query.slice(0, 60)}`;
+            currentToolLabel = `Searched: ${input.query.slice(0, 60)}`;
           } else if (tc.toolName === 'parallel_search' && input?.objective) {
             status = `searching: ${input.objective.slice(0, 60)}`;
+            currentToolLabel = `Searched: ${input.objective.slice(0, 60)}`;
           } else if (tc.toolName === 'runCommand' && input?.command) {
             status = `Running ${input.command.slice(0, 70)}`;
+            currentToolLabel = '';
           } else if (tc.toolName === 'fetchUrl') {
             status = 'fetching...';
+            currentToolLabel = 'Fetched URL';
+          } else if (tc.toolName === 'listDirectory') {
+            currentToolLabel = `Listed ${input?.dirPath || '.'}`;
+          } else if (tc.toolName === 'readFile') {
+            currentToolLabel = `Read ${input?.filePath || 'file'}`;
+          } else {
+            currentToolLabel = '';
           }
           callbacks.onStatus(status);
           break;
@@ -238,7 +251,11 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           const out = tr.output;
 
           if (out?.tree && typeof out.tree === 'string') {
-            callbacks.onMessage('tool', out.tree);
+            const treeLines = out.tree.split('\n');
+            const dirName = treeLines[0] || '.';
+            const treeBody = treeLines.slice(1).join('\n');
+            const label = currentToolLabel || `Listed ${dirName}`;
+            callbacks.onMessage('tool', `> ${label}\n${treeBody}`);
             silent = true;
           } else if (out?.results && Array.isArray(out.results)) {
             searchResults = out.results as Array<{
@@ -252,10 +269,15 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             fetchContent = out.content;
             callbacks.onStatus('thinking...');
           } else if (out?.output && typeof out.output === 'string') {
-            callbacks.onMessage('tool', out.output);
+            if (!out.output.startsWith('$ ') && currentToolLabel) {
+              callbacks.onMessage('tool', `> ${currentToolLabel}\n${out.output}`);
+            } else {
+              callbacks.onMessage('tool', out.output);
+            }
             silent = true;
           } else if (out?.answer && typeof out.answer === 'string') {
-            callbacks.onMessage('tool', out.answer);
+            const label = currentToolLabel || 'Result';
+            callbacks.onMessage('tool', `> ${label}\n${out.answer}`);
             silent = true;
           } else if (out?.message && typeof out.message === 'string') {
             callbacks.onMessage('info', out.message);
