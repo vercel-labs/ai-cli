@@ -65,6 +65,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   let statusText = '';
   let streamBuffer = '';
   let selectMode = false;
+  let confirmMode = false;
   let commandMode = false;
   let pendingImage: { data: string; mimeType: string } | null = null;
   let capabilities: ModelCapabilities = {
@@ -124,15 +125,18 @@ export async function terminal(model: string, version: string): Promise<void> {
     (action: string) =>
       new Promise<boolean>((resolve) => {
         clearStatus();
+        confirmMode = true;
         process.stdout.write(`${dim(`confirm: ${action}`)} ${dim('[y/n] ')}`);
         const onKey = (str: string | undefined) => {
           const ch = (str ?? '').toLowerCase();
           if (ch === 'y' || ch === '\r' || ch === '\n') {
             process.stdin.removeListener('keypress', onKey);
+            confirmMode = false;
             process.stdout.write(`${dim('yes')}\n`);
             resolve(true);
           } else if (ch === 'n' || ch === '\x1b' || ch === '\x03') {
             process.stdin.removeListener('keypress', onKey);
+            confirmMode = false;
             process.stdout.write(`${dim('no')}\n`);
             resolve(false);
           }
@@ -143,6 +147,8 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   process.stdin.on('data', (chunk: Buffer) => {
     const str = chunk.toString();
+
+    if (confirmMode) return;
 
     if (selectMode || busy) {
       inputStream.write(chunk);
