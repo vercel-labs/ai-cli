@@ -364,7 +364,15 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   process.stdout.on('resize', redraw);
 
+  const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
+  let spinnerIdx = 0;
+
   function clearStatus() {
+    if (spinnerTimer) {
+      clearInterval(spinnerTimer);
+      spinnerTimer = null;
+    }
     if (statusText) {
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
       statusText = '';
@@ -372,11 +380,23 @@ export async function terminal(model: string, version: string): Promise<void> {
   }
 
   function showStatus(text: string) {
+    if (spinnerTimer) {
+      clearInterval(spinnerTimer);
+      spinnerTimer = null;
+    }
     if (statusText) {
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
     }
-    out.write(`${dim(text)}\n`);
+    spinnerIdx = 0;
+    out.write(`${dim(`${spinnerFrames[0]} ${text}`)}\n`);
     statusText = text;
+
+    spinnerTimer = setInterval(() => {
+      if (!statusText) return;
+      spinnerIdx = (spinnerIdx + 1) % spinnerFrames.length;
+      out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+      out.write(`${dim(`${spinnerFrames[spinnerIdx]} ${statusText}`)}\n`);
+    }, 80);
   }
 
   function formatToolOutput(text: string): string {

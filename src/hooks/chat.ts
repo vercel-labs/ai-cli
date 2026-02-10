@@ -220,25 +220,49 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             input?: ToolInput;
           };
           debug(`tool-call: ${tc.toolName}`);
-          let status = toolActions[tc.toolName] ?? 'working...';
           const input = tc.input;
-          if (tc.toolName === 'perplexity_search' && input?.query) {
-            status = `searching: ${input.query.slice(0, 60)}`;
-            currentToolLabel = `Searched: ${input.query.slice(0, 60)}`;
-          } else if (tc.toolName === 'parallel_search' && input?.objective) {
-            status = `searching: ${input.objective.slice(0, 60)}`;
-            currentToolLabel = `Searched: ${input.objective.slice(0, 60)}`;
+          let status: string;
+
+          if (tc.toolName === 'listDirectory') {
+            const p = input?.dirPath || '.';
+            status = `Listing ${p}`;
+            currentToolLabel = `Listed ${p}`;
+          } else if (tc.toolName === 'readFile') {
+            const f = input?.filePath || 'file';
+            status = `Reading ${f}`;
+            currentToolLabel = `Read ${f}`;
           } else if (tc.toolName === 'runCommand' && input?.command) {
             status = `Running ${input.command.slice(0, 70)}`;
             currentToolLabel = '';
+          } else if (tc.toolName === 'writeFile') {
+            const f = input?.filePath || 'file';
+            status = `Writing ${f}`;
+            currentToolLabel = '';
+          } else if (tc.toolName === 'editFile') {
+            const f = input?.filePath || 'file';
+            status = `Editing ${f}`;
+            currentToolLabel = '';
+          } else if (tc.toolName === 'deleteFile') {
+            const f = input?.filePath || 'file';
+            status = `Deleting ${f}`;
+            currentToolLabel = '';
+          } else if (tc.toolName === 'copyFile') {
+            status = 'Copying file';
+            currentToolLabel = '';
+          } else if (tc.toolName === 'renameFile') {
+            status = 'Renaming file';
+            currentToolLabel = '';
+          } else if (tc.toolName === 'perplexity_search' && input?.query) {
+            status = `Searching: ${input.query.slice(0, 60)}`;
+            currentToolLabel = `Searched: ${input.query.slice(0, 60)}`;
+          } else if (tc.toolName === 'parallel_search' && input?.objective) {
+            status = `Searching: ${input.objective.slice(0, 60)}`;
+            currentToolLabel = `Searched: ${input.objective.slice(0, 60)}`;
           } else if (tc.toolName === 'fetchUrl') {
-            status = 'fetching...';
+            status = 'Fetching URL';
             currentToolLabel = 'Fetched URL';
-          } else if (tc.toolName === 'listDirectory') {
-            currentToolLabel = `Listed ${input?.dirPath || '.'}`;
-          } else if (tc.toolName === 'readFile') {
-            currentToolLabel = `Read ${input?.filePath || 'file'}`;
           } else {
+            status = toolActions[tc.toolName] ?? 'Working';
             currentToolLabel = '';
           }
           callbacks.onStatus(status);
