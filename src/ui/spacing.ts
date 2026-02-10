@@ -30,6 +30,16 @@ export class SpacingController {
   }
 
   /**
+   * Called after a confirmed action is accepted and its UI is erased.
+   * The blank line from beforeStatus() should still be in the terminal
+   * above the cursor, so we do NOT request another gap.
+   */
+  markAfterConfirmAccepted(): void {
+    this.needsGapBeforeOutput = false;
+    this.firstStatusAfterUser = false;
+  }
+
+  /**
    * Called after rendering a message block that does not already emit its
    * own trailing blank separator (for example assistant/error single-line
    * outputs).

@@ -253,13 +253,10 @@ export async function terminal(model: string, version: string): Promise<void> {
             for (let i = 0; i < confirmLineCount; i++) {
               lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
             }
-            if (hasBody || wasEditStream) {
-              // Multi-line confirms leave an extra blank line above from
-              // beforeStatus().  Erase it so beforeOutput() can re-add
-              // exactly one gap.
-              lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
-            }
-            spacing.markAfterConfirm();
+            // Don't request another gap — the blank line originally
+            // written by beforeStatus() is still in the terminal above
+            // the cursor and serves as the one-line separator.
+            spacing.markAfterConfirmAccepted();
           } else {
             lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
             // Treat confirm choices like user messages for spacing.
@@ -269,6 +266,11 @@ export async function terminal(model: string, version: string): Promise<void> {
           // Release lock BEFORE resolving so downstream writes render again
           confirmMode = false;
           lock.release();
+          // If a status update was queued while the lock was held (e.g.
+          // "Running …"), show it now so the user sees progress.
+          if (accepted && pendingStatusText) {
+            showStatus(pendingStatusText);
+          }
           if (choice === 'always') {
             // Persist the rule for this tool/command in this directory
             if (opts?.tool) {
@@ -458,8 +460,11 @@ export async function terminal(model: string, version: string): Promise<void> {
   const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   let spinnerTimer: ReturnType<typeof setInterval> | null = null;
   let spinnerIdx = 0;
+  /** Status text queued while the output was locked (e.g. during a confirm). */
+  let pendingStatusText: string | null = null;
 
   function clearStatus() {
+    pendingStatusText = null;
     if (spinnerTimer) {
       clearInterval(spinnerTimer);
       spinnerTimer = null;
@@ -475,6 +480,15 @@ export async function terminal(model: string, version: string): Promise<void> {
       clearInterval(spinnerTimer);
       spinnerTimer = null;
     }
+    // If the output is locked (e.g. a confirm modal owns the terminal),
+    // queue the status for later — writing through out.write() would be
+    // silently dropped, and the spinnerTimer would fire after the lock
+    // is released and corrupt cursor positions.
+    if (out.locked) {
+      pendingStatusText = text;
+      return;
+    }
+    pendingStatusText = null;
     const hadStatus = Boolean(statusText);
     if (hadStatus) {
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
@@ -884,10 +898,12 @@ export async function terminal(model: string, version: string): Promise<void> {
             }
           },
           onPending: (text) => {
-            clearStatus();
             const normalized = trimLeadingBlankLines(text);
             if (normalized.length > streamBuffer.length) {
-              spacing.beforeOutput();
+              clearStatus();
+              if (!streamBuffer) {
+                spacing.beforeOutput();
+              }
               const newText = normalized.slice(streamBuffer.length);
               const wrapped = streamWrap.write(mask(newText));
               out.write(wrapped);
