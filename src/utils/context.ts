@@ -54,8 +54,7 @@ export function buildContextPrompt(files: ContextFile[]): string {
  * Falls back to a bounded recursive walk otherwise.
  * Large directories are collapsed into summary lines.
  */
-const FILE_CAP = 200;
-const DIR_COLLAPSE = 30; // collapse dirs with more files than this
+const FILE_CAP = 500;
 
 function gitFiles(cwd: string): string[] | null {
   try {
@@ -108,74 +107,24 @@ function walkFiles(
   }
 }
 
-function buildFileTree(files: string[], cap: number): string {
-  // Group files by top-level directory
-  const dirs = new Map<string, string[]>();
-  const rootFiles: string[] = [];
-
-  for (const f of files) {
-    const sep = f.indexOf('/');
-    if (sep === -1) {
-      rootFiles.push(f);
-    } else {
-      const dir = f.slice(0, sep);
-      const rest = f.slice(sep + 1);
-      if (!dirs.has(dir)) dirs.set(dir, []);
-      dirs.get(dir)?.push(rest);
-    }
-  }
-
-  const lines: string[] = [];
-  let count = 0;
-
-  // Root files first
-  for (const f of rootFiles) {
-    if (count >= cap) {
-      lines.push(`... and ${files.length - count} more files`);
-      return lines.join('\n');
-    }
-    lines.push(f);
-    count++;
-  }
-
-  // Then directories
-  for (const [dir, children] of [...dirs].sort((a, b) =>
-    a[0].localeCompare(b[0]),
-  )) {
-    if (count >= cap) {
-      lines.push(`... and ${files.length - count} more files`);
-      return lines.join('\n');
-    }
-    if (children.length > DIR_COLLAPSE) {
-      // Collapse large dirs — show dir name with count
-      lines.push(`${dir}/ (${children.length} files)`);
-      count += children.length;
-    } else {
-      for (const child of children) {
-        if (count >= cap) {
-          lines.push(`... and ${files.length - count} more files`);
-          return lines.join('\n');
-        }
-        lines.push(`${dir}/${child}`);
-        count++;
-      }
-    }
-  }
-
-  return lines.join('\n');
-}
-
 export function getProjectFiles(cwd?: string): string {
   const dir = cwd || process.cwd();
-  const files = gitFiles(dir);
-  if (files && files.length > 0) {
-    return buildFileTree(files, FILE_CAP);
+  let files = gitFiles(dir);
+  if (!files || files.length === 0) {
+    // Fallback: walk filesystem
+    const walked: string[] = [];
+    walkFiles(dir, dir, walked, FILE_CAP + 100);
+    files = walked;
   }
-  // Fallback: walk filesystem
-  const walked: string[] = [];
-  walkFiles(dir, dir, walked, FILE_CAP * 2);
-  if (walked.length === 0) return '';
-  return buildFileTree(walked, FILE_CAP);
+  if (files.length === 0) return '';
+
+  // Simple flat list — the model needs actual paths, not summaries
+  if (files.length <= FILE_CAP) {
+    return files.join('\n');
+  }
+  const shown = files.slice(0, FILE_CAP);
+  shown.push(`... and ${files.length - FILE_CAP} more files`);
+  return shown.join('\n');
 }
 
 interface ModelInfo {

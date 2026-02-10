@@ -15,6 +15,12 @@ export const readFile = tool({
       const fullPath = safePath(filePath);
       if (!fullPath) return { error: pathError(filePath) };
 
+      if (!fs.existsSync(fullPath)) {
+        return {
+          error: `file not found: ${filePath}. Check <project-files> for the correct path.`,
+        };
+      }
+
       const content = mask(fs.readFileSync(fullPath, 'utf-8'));
       const lines = content.split('\n').length;
       if (lines > 500) {

@@ -449,10 +449,8 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
               snippet?: string;
               excerpt?: string;
             }>;
-            callbacks.onStatus('thinking...');
           } else if (out?.content && typeof out.content === 'string') {
             fetchContent = out.content;
-            callbacks.onStatus('thinking...');
           } else if (out?.output && typeof out.output === 'string') {
             if (!out.output.startsWith('$ ') && currentToolLabel) {
               callbacks.onMessage('tool', `> ${currentToolLabel}\n${out.output}`);
@@ -474,10 +472,10 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             silent = true;
           }
 
+          // Don't flash "thinking..." between consecutive tool calls.
+          // The next event (tool-call or text-delta) will set its own status.
           if (silent) {
             callbacks.onStatus('');
-          } else {
-            callbacks.onStatus('thinking...');
           }
           break;
         }

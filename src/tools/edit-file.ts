@@ -38,7 +38,9 @@ export const editFile = tool({
       if (!fullPath) return { error: pathError(filePath) };
 
       if (!fs.existsSync(fullPath)) {
-        return { error: `not found: ${filePath}` };
+        return {
+          error: `file not found: ${filePath}. Check <project-files> for the correct path.`,
+        };
       }
 
       const content = fs.readFileSync(fullPath, 'utf-8');

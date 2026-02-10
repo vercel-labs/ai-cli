@@ -469,7 +469,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         break;
       }
       case 'info':
-        out.write(`${dim(wrap(msg.content))}\n`);
+        out.write(`${dim(wrap(msg.content))}\n\n`);
         break;
       case 'error':
         out.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
