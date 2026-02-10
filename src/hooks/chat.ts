@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { type ModelMessage, stepCountIs, streamText } from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
 import { getSetting } from '../config/settings.js';
@@ -12,6 +15,23 @@ import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
 import { buildSystemPrompt, toolActions } from '../utils/prompt.js';
 
+let sdkLogStream: fs.WriteStream | null = null;
+
+function sdkLog(event: string, data?: unknown): void {
+  if (!process.env.AI_SDK_DEBUG) return;
+  if (!sdkLogStream) {
+    const dir = path.join(os.homedir(), '.ai-sdk');
+    fs.mkdirSync(dir, { recursive: true });
+    sdkLogStream = fs.createWriteStream(path.join(dir, 'stream.log'), {
+      flags: 'a',
+    });
+    sdkLogStream.write(`\n--- session ${new Date().toISOString()} ---\n`);
+  }
+  const ts = new Date().toISOString();
+  const payload = data !== undefined ? ` ${JSON.stringify(data)}` : '';
+  sdkLogStream.write(`${ts} ${event}${payload}\n`);
+}
+
 interface StreamCallbacks {
   onStatus: (status: string) => void;
   onPending: (text: string) => void;
@@ -25,10 +45,66 @@ interface StreamCallbacks {
     content: string,
   ) => void;
   onReasoning: (text: string, durationMs: number) => void;
+  /** Stream edit diff lines as the model generates tool args. */
+  onEditStream?: (
+    filePath: string,
+    oldLines: string[],
+    newLines: string[],
+    more: number,
+  ) => void;
   onTokens: (fn: (t: number) => number) => void;
   onCost: (fn: (c: number) => number) => void;
   onSummary: (summary: string) => void;
   onBusy: (busy: boolean) => void;
+}
+
+function extractJsonStringValue(
+  text: string,
+  key: string,
+): { value: string; complete: boolean } | null {
+  const marker = `"${key}":"`;
+  const idx = text.indexOf(marker);
+  if (idx < 0) return null;
+
+  const start = idx + marker.length;
+  let value = '';
+  let escaped = false;
+  let complete = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      switch (ch) {
+        case 'n':
+          value += '\n';
+          break;
+        case 't':
+          value += '\t';
+          break;
+        case '"':
+          value += '"';
+          break;
+        case '\\':
+          value += '\\';
+          break;
+        case 'r':
+          value += '\r';
+          break;
+        default:
+          value += ch;
+      }
+      escaped = false;
+    } else if (ch === '\\') {
+      escaped = true;
+    } else if (ch === '"') {
+      complete = true;
+      break;
+    } else {
+      value += ch;
+    }
+  }
+
+  return { value, complete };
 }
 
 interface PendingImage {
@@ -132,6 +208,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   let reasoning = '';
   let reasoningStart = 0;
   let currentToolLabel = '';
+  let editStreamArgs = '';
+  let editStreamActive = false;
+  let editStreamLastCount = 0;
   let streamError: Error | null = null;
   let searchResults: Array<{
     title?: string;
@@ -173,6 +252,14 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   try {
     for await (const part of result.fullStream) {
       const partType = part.type as string;
+      sdkLog(partType, part);
+
+      // Reset silent at the start of each new step so text from the model
+      // in subsequent steps is displayed (e.g. clarifying questions after
+      // tool calls).
+      if (partType === 'start-step') {
+        silent = false;
+      }
 
       // When a previous tool set silent, skip text / reasoning but keep
       // processing tool events so errors and subsequent results are handled.
@@ -213,6 +300,59 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           break;
         }
 
+        case 'tool-input-start': {
+          const tcs = part as unknown as { toolName: string };
+          if (tcs.toolName === 'editFile' && callbacks.onEditStream) {
+            flushReasoning();
+            editStreamActive = true;
+            editStreamArgs = '';
+            editStreamLastCount = 0;
+            callbacks.onStatus('Editing...');
+          }
+          break;
+        }
+
+        case 'tool-input-delta': {
+          if (editStreamActive && callbacks.onEditStream) {
+            const tcd = part as unknown as { delta: string };
+            editStreamArgs += tcd.delta;
+
+            const fp = extractJsonStringValue(editStreamArgs, 'filePath');
+            if (fp) {
+              const old = extractJsonStringValue(editStreamArgs, 'oldText');
+              const new_ = extractJsonStringValue(
+                editStreamArgs,
+                'newText',
+              );
+
+              const oldLines = old
+                ? old.value.split('\n').slice(0, 5)
+                : [];
+              const newLines = new_
+                ? new_.value.split('\n').slice(0, 5)
+                : [];
+              const totalCount = oldLines.length + newLines.length;
+
+              if (totalCount > editStreamLastCount) {
+                editStreamLastCount = totalCount;
+                const totalOld = old ? old.value.split('\n').length : 0;
+                const totalNew = new_
+                  ? new_.value.split('\n').length
+                  : 0;
+                const more = Math.max(totalOld, totalNew) - 5;
+
+                callbacks.onEditStream(
+                  fp.value,
+                  oldLines,
+                  newLines,
+                  more > 0 ? more : 0,
+                );
+              }
+            }
+          }
+          break;
+        }
+
         case 'tool-call': {
           flushReasoning();
           const tc = part as {
@@ -222,6 +362,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           debug(`tool-call: ${tc.toolName}`);
           const input = tc.input;
           let status: string;
+          const wasEditStreamed =
+            editStreamActive && tc.toolName === 'editFile';
+          if (wasEditStreamed) editStreamActive = false;
 
           if (tc.toolName === 'listDirectory') {
             const p = input?.dirPath || '.';
@@ -265,7 +408,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             status = toolActions[tc.toolName] ?? 'Working';
             currentToolLabel = '';
           }
-          callbacks.onStatus(status);
+          if (!wasEditStreamed) {
+            callbacks.onStatus(status);
+          }
           break;
         }
 
