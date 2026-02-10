@@ -11,10 +11,8 @@ function shortDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n').slice(0, 5);
   const newLines = newText.split('\n').slice(0, 5);
   const lines: string[] = [];
-  for (const line of oldLines)
-    lines.push(`\x1b[31m- ${line}\x1b[39m`);
-  for (const line of newLines)
-    lines.push(`\x1b[32m+ ${line}\x1b[39m`);
+  for (const line of oldLines) lines.push(`\x1b[31m- ${line}\x1b[39m`);
+  for (const line of newLines) lines.push(`\x1b[32m+ ${line}\x1b[39m`);
   const more =
     Math.max(oldText.split('\n').length, newText.split('\n').length) - 5;
   if (more > 0) lines.push(`  ... ${more} more lines`);

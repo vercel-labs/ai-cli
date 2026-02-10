@@ -206,22 +206,16 @@ export async function terminal(model: string, version: string): Promise<void> {
 
         const render = () => {
           const parts = options.map((opt, i) =>
-            i === selected
-              ? `${dim('[')}${opt}${dim(']')}`
-              : dim(` ${opt} `),
+            i === selected ? `${dim('[')}${opt}${dim(']')}` : dim(` ${opt} `),
           );
-          lock.write(
-            `\r${ansi.eraseLine}${dim('› ')}${parts.join(dim('  '))}`,
-          );
+          lock.write(`\r${ansi.eraseLine}${dim('› ')}${parts.join(dim('  '))}`);
         };
 
         render();
 
         const finish = (choice: string) => {
           process.stdin.removeListener('keypress', onKey);
-          lock.write(
-            `\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`,
-          );
+          lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
           // Release lock BEFORE resolving so downstream writes render again
           confirmMode = false;
           lock.release();
@@ -871,9 +865,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
             // Clear previously rendered streaming lines
             for (let i = 0; i < editStreamLineCount; i++) {
-              out.write(
-                ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft,
-              );
+              out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
             }
 
             const basename = filePath.includes('/')

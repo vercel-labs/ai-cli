@@ -104,11 +104,7 @@ function searchDirNode(
       try {
         const content = fs.readFileSync(fullPath, 'utf-8');
         const lines = content.split('\n');
-        for (
-          let i = 0;
-          i < lines.length && results.length < maxResults;
-          i++
-        ) {
+        for (let i = 0; i < lines.length && results.length < maxResults; i++) {
           if (pattern.test(lines[i])) {
             results.push({
               file: path.relative(baseDir, fullPath),

@@ -47,15 +47,12 @@ export const writeFile = tool({
 
       const exists = fs.existsSync(fullPath);
       const verb = exists ? 'Update' : 'Create';
-      const oldContent = exists
-        ? fs.readFileSync(fullPath, 'utf-8')
-        : null;
+      const oldContent = exists ? fs.readFileSync(fullPath, 'utf-8') : null;
       const diff = writeDiff(oldContent, content);
 
-      const ok = await confirm(
-        `${verb} ${path.basename(filePath)}?\n${diff}`,
-        { tool: 'writeFile' },
-      );
+      const ok = await confirm(`${verb} ${path.basename(filePath)}?\n${diff}`, {
+        tool: 'writeFile',
+      });
       if (!ok) {
         return { error: 'User denied this action. Do not retry.' };
       }

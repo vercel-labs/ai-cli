@@ -29,7 +29,9 @@ export async function embed(inputs: string[]): Promise<number[][]> {
   });
 
   if (!res.ok) {
-    throw new Error(`embedding request failed: ${res.status} ${res.statusText}`);
+    throw new Error(
+      `embedding request failed: ${res.status} ${res.statusText}`,
+    );
   }
 
   const json = (await res.json()) as {

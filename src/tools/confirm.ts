@@ -5,9 +5,8 @@ export interface ConfirmOpts {
   command?: string;
 }
 
-let handler:
-  | ((action: string, opts?: ConfirmOpts) => Promise<boolean>)
-  | null = null;
+let handler: ((action: string, opts?: ConfirmOpts) => Promise<boolean>) | null =
+  null;
 
 // Queue to serialize concurrent confirm() calls so only one prompt
 // is visible at a time (the AI SDK fires tool executions in parallel).

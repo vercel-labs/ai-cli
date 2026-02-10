@@ -1,15 +1,14 @@
-import {
-  clearRules,
-  listRules,
-  removeRule,
-} from '../../utils/permissions.js';
+import { clearRules, listRules, removeRule } from '../../utils/permissions.js';
 import type { CommandHandler } from './types.js';
 
 export const permissions: CommandHandler = (_ctx, args) => {
   if (!args || args === 'list') {
     const rules = listRules();
     if (rules.length === 0) {
-      return { output: 'no permission rules\nuse "always" on a confirm prompt to add one' };
+      return {
+        output:
+          'no permission rules\nuse "always" on a confirm prompt to add one',
+      };
     }
     const lines = rules.map((r, i) => {
       const dir = r.directory.startsWith(process.env.HOME || '')

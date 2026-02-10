@@ -163,9 +163,7 @@ export const semanticSearch = tool({
   inputSchema: z.object({
     query: z
       .string()
-      .describe(
-        'Natural language description of what you are looking for',
-      ),
+      .describe('Natural language description of what you are looking for'),
     topK: z
       .number()
       .optional()

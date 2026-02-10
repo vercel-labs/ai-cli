@@ -152,9 +152,7 @@ function extractSymbols(filePath: string, content: string): Symbol[] {
 
 function formatSymbols(filePath: string, symbols: Symbol[]): string {
   if (symbols.length === 0) return `${filePath}: no symbols found`;
-  const lines = symbols.map(
-    (s) => `  ${s.kind} ${s.name} (line ${s.line})`,
-  );
+  const lines = symbols.map((s) => `  ${s.kind} ${s.name} (line ${s.line})`);
   return `${filePath}:\n${lines.join('\n')}`;
 }
 
@@ -226,10 +224,7 @@ export const codeOutline = tool({
               const symbols = extractSymbols(full, content);
               if (symbols.length > 0) {
                 results.push(
-                  formatSymbols(
-                    path.relative(process.cwd(), full),
-                    symbols,
-                  ),
+                  formatSymbols(path.relative(process.cwd(), full), symbols),
                 );
               }
               fileCount++;

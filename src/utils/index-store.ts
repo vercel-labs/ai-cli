@@ -30,7 +30,11 @@ function indexPath(projectHash: string): string {
 }
 
 function hashProject(projectPath: string): string {
-  return crypto.createHash('sha256').update(projectPath).digest('hex').slice(0, 16);
+  return crypto
+    .createHash('sha256')
+    .update(projectPath)
+    .digest('hex')
+    .slice(0, 16);
 }
 
 export function getProjectHash(projectPath?: string): string {

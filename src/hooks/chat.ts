@@ -326,25 +326,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             const fp = extractJsonStringValue(editStreamArgs, 'filePath');
             if (fp) {
               const old = extractJsonStringValue(editStreamArgs, 'oldText');
-              const new_ = extractJsonStringValue(
-                editStreamArgs,
-                'newText',
-              );
+              const new_ = extractJsonStringValue(editStreamArgs, 'newText');
 
-              const oldLines = old
-                ? old.value.split('\n').slice(0, 5)
-                : [];
-              const newLines = new_
-                ? new_.value.split('\n').slice(0, 5)
-                : [];
+              const oldLines = old ? old.value.split('\n').slice(0, 5) : [];
+              const newLines = new_ ? new_.value.split('\n').slice(0, 5) : [];
               const totalCount = oldLines.length + newLines.length;
 
               if (totalCount > editStreamLastCount) {
                 editStreamLastCount = totalCount;
                 const totalOld = old ? old.value.split('\n').length : 0;
-                const totalNew = new_
-                  ? new_.value.split('\n').length
-                  : 0;
+                const totalNew = new_ ? new_.value.split('\n').length : 0;
                 const more = Math.max(totalOld, totalNew) - 5;
 
                 callbacks.onEditStream(
@@ -406,9 +397,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             status = `Analyzing ${f}`;
             currentToolLabel = `Analyzed ${f}`;
           } else if (tc.toolName === 'semanticSearch') {
-            const q = input?.query
-              ? String(input.query).slice(0, 60)
-              : 'code';
+            const q = input?.query ? String(input.query).slice(0, 60) : 'code';
             status = `Searching: ${q}`;
             currentToolLabel = `Searched: ${q}`;
           } else if (tc.toolName === 'perplexity_search' && input?.query) {
@@ -453,7 +442,10 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             fetchContent = out.content;
           } else if (out?.output && typeof out.output === 'string') {
             if (!out.output.startsWith('$ ') && currentToolLabel) {
-              callbacks.onMessage('tool', `> ${currentToolLabel}\n${out.output}`);
+              callbacks.onMessage(
+                'tool',
+                `> ${currentToolLabel}\n${out.output}`,
+              );
             } else {
               callbacks.onMessage('tool', out.output);
             }
