@@ -253,9 +253,12 @@ export async function terminal(model: string, version: string): Promise<void> {
             for (let i = 0; i < confirmLineCount; i++) {
               lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
             }
-            // Don't write '\n' here — the cursor position after erase is
-            // unpredictable (depends on spinner/editStream/thinking state).
-            // The next output callback inserts exactly one blank-line gap.
+            if (hasBody || wasEditStream) {
+              // Multi-line confirms leave an extra blank line above from
+              // beforeStatus().  Erase it so beforeOutput() can re-add
+              // exactly one gap.
+              lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
+            }
             spacing.markAfterConfirm();
           } else {
             lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
@@ -535,11 +538,11 @@ export async function terminal(model: string, version: string): Promise<void> {
     return lines.map((l) => `  ${l}`).join('\n');
   }
 
-  function printMessage(msg: Message) {
+  function printMessage(msg: Message, trailing = true) {
     const markdown = getSetting('markdown');
     switch (msg.type) {
       case 'user':
-        out.write(`${dim('› ') + wrap(msg.content)}\n\n`);
+        out.write(`${dim('› ') + wrap(msg.content)}\n${trailing ? '\n' : ''}`);
         break;
       case 'assistant': {
         const assistant = trimLeadingBlankLines(msg.content);
@@ -553,9 +556,9 @@ export async function terminal(model: string, version: string): Promise<void> {
         if (nlIdx >= 0) {
           const header = formatted.slice(0, nlIdx);
           const body = formatted.slice(nlIdx + 1);
-          out.write(`${dim(header)}\n${dimmer(body)}\n\n`);
+          out.write(`${dim(header)}\n${dimmer(body)}\n${trailing ? '\n' : ''}`);
         } else {
-          out.write(`${dim(formatted)}\n\n`);
+          out.write(`${dim(formatted)}\n${trailing ? '\n' : ''}`);
         }
         break;
       }
@@ -576,7 +579,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           // Body lines (e.g. diff from editFile) — preserve original colors
           out.write(`${msg.content.slice(nlIdx + 1)}\n`);
         }
-        out.write('\n');
+        if (trailing) out.write('\n');
         break;
       }
       case 'error':
@@ -871,8 +874,9 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (s) {
               if (!statusText && streamBuffer) {
                 const remaining = streamWrap.flush();
-                out.write(`${remaining}\n\n`);
+                out.write(`${remaining}\n`);
                 streamBuffer = '';
+                spacing.markAfterBareMessage();
               }
               showStatus(s);
             } else {
@@ -900,17 +904,15 @@ export async function terminal(model: string, version: string): Promise<void> {
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n`);
               } else {
-                printMessage({ type, content: normalizedContent });
+                printMessage({ type, content: normalizedContent }, false);
               }
               streamBuffer = '';
               streamWrap.reset();
             } else {
-              printMessage({ type, content: normalizedContent });
+              printMessage({ type, content: normalizedContent }, false);
             }
             addMessage(type, normalizedContent);
-            if (type === 'assistant' || type === 'error') {
-              spacing.markAfterBareMessage();
-            }
+            spacing.markAfterBareMessage();
           },
           onRecord: (type, content) => {
             const normalizedContent =
@@ -935,7 +937,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             const truncated = text.replace(/\s+/g, ' ').trim().slice(0, 80);
             out.write(`${dim(label)}\n`);
             if (truncated) out.write(`${dim(`  ${truncated}`)}\n`);
-            out.write('\n');
+            spacing.markAfterBareMessage();
             addMessage(
               'info',
               `${label}${truncated ? `\n  ${truncated}` : ''}`,
