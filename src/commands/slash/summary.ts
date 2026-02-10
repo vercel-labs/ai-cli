@@ -9,4 +9,3 @@ export const summary: CommandHandler = (ctx: Context) => {
 
   return { output: `--- session summary ---\n${s}\n--- end summary ---` };
 };
-

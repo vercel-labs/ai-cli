@@ -12,7 +12,8 @@ function shortDiff(oldText: string, newText: string): string {
   const lines: string[] = [];
   for (const line of oldLines) lines.push(`- ${line}`);
   for (const line of newLines) lines.push(`+ ${line}`);
-  const more = Math.max(oldText.split('\n').length, newText.split('\n').length) - 5;
+  const more =
+    Math.max(oldText.split('\n').length, newText.split('\n').length) - 5;
   if (more > 0) lines.push(`  ... ${more} more lines`);
   return lines.join('\n');
 }
@@ -22,7 +23,9 @@ export const editFile = tool({
     'Edit a file by replacing old text with new text. Much faster than writeFile for small changes. The tool reads the file, so you dont need to read it first.',
   inputSchema: z.object({
     filePath: z.string().describe('Absolute or relative path to the file'),
-    oldText: z.string().describe('Exact text to find (include 2-3 lines of context)'),
+    oldText: z
+      .string()
+      .describe('Exact text to find (include 2-3 lines of context)'),
     newText: z.string().describe('Text to replace it with'),
   }),
   execute: async ({ filePath, oldText, newText }) => {

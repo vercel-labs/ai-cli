@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 
 export interface ManagedProcess {
   pid: number;
@@ -78,4 +78,3 @@ export function getProcessLogs(pid: number, lines = 50): string[] {
   if (!managed) return [];
   return managed.logs.slice(-lines);
 }
-

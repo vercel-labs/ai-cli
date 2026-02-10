@@ -45,7 +45,7 @@ for rules: /rules`;
 
   if (key === 'steps') {
     const num = parseInt(value, 10);
-    if (isNaN(num) || num < 1 || num > 50) {
+    if (Number.isNaN(num) || num < 1 || num > 50) {
       return { output: 'use: /settings steps <1-50>' };
     }
     setSetting('steps', num);
@@ -54,7 +54,7 @@ for rules: /rules`;
 
   if (key === 'spacing') {
     const num = parseInt(value, 10);
-    if (isNaN(num) || num < 0 || num > 4) {
+    if (Number.isNaN(num) || num < 0 || num > 4) {
       return { output: 'use: /settings spacing <0-4>' };
     }
     setSetting('spacing', num);

@@ -1,16 +1,23 @@
-import { type ModelMessage, streamText, stepCountIs } from 'ai';
+import { type ModelMessage, stepCountIs, streamText } from 'ai';
+import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
+import { getSetting } from '../config/settings.js';
 import { getTools, loadMcpTools } from '../tools/index.js';
+import {
+  getContextWindow,
+  shouldCompress,
+  summarizeHistory,
+} from '../utils/context.js';
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
-import { getContextWindow, shouldCompress, summarizeHistory } from '../utils/context.js';
-import { getOrCreateChat, saveChat, type Chat } from '../config/chats.js';
 import { buildSystemPrompt, toolActions } from '../utils/prompt.js';
-import { getSetting } from '../config/settings.js';
 
 interface StreamCallbacks {
   onStatus: (status: string) => void;
   onPending: (text: string) => void;
-  onMessage: (type: 'info' | 'tool' | 'assistant' | 'error', content: string) => void;
+  onMessage: (
+    type: 'info' | 'tool' | 'assistant' | 'error',
+    content: string,
+  ) => void;
   onTokens: (fn: (t: number) => number) => void;
   onCost: (fn: (c: number) => number) => void;
   onSummary: (summary: string) => void;
@@ -53,13 +60,6 @@ interface ToolOutput {
   error?: string;
 }
 
-interface ContentPart {
-  type: string;
-  text?: string;
-  toolCallId?: string;
-  toolName?: string;
-}
-
 interface GatewayMeta {
   cost?: string;
 }
@@ -70,7 +70,7 @@ interface ProviderMeta {
 
 export async function streamChat(options: StreamOptions): Promise<Chat> {
   const { model, message, history, tokens, summary, pm, callbacks } = options;
-  let chat = options.chat ?? getOrCreateChat(model);
+  const chat = options.chat ?? getOrCreateChat(model);
 
   debug(`input: ${message.slice(0, 50)}${message.length > 50 ? '...' : ''}`);
   const historyLen = history.length;
@@ -99,12 +99,21 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   const sys = buildSystemPrompt(pm, summary, message);
 
-  type ContentPart = { type: 'text'; text: string } | { type: 'image'; image: string; mimeType: string };
-  const userContent: ContentPart[] = [{ type: 'text', text: message }];
+  type UserContentPart =
+    | { type: 'text'; text: string }
+    | { type: 'image'; image: string; mimeType: string };
+  const userContent: UserContentPart[] = [{ type: 'text', text: message }];
   if (options.image) {
-    userContent.unshift({ type: 'image', image: options.image.data, mimeType: options.image.mimeType });
+    userContent.unshift({
+      type: 'image',
+      image: options.image.data,
+      mimeType: options.image.mimeType,
+    });
   }
-  history.push({ role: 'user', content: options.image ? userContent : message });
+  history.push({
+    role: 'user',
+    content: options.image ? userContent : message,
+  });
 
   const steps = getSetting('steps') || 10;
   const useTools = options.hasTools !== false;
@@ -113,10 +122,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   let buffer = '';
   let reasoning = '';
   let streamError: Error | null = null;
-  let searchResults: Array<{ title?: string; url?: string; snippet?: string; excerpt?: string }> | null = null;
+  let searchResults: Array<{
+    title?: string;
+    url?: string;
+    snippet?: string;
+    excerpt?: string;
+  }> | null = null;
   let fetchContent: string | null = null;
 
-  let result;
+  // biome-ignore lint/suspicious/noExplicitAny: streamText generic type varies by call site
+  let result: any;
   try {
     const mcpTools = useTools ? await loadMcpTools() : {};
     result = streamText({
@@ -125,8 +140,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       messages: history,
       tools: useTools ? getTools(mcpTools) : undefined,
       stopWhen: stepCountIs(steps),
-      providerOptions: { openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' } },
-      headers: { 'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli', 'X-Title': 'ai-cli' },
+      providerOptions: {
+        openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+      },
+      headers: {
+        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
+        'X-Title': 'ai-cli',
+      },
       abortSignal: options.abortSignal,
     });
   } catch (e) {
@@ -138,7 +158,8 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     for await (const part of result.fullStream) {
       if (silent) break;
 
-      switch (part.type) {
+      const partType = part.type as string;
+      switch (partType) {
         case 'error': {
           const errorPart = part as { error?: Error };
           streamError = errorPart.error ?? new Error('unknown error');
@@ -154,24 +175,31 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'reasoning-delta': {
-          if (part.text) {
-            reasoning += part.text;
-            callbacks.onStatus(reasoning.replace(/\s+/g, ' ').trim().slice(-80));
+          const rp = part as { text?: string };
+          if (rp.text) {
+            reasoning += rp.text;
+            callbacks.onStatus(
+              reasoning.replace(/\s+/g, ' ').trim().slice(-80),
+            );
           }
           break;
         }
 
         case 'tool-call': {
-          debug(`tool-call: ${part.toolName}`);
-          let status = toolActions[part.toolName] ?? 'working...';
-          const input = part.input as ToolInput | undefined;
-          if (part.toolName === 'perplexity_search' && input?.query) {
+          const tc = part as {
+            toolName: string;
+            input?: ToolInput;
+          };
+          debug(`tool-call: ${tc.toolName}`);
+          let status = toolActions[tc.toolName] ?? 'working...';
+          const input = tc.input;
+          if (tc.toolName === 'perplexity_search' && input?.query) {
             status = `searching: ${input.query.slice(0, 60)}`;
-          } else if (part.toolName === 'parallel_search' && input?.objective) {
+          } else if (tc.toolName === 'parallel_search' && input?.objective) {
             status = `searching: ${input.objective.slice(0, 60)}`;
-          } else if (part.toolName === 'runCommand' && input?.command) {
+          } else if (tc.toolName === 'runCommand' && input?.command) {
             status = `$ ${input.command.slice(0, 70)}`;
-          } else if (part.toolName === 'fetchUrl') {
+          } else if (tc.toolName === 'fetchUrl') {
             status = 'fetching...';
           }
           callbacks.onStatus(status);
@@ -179,14 +207,20 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'tool-result': {
-          debug(`tool-result: ${part.toolName}`);
-          const out = part.output as ToolOutput | undefined;
+          const tr = part as { toolName?: string; output?: ToolOutput };
+          debug(`tool-result: ${tr.toolName}`);
+          const out = tr.output;
 
           if (out?.tree && typeof out.tree === 'string') {
             callbacks.onMessage('tool', out.tree);
             silent = true;
           } else if (out?.results && Array.isArray(out.results)) {
-            searchResults = out.results as Array<{ title?: string; url?: string; snippet?: string; excerpt?: string }>;
+            searchResults = out.results as Array<{
+              title?: string;
+              url?: string;
+              snippet?: string;
+              excerpt?: string;
+            }>;
             callbacks.onStatus('thinking...');
           } else if (out?.content && typeof out.content === 'string') {
             fetchContent = out.content;
@@ -215,14 +249,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'text-delta': {
+          const td = part as { text: string };
           callbacks.onStatus('');
-          buffer += part.text;
+          buffer += td.text;
           callbacks.onPending(buffer);
           break;
         }
 
         case 'step-finish': {
-          debug(`step-finish: ${part.finishReason}`);
+          const sf = part as { finishReason?: string };
+          debug(`step-finish: ${sf.finishReason}`);
           break;
         }
       }
@@ -251,23 +287,35 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     if (chat.messages.length === 2 && chat.title === 'New chat') {
       chat.title = message.slice(0, 50).trim();
     }
-    result.response.then(res => {
-      for (const m of res.messages) {
-        if (m.role === 'assistant' || m.role === 'tool') {
-          history.push(m);
+    Promise.resolve(result.response)
+      .then((res) => {
+        for (const m of res.messages) {
+          if (m.role === 'assistant' || m.role === 'tool') {
+            history.push(m);
+          }
         }
-      }
-    }).catch(() => {});
-    result.usage.then(u => {
-      if (u?.totalTokens) callbacks.onTokens(t => t + (u.totalTokens ?? 0));
-    }).catch(() => {});
-    (result.providerMetadata as Promise<ProviderMeta | undefined>).then(m => {
-      if (m?.gateway?.cost) callbacks.onCost(c => c + (Number.parseFloat(m.gateway!.cost!) || 0));
-    }).catch(() => {});
+      })
+      .catch(() => {});
+    Promise.resolve(result.usage)
+      .then((u) => {
+        if (u?.totalTokens) callbacks.onTokens((t) => t + (u.totalTokens ?? 0));
+      })
+      .catch(() => {});
+    Promise.resolve(
+      result.providerMetadata as PromiseLike<ProviderMeta | undefined>,
+    )
+      .then((m) => {
+        if (m?.gateway?.cost)
+          callbacks.onCost(
+            (c) => c + (Number.parseFloat(m.gateway?.cost ?? '0') || 0),
+          );
+      })
+      .catch(() => {});
     return chat;
   }
 
-  let response;
+  // biome-ignore lint/suspicious/noExplicitAny: response type from streamText result
+  let response: any;
   try {
     response = await result.response;
   } catch (e) {
@@ -282,17 +330,27 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
     let contextMsg = '';
     if (searchResults && searchResults.length > 0) {
-      contextMsg = `Search results:\n${searchResults.slice(0, 5).map(r =>
-        `- ${r.title ?? 'untitled'}: ${r.snippet ?? r.excerpt ?? ''} (${r.url ?? ''})`
-      ).join('\n')}`;
+      contextMsg = `Search results:\n${searchResults
+        .slice(0, 5)
+        .map(
+          (r) =>
+            `- ${r.title ?? 'untitled'}: ${r.snippet ?? r.excerpt ?? ''} (${r.url ?? ''})`,
+        )
+        .join('\n')}`;
     } else if (fetchContent) {
       contextMsg = `Fetched content:\n${fetchContent.slice(0, 4000)}`;
     }
 
     const contHistory: ModelMessage[] = [
       ...history,
-      { role: 'assistant' as const, content: `I found this information:\n\n${contextMsg}` },
-      { role: 'user' as const, content: 'Please summarize and explain what you found.' },
+      {
+        role: 'assistant' as const,
+        content: `I found this information:\n\n${contextMsg}`,
+      },
+      {
+        role: 'user' as const,
+        content: 'Please summarize and explain what you found.',
+      },
     ];
 
     const contResult = streamText({
@@ -300,8 +358,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       system: sys,
       messages: contHistory,
       stopWhen: stepCountIs(1),
-      providerOptions: { openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' } },
-      headers: { 'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli', 'X-Title': 'ai-cli' },
+      providerOptions: {
+        openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+      },
+      headers: {
+        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
+        'X-Title': 'ai-cli',
+      },
       abortSignal: options.abortSignal,
     });
 
@@ -329,13 +392,17 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     }
 
     const contUsage = await contResult.usage;
-    const contMeta = await contResult.providerMetadata as ProviderMeta | undefined;
+    const contMeta = (await contResult.providerMetadata) as
+      | ProviderMeta
+      | undefined;
 
     if (contUsage?.totalTokens) {
-      callbacks.onTokens(t => t + (contUsage.totalTokens ?? 0));
+      callbacks.onTokens((t) => t + (contUsage.totalTokens ?? 0));
     }
     if (contMeta?.gateway?.cost) {
-      callbacks.onCost(c => c + (Number.parseFloat(contMeta.gateway!.cost!) || 0));
+      callbacks.onCost(
+        (c) => c + (Number.parseFloat(contMeta.gateway?.cost ?? '0') || 0),
+      );
     }
   }
 
@@ -343,9 +410,15 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   const toolResultIds = new Set<string>();
   const toolNames: Record<string, string> = {};
 
+  type ResponsePart = {
+    type: string;
+    text?: string;
+    toolCallId?: string;
+    toolName?: string;
+  };
   for (const m of response.messages) {
     if (m.role === 'assistant' && Array.isArray(m.content)) {
-      for (const p of m.content as ContentPart[]) {
+      for (const p of m.content as ResponsePart[]) {
         if (p.type === 'tool-call' && p.toolCallId) {
           toolUseIds.add(p.toolCallId);
           toolNames[p.toolCallId] = p.toolName ?? p.toolCallId;
@@ -355,7 +428,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
       }
     } else if (m.role === 'tool' && Array.isArray(m.content)) {
-      for (const p of m.content as ContentPart[]) {
+      for (const p of m.content as ResponsePart[]) {
         if (p.type === 'tool-result' && p.toolCallId) {
           toolResultIds.add(p.toolCallId);
         }
@@ -363,9 +436,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     }
   }
 
-  const unpairedIds = [...toolUseIds].filter(id => !toolResultIds.has(id));
+  const unpairedIds = [...toolUseIds].filter((id) => !toolResultIds.has(id));
   if (unpairedIds.length > 0) {
-    const names = unpairedIds.map(id => toolNames[id] ?? id).join(', ');
+    const names = unpairedIds.map((id) => toolNames[id] ?? id).join(', ');
     debug(`unpaired tools: ${names}`);
     history.length = historyLen;
     throw new Error(`tool failed: ${names}`);
@@ -380,21 +453,23 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   chat.messages.push({ role: 'user', content: message });
 
   const usage = await result.usage;
-  const meta = await result.providerMetadata as ProviderMeta | undefined;
+  const meta = (await result.providerMetadata) as ProviderMeta | undefined;
 
   if (usage?.totalTokens) {
-    callbacks.onTokens(t => t + (usage.totalTokens ?? 0));
+    callbacks.onTokens((t) => t + (usage.totalTokens ?? 0));
   }
 
   if (meta?.gateway?.cost) {
-    callbacks.onCost(c => c + (Number.parseFloat(meta.gateway!.cost!) || 0));
+    callbacks.onCost(
+      (c) => c + (Number.parseFloat(meta.gateway?.cost ?? '0') || 0),
+    );
   }
 
   if (!silent) {
     let txt = '';
     for (const m of response.messages) {
       if (m.role === 'assistant' && Array.isArray(m.content)) {
-        for (const p of m.content as ContentPart[]) {
+        for (const p of m.content as ResponsePart[]) {
           if (p.type === 'text' && p.text) {
             txt += p.text;
           }
@@ -413,7 +488,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   }
 
   if (chat.messages.length === 2 && chat.title === 'New chat') {
-    const first = chat.messages.find(m => m.role === 'user');
+    const first = chat.messages.find((m) => m.role === 'user');
     if (first) {
       chat.title = first.content.slice(0, 50).trim();
     }

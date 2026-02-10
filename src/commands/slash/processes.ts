@@ -42,4 +42,3 @@ export const processes: CommandHandler = (_ctx, args) => {
   lines.push('\n/processes <pid> to kill, /processes killall to kill all');
   return { output: lines.join('\n') };
 };
-

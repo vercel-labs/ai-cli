@@ -50,8 +50,7 @@ function searchDir(
             });
           }
         }
-      } catch {
-      }
+      } catch {}
     }
   }
 }
@@ -69,7 +68,8 @@ export const searchInFiles = tool({
     try {
       const baseDir = path.resolve(directory || '.');
       const pattern = new RegExp(query, 'i');
-      const results: Array<{ file: string; line: number; content: string }> = [];
+      const results: Array<{ file: string; line: number; content: string }> =
+        [];
       searchDir(baseDir, baseDir, pattern, results, 50);
 
       if (results.length === 0) {
@@ -82,4 +82,3 @@ export const searchInFiles = tool({
     }
   },
 });
-

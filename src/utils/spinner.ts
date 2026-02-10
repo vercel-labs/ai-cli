@@ -24,7 +24,9 @@ export function createSpinner() {
     const suffix = ` (${elapsed})`;
     const maxWidth = termWidth - 4 - suffix.length;
     const display = text.length > maxWidth ? text.slice(-maxWidth) : text;
-    process.stdout.write(`\r${dim(frames[frame])} ${dim(display + suffix)}\x1b[K`);
+    process.stdout.write(
+      `\r${dim(frames[frame])} ${dim(display + suffix)}\x1b[K`,
+    );
     frame = (frame + 1) % frames.length;
   };
 

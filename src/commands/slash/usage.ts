@@ -12,7 +12,9 @@ export const usage: CommandHandler = async (ctx) => {
 
   if (ctx.chat) {
     const userMsgs = ctx.chat.messages.filter((m) => m.role === 'user').length;
-    const aiMsgs = ctx.chat.messages.filter((m) => m.role === 'assistant').length;
+    const aiMsgs = ctx.chat.messages.filter(
+      (m) => m.role === 'assistant',
+    ).length;
     lines.push(`chat: ${ctx.chat.title}`);
     lines.push(`messages: ${userMsgs} user / ${aiMsgs} assistant`);
   }
@@ -20,8 +22,11 @@ export const usage: CommandHandler = async (ctx) => {
   try {
     const contextWindow = await getContextWindow(ctx.model);
     const pct = Math.round((ctx.tokens / contextWindow) * 100);
-    const bar = '█'.repeat(Math.floor(pct / 5)) + '░'.repeat(20 - Math.floor(pct / 5));
-    lines.push(`context: ${ctx.tokens.toLocaleString()} / ${contextWindow.toLocaleString()} [${bar}] ${pct}%`);
+    const bar =
+      '█'.repeat(Math.floor(pct / 5)) + '░'.repeat(20 - Math.floor(pct / 5));
+    lines.push(
+      `context: ${ctx.tokens.toLocaleString()} / ${contextWindow.toLocaleString()} [${bar}] ${pct}%`,
+    );
   } catch {
     lines.push(`tokens: ~${ctx.tokens.toLocaleString()}`);
   }

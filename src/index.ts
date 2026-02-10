@@ -76,9 +76,7 @@ async function main() {
   globalThis.AI_SDK_LOG_WARNINGS = false;
 
   const modelArg = args['--model'];
-  const model = modelArg
-    ? await resolveModel(modelArg)
-    : savedModel;
+  const model = modelArg ? await resolveModel(modelArg) : savedModel;
 
   let message = args._.join(' ');
 

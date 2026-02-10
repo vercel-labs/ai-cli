@@ -9,7 +9,9 @@ export const readProcessLogs = tool({
     pid: z
       .number()
       .optional()
-      .describe('Process ID. If not provided, returns logs from most recent process'),
+      .describe(
+        'Process ID. If not provided, returns logs from most recent process',
+      ),
     lines: z
       .number()
       .optional()
@@ -35,4 +37,3 @@ export const readProcessLogs = tool({
     return { pid: targetPid, logs, lineCount: logs.length };
   },
 });
-

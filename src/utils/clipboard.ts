@@ -25,10 +25,15 @@ return "ok"
       if (result.stdout?.trim() !== 'ok') return null;
     } else if (platform === 'linux') {
       try {
-        execSync(`xclip -selection clipboard -t image/png -o > "${tempFile}" 2>/dev/null`, { shell: true });
+        execSync(
+          `xclip -selection clipboard -t image/png -o > "${tempFile}" 2>/dev/null`,
+          { shell: '/bin/sh' },
+        );
       } catch {
         try {
-          execSync(`wl-paste --type image/png > "${tempFile}" 2>/dev/null`, { shell: true });
+          execSync(`wl-paste --type image/png > "${tempFile}" 2>/dev/null`, {
+            shell: '/bin/sh',
+          });
         } catch {
           return null;
         }

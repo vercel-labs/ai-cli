@@ -29,4 +29,3 @@ export function detectPackageManager(): { pm: string; run: string } {
 
   return { pm: 'npm', run: 'npm run' };
 }
-

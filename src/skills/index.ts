@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { SKILLS_DIR, ensureSkillsDir } from '../config/paths.js';
+import { ensureSkillsDir, SKILLS_DIR } from '../config/paths.js';
 
 export interface Skill {
   name: string;
@@ -16,7 +16,10 @@ interface SkillFrontmatter {
   'allowed-tools'?: string[];
 }
 
-function parseFrontmatter(content: string): { frontmatter: SkillFrontmatter; body: string } {
+function parseFrontmatter(content: string): {
+  frontmatter: SkillFrontmatter;
+  body: string;
+} {
   const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) {
     return { frontmatter: {}, body: content };
@@ -31,10 +34,13 @@ function parseFrontmatter(content: string): { frontmatter: SkillFrontmatter; bod
     if (colonIdx === -1) continue;
 
     const key = line.slice(0, colonIdx).trim();
-    let value = line.slice(colonIdx + 1).trim();
+    const value = line.slice(colonIdx + 1).trim();
 
     if (value.startsWith('[') && value.endsWith(']')) {
-      const arr = value.slice(1, -1).split(',').map(s => s.trim());
+      const arr = value
+        .slice(1, -1)
+        .split(',')
+        .map((s) => s.trim());
       if (key === 'allowed-tools') {
         frontmatter['allowed-tools'] = arr;
       }
@@ -88,10 +94,10 @@ export function loadAllSkills(): Skill[] {
 
 export function matchSkills(prompt: string, skills: Skill[]): Skill[] {
   const lower = prompt.toLowerCase();
-  return skills.filter(skill => {
+  return skills.filter((skill) => {
     if (!skill.description) return false;
     const words = skill.description.toLowerCase().split(/\s+/);
-    return words.some(word => word.length > 3 && lower.includes(word));
+    return words.some((word) => word.length > 3 && lower.includes(word));
   });
 }
 
@@ -105,7 +111,7 @@ export function listSkills(): string[] {
   ensureSkillsDir();
   try {
     const entries = fs.readdirSync(SKILLS_DIR, { withFileTypes: true });
-    return entries.filter(e => e.isDirectory()).map(e => e.name);
+    return entries.filter((e) => e.isDirectory()).map((e) => e.name);
   } catch {
     return [];
   }

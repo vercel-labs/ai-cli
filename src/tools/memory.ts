@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { MEMORIES_FILE, ensureBaseDir } from '../config/paths.js';
+import { ensureBaseDir, MEMORIES_FILE } from '../config/paths.js';
 
 function loadMemories(): string[] {
   try {
@@ -43,7 +43,7 @@ export const memory = tool({
       if (memories.length === 0) {
         return { memories: [], output: 'No saved memories' };
       }
-      return { memories, output: memories.map(m => `- ${m}`).join('\n') };
+      return { memories, output: memories.map((m) => `- ${m}`).join('\n') };
     }
 
     if (action === 'clear') {

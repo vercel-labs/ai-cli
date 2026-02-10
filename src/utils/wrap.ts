@@ -15,7 +15,7 @@ export function wrap(text: string, width?: number): string {
       if (current.length === 0) {
         current = word;
       } else if (current.length + 1 + word.length <= cols) {
-        current += ' ' + word;
+        current += ` ${word}`;
       } else {
         lines.push(current);
         current = word;
@@ -41,7 +41,7 @@ export function createStreamWrap() {
 
       for (const char of text) {
         if (char === '\n') {
-          output += buffer + '\n';
+          output += `${buffer}\n`;
           buffer = '';
           col = 0;
           continue;
@@ -50,10 +50,10 @@ export function createStreamWrap() {
         if (char === ' ') {
           const wordLen = buffer.length;
           if (col + wordLen > cols && col > 0) {
-            output += '\n' + buffer + ' ';
+            output += `\n${buffer} `;
             col = wordLen + 1;
           } else {
-            output += buffer + ' ';
+            output += `${buffer} `;
             col += wordLen + 1;
           }
           buffer = '';

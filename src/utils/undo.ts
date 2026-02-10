@@ -19,7 +19,12 @@ export function saveWrite(filePath: string): void {
       previous = null;
     }
   }
-  stack.push({ type: 'write', path: fullPath, previous, timestamp: Date.now() });
+  stack.push({
+    type: 'write',
+    path: fullPath,
+    previous,
+    timestamp: Date.now(),
+  });
   if (stack.length > MAX_STACK) stack.shift();
 }
 
@@ -27,7 +32,12 @@ export function saveDelete(filePath: string): void {
   const fullPath = path.resolve(filePath);
   try {
     const content = fs.readFileSync(fullPath, 'utf-8');
-    stack.push({ type: 'delete', path: fullPath, content, timestamp: Date.now() });
+    stack.push({
+      type: 'delete',
+      path: fullPath,
+      content,
+      timestamp: Date.now(),
+    });
     if (stack.length > MAX_STACK) stack.shift();
   } catch {}
 }
@@ -35,7 +45,12 @@ export function saveDelete(filePath: string): void {
 export function saveRename(oldPath: string, newPath: string): void {
   const fullOld = path.resolve(oldPath);
   const fullNew = path.resolve(newPath);
-  stack.push({ type: 'rename', oldPath: fullOld, newPath: fullNew, timestamp: Date.now() });
+  stack.push({
+    type: 'rename',
+    oldPath: fullOld,
+    newPath: fullNew,
+    timestamp: Date.now(),
+  });
   if (stack.length > MAX_STACK) stack.shift();
 }
 
@@ -72,7 +87,10 @@ function applyUndo(op: Operation): { success: boolean; message: string } {
         const oldDir = path.dirname(op.oldPath);
         if (!fs.existsSync(oldDir)) fs.mkdirSync(oldDir, { recursive: true });
         fs.renameSync(op.newPath, op.oldPath);
-        return { success: true, message: `renamed back to ${path.basename(op.oldPath)}` };
+        return {
+          success: true,
+          message: `renamed back to ${path.basename(op.oldPath)}`,
+        };
       }
       return { success: false, message: 'file no longer exists' };
     }
@@ -87,24 +105,45 @@ export function undoCount(): number {
   return stack.length;
 }
 
-export function getStack(): { index: number; action: string; file: string; time: string }[] {
-  return stack.map((op, i) => {
-    const time = formatTime(op.timestamp);
-    if (op.type === 'write') {
-      const action = op.previous === null ? 'created' : 'modified';
-      return { index: i + 1, action, file: path.basename(op.path), time };
-    }
-    if (op.type === 'delete') {
-      return { index: i + 1, action: 'deleted', file: path.basename(op.path), time };
-    }
-    if (op.type === 'rename') {
-      return { index: i + 1, action: 'renamed', file: path.basename(op.oldPath), time };
-    }
-    return { index: i + 1, action: 'unknown', file: '', time };
-  }).reverse();
+export function getStack(): {
+  index: number;
+  action: string;
+  file: string;
+  time: string;
+}[] {
+  return stack
+    .map((op, i) => {
+      const time = formatTime(op.timestamp);
+      if (op.type === 'write') {
+        const action = op.previous === null ? 'created' : 'modified';
+        return { index: i + 1, action, file: path.basename(op.path), time };
+      }
+      if (op.type === 'delete') {
+        return {
+          index: i + 1,
+          action: 'deleted',
+          file: path.basename(op.path),
+          time,
+        };
+      }
+      if (op.type === 'rename') {
+        return {
+          index: i + 1,
+          action: 'renamed',
+          file: path.basename(op.oldPath),
+          time,
+        };
+      }
+      return { index: i + 1, action: 'unknown', file: '', time };
+    })
+    .reverse();
 }
 
-export function rollbackTo(index: number): { success: boolean; message: string; count: number } {
+export function rollbackTo(index: number): {
+  success: boolean;
+  message: string;
+  count: number;
+} {
   if (index < 1 || index > stack.length) {
     return { success: false, message: 'invalid index', count: 0 };
   }

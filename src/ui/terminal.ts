@@ -1,23 +1,38 @@
-import * as readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
+import * as readline from 'node:readline';
 import { PassThrough } from 'node:stream';
+import type { ModelMessage } from 'ai';
 import ansi from 'ansi-escapes';
-import { type ModelMessage } from 'ai';
-import { saveChat, createChat, deleteAllChats, listChats } from '../config/chats.js';
+import {
+  commands,
+  getCompletions,
+  resolveCommand,
+  restoreHistory,
+} from '../commands/slash/index.js';
+import type { Context } from '../commands/slash/types.js';
+import type { Chat } from '../config/chats.js';
+import {
+  createChat,
+  deleteAllChats,
+  listChats,
+  saveChat,
+} from '../config/chats.js';
 import { setModel as saveModel } from '../config/index.js';
-import { formatError } from '../utils/errors.js';
-import { detectPackageManager } from '../utils/package-manager.js';
-import { killAllProcesses } from '../utils/processes.js';
-import { commands, restoreHistory, resolveCommand, getCompletions } from '../commands/slash/index.js';
-import { getClipboardImage } from '../utils/clipboard.js';
-import { renderMarkdown } from '../utils/markdown.js';
-import { wrap, createStreamWrap } from '../utils/wrap.js';
-import { mask } from '../utils/mask.js';
 import { getSetting } from '../config/settings.js';
 import { streamChat } from '../hooks/chat.js';
-import { fetchModels, scoreMatch, getModelCapabilities, type ModelCapabilities } from '../utils/models.js';
-import type { Chat } from '../config/chats.js';
-import type { Context } from '../commands/slash/types.js';
+import { getClipboardImage } from '../utils/clipboard.js';
+import { formatError } from '../utils/errors.js';
+import { renderMarkdown } from '../utils/markdown.js';
+import { mask } from '../utils/mask.js';
+import {
+  fetchModels,
+  getModelCapabilities,
+  type ModelCapabilities,
+  scoreMatch,
+} from '../utils/models.js';
+import { detectPackageManager } from '../utils/package-manager.js';
+import { killAllProcesses } from '../utils/processes.js';
+import { createStreamWrap, wrap } from '../utils/wrap.js';
 
 interface ReadlineInternal extends readline.Interface {
   line: string;
@@ -51,7 +66,11 @@ export async function terminal(model: string, version: string): Promise<void> {
   let selectMode = false;
   let commandMode = false;
   let pendingImage: { data: string; mimeType: string } | null = null;
-  let capabilities: ModelCapabilities = { vision: true, tools: true, reasoning: false };
+  let capabilities: ModelCapabilities = {
+    vision: true,
+    tools: true,
+    reasoning: false,
+  };
 
   async function updateCapabilities(modelId: string): Promise<void> {
     try {
@@ -64,11 +83,15 @@ export async function terminal(model: string, version: string): Promise<void> {
   updateCapabilities(currentModel);
 
   function updateTitle() {
-    const branchResult = spawnSync('git', ['branch', '--show-current'], { encoding: 'utf-8' });
+    const branchResult = spawnSync('git', ['branch', '--show-current'], {
+      encoding: 'utf-8',
+    });
     const branch = branchResult.status === 0 ? branchResult.stdout?.trim() : '';
 
     if (branch) {
-      const diffResult = spawnSync('git', ['diff', '--shortstat'], { encoding: 'utf-8' });
+      const diffResult = spawnSync('git', ['diff', '--shortstat'], {
+        encoding: 'utf-8',
+      });
       const stat = diffResult.stdout?.trim() || '';
       const adds = stat.match(/(\d+) insertion/)?.[1] || '0';
       const dels = stat.match(/(\d+) deletion/)?.[1] || '0';
@@ -106,15 +129,25 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     if (str === '\x16') {
       if (!capabilities.vision) {
-        process.stdout.write('\r' + ansi.eraseLine + dim('› ') + dim('[model does not support images]'));
+        process.stdout.write(
+          '\r' +
+            ansi.eraseLine +
+            dim('› ') +
+            dim('[model does not support images]'),
+        );
         setTimeout(() => {
-          process.stdout.write('\r' + ansi.eraseLine + dim('› ') + (rl as ReadlineInternal).line);
+          process.stdout.write(
+            `\r${ansi.eraseLine}${dim('› ')}${(rl as ReadlineInternal).line}`,
+          );
         }, 1500);
         return;
       }
       const imgBuffer = getClipboardImage();
       if (imgBuffer) {
-        pendingImage = { data: imgBuffer.toString('base64'), mimeType: 'image/png' };
+        pendingImage = {
+          data: imgBuffer.toString('base64'),
+          mimeType: 'image/png',
+        };
         const internal = rl as ReadlineInternal;
         const line = internal.line;
         const cursor = internal.cursor;
@@ -123,7 +156,7 @@ export async function terminal(model: string, version: string): Promise<void> {
         internal.line = newLine;
         internal.cursor = cursor + marker.length;
         const prefix = commandMode ? '/ ' : '› ';
-        process.stdout.write('\r' + ansi.eraseLine + dim(prefix) + newLine);
+        process.stdout.write(`\r${ansi.eraseLine}${dim(prefix)}${newLine}`);
       }
       return;
     }
@@ -131,35 +164,37 @@ export async function terminal(model: string, version: string): Promise<void> {
     if (!commandMode && rl.line === '' && str === '/') {
       commandMode = true;
       rl.setPrompt(dim('/ '));
-      process.stdout.write('\r' + ansi.eraseLine + dim('/ '));
+      process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}`);
       return;
     }
 
     if (commandMode && rl.line === '' && (str === '\x7f' || str === '\b')) {
       commandMode = false;
       rl.setPrompt(dim('› '));
-      process.stdout.write('\r' + ansi.eraseLine + dim('› '));
+      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
       return;
     }
 
     if (str === '\t' && commandMode) {
       const internal = rl as ReadlineInternal;
-      const [completions] = getCompletions('/' + internal.line);
+      const [completions] = getCompletions(`/${internal.line}`);
       if (completions.length === 1) {
         const completed = completions[0].slice(1);
         internal.line = completed;
         internal.cursor = completed.length;
-        process.stdout.write('\r' + ansi.eraseLine + dim('/ ') + completed);
+        process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${completed}`);
       } else if (completions.length > 1) {
-        const common = completions.reduce((a, b) => {
-          let i = 0;
-          while (i < a.length && i < b.length && a[i] === b[i]) i++;
-          return a.slice(0, i);
-        }).slice(1);
+        const common = completions
+          .reduce((a, b) => {
+            let i = 0;
+            while (i < a.length && i < b.length && a[i] === b[i]) i++;
+            return a.slice(0, i);
+          })
+          .slice(1);
         if (common.length > internal.line.length) {
           internal.line = common;
           internal.cursor = common.length;
-          process.stdout.write('\r' + ansi.eraseLine + dim('/ ') + common);
+          process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${common}`);
         }
       }
       return;
@@ -171,7 +206,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       rl.setPrompt(dim('› '));
       (rl as ReadlineInternal).line = '';
       (rl as ReadlineInternal).cursor = 0;
-      process.stdout.write('\r' + ansi.eraseLine + dim('› '));
+      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
       return;
     }
 
@@ -190,7 +225,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   function cleanup() {
     killAllProcesses();
-    process.stdout.write('\n' + ansi.cursorShow);
+    process.stdout.write(`\n${ansi.cursorShow}`);
     rl.close();
     process.exit(0);
   }
@@ -201,7 +236,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     for (const msg of messages) {
       printMessage(msg);
     }
-    const spacing = getSetting('spacing');
+    const spacing = getSetting('spacing') ?? 1;
     process.stdout.write('\n'.repeat(spacing));
     rl.prompt();
   }
@@ -219,7 +254,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     if (statusText) {
       process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
     }
-    process.stdout.write(dim(text) + '\n');
+    process.stdout.write(`${dim(text)}\n`);
     statusText = text;
   }
 
@@ -227,21 +262,21 @@ export async function terminal(model: string, version: string): Promise<void> {
     const markdown = getSetting('markdown');
     switch (msg.type) {
       case 'user':
-        process.stdout.write(dim('› ') + wrap(msg.content) + '\n');
+        process.stdout.write(`${dim('› ') + wrap(msg.content)}\n`);
         break;
       case 'assistant': {
         const content = markdown ? renderMarkdown(msg.content) : msg.content;
-        process.stdout.write(wrap(mask(content)) + '\n');
+        process.stdout.write(`${wrap(mask(content))}\n`);
         break;
       }
       case 'tool':
-        process.stdout.write(dim(wrap(mask(msg.content))) + '\n');
+        process.stdout.write(`${dim(wrap(mask(msg.content)))}\n`);
         break;
       case 'info':
-        process.stdout.write(dim(wrap(msg.content)) + '\n');
+        process.stdout.write(`${dim(wrap(msg.content))}\n`);
         break;
       case 'error':
-        process.stdout.write(dim('error: ' + wrap(msg.content)) + '\n');
+        process.stdout.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
         break;
     }
   }
@@ -272,14 +307,18 @@ export async function terminal(model: string, version: string): Promise<void> {
       const render = () => {
         process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
         process.stdout.write(search || dim('type to filter...'));
-        process.stdout.write('\n' + dim('↑↓ navigate · enter select · esc cancel') + '\n\n');
+        process.stdout.write(
+          `\n${dim('↑↓ navigate · enter select · esc cancel')}\n\n`,
+        );
         const start = Math.max(0, index - 5);
         const visible = filtered.slice(start, start + 10);
         visible.forEach((id, i) => {
           const selected = start + i === index;
-          process.stdout.write((selected ? '› ' : '  ') + (selected ? id : dim(id)) + '\n');
+          process.stdout.write(
+            `${(selected ? '› ' : '  ') + (selected ? id : dim(id))}\n`,
+          );
         });
-        process.stdout.write('\n' + dim(`current: ${currentModel}`) + '\n');
+        process.stdout.write(`\n${dim(`current: ${currentModel}`)}\n`);
         process.stdout.write(ansi.cursorTo(search.length, 0));
       };
 
@@ -351,7 +390,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       commandMode = false;
       rl.setPrompt(dim('› '));
       if (msg) {
-        msg = '/' + msg;
+        msg = `/${msg}`;
         (rl as ReadlineInternal).history.unshift(msg);
       }
     }
@@ -406,7 +445,10 @@ export async function terminal(model: string, version: string): Promise<void> {
         cost = 0;
         process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
         addMessage('info', `ai ${version} [${currentModel}]`);
-        printMessage({ type: 'info', content: `ai ${version} [${currentModel}]` });
+        printMessage({
+          type: 'info',
+          content: `ai ${version} [${currentModel}]`,
+        });
         addMessage('info', `deleted ${deleted} chat(s)`);
         printMessage({ type: 'info', content: `deleted ${deleted} chat(s)` });
         prompt();
@@ -441,7 +483,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       }
       const res = await handler(ctx, args);
       if (showCommitStatus) {
-        process.stdout.write('\r' + ansi.eraseLine);
+        process.stdout.write(`\r${ansi.eraseLine}`);
       }
       rl.resume();
       if (res) {
@@ -449,7 +491,10 @@ export async function terminal(model: string, version: string): Promise<void> {
           process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
           messages.length = 0;
           addMessage('info', `ai ${version} [${res.model || currentModel}]`);
-          printMessage({ type: 'info', content: `ai ${version} [${res.model || currentModel}]` });
+          printMessage({
+            type: 'info',
+            content: `ai ${version} [${res.model || currentModel}]`,
+          });
         }
         if (res.output) {
           addMessage('info', res.output);
@@ -470,8 +515,13 @@ export async function terminal(model: string, version: string): Promise<void> {
           restoreHistory({ chat: res.chat }, history);
           process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
           messages.length = 0;
-          const display = res.chat.display?.length ? res.chat.display : res.chat.messages.map((m) => ({ type: m.role, content: m.content }));
-          const spacing = getSetting('spacing');
+          const display = res.chat.display?.length
+            ? res.chat.display
+            : res.chat.messages.map((m) => ({
+                type: m.role,
+                content: m.content,
+              }));
+          const spacing = getSetting('spacing') ?? 1;
           let lastType = '';
           for (let i = 0; i < display.length; i++) {
             const m = display[i];
@@ -487,7 +537,10 @@ export async function terminal(model: string, version: string): Promise<void> {
             lastType = m.type;
           }
         } else if (chat) {
-          chat.display = messages.map((m) => ({ type: m.type, content: m.content }));
+          chat.display = messages.map((m) => ({
+            type: m.type,
+            content: m.content,
+          }));
           saveChat(chat);
         }
       }
@@ -520,7 +573,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (s) {
               if (!statusText && streamBuffer) {
                 const remaining = streamWrap.flush();
-                process.stdout.write(remaining + '\n');
+                process.stdout.write(`${remaining}\n`);
               }
               showStatus(s);
             } else {
@@ -541,7 +594,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (type === 'assistant') {
               if (streamBuffer) {
                 const remaining = streamWrap.flush();
-                process.stdout.write(remaining + '\n');
+                process.stdout.write(`${remaining}\n`);
               } else {
                 printMessage({ type, content });
               }
@@ -552,10 +605,19 @@ export async function terminal(model: string, version: string): Promise<void> {
             }
             addMessage(type, content);
           },
-          onTokens: (fn) => { tokens = fn(tokens); },
-          onCost: (fn) => { cost = fn(cost); updateTitle(); },
-          onSummary: (s) => { summary = s; },
-          onBusy: (b) => { busy = b; },
+          onTokens: (fn) => {
+            tokens = fn(tokens);
+          },
+          onCost: (fn) => {
+            cost = fn(cost);
+            updateTitle();
+          },
+          onSummary: (s) => {
+            summary = s;
+          },
+          onBusy: (b) => {
+            busy = b;
+          },
         },
         abortSignal: controller.signal,
         image: pendingImage,
@@ -564,7 +626,10 @@ export async function terminal(model: string, version: string): Promise<void> {
 
       pendingImage = null;
       chat = updatedChat;
-      updatedChat.display = messages.map((m) => ({ type: m.type, content: m.content }));
+      updatedChat.display = messages.map((m) => ({
+        type: m.type,
+        content: m.content,
+      }));
       updatedChat.tokens = tokens;
       updatedChat.cost = cost;
       saveChat(updatedChat);
@@ -584,7 +649,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   }
 
   function prompt() {
-    const spacing = getSetting('spacing');
+    const spacing = getSetting('spacing') ?? 1;
     process.stdout.write('\n'.repeat(spacing));
     rl.setPrompt(dim('› '));
     rl.prompt();
@@ -608,7 +673,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       commandMode = false;
       rl.setPrompt(dim('› '));
       rl.write(null, { ctrl: true, name: 'u' });
-      process.stdout.write('\r' + ansi.eraseLine + dim('› '));
+      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
       return;
     }
 
@@ -621,11 +686,11 @@ export async function terminal(model: string, version: string): Promise<void> {
           (rl as ReadlineInternal).line = rest;
           (rl as ReadlineInternal).cursor = rest.length;
           rl.setPrompt(dim('/ '));
-          process.stdout.write('\r' + ansi.eraseLine + dim('/ ') + rest);
+          process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${rest}`);
         } else if (!line.startsWith('/') && commandMode) {
           commandMode = false;
           rl.setPrompt(dim('› '));
-          process.stdout.write('\r' + ansi.eraseLine + dim('› ') + line);
+          process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}${line}`);
         }
       });
     }
@@ -639,7 +704,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       abortController = null;
       busy = false;
       clearStatus();
-      process.stdout.write('\n' + dim('cancelled') + '\n');
+      process.stdout.write(`\n${dim('cancelled')}\n`);
       process.stdout.write(ansi.cursorShow);
       rl.resume();
       prompt();

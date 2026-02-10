@@ -1,9 +1,15 @@
-import { addMcpServer, removeMcpServer, listMcpServers, getMcpServers, type McpServerConfig } from '../../config/mcp.js';
-import { getMcpStatus, reconnectMcp } from '../../utils/mcp.js';
+import {
+  addMcpServer,
+  getMcpServers,
+  listMcpServers,
+  type McpServerConfig,
+  removeMcpServer,
+} from '../../config/mcp.js';
 import { clearMcpCache } from '../../tools/index.js';
+import { getMcpStatus, reconnectMcp } from '../../utils/mcp.js';
 import type { CommandHandler } from './types.js';
 
-export const mcp: CommandHandler = async (_ctx, args) => {
+export const mcp: CommandHandler = async (_ctx, args = '') => {
   const parts = args.split(' ').filter(Boolean);
   const sub = parts[0]?.toLowerCase();
 
@@ -13,7 +19,7 @@ export const mcp: CommandHandler = async (_ctx, args) => {
       return { output: 'no mcp servers configured' };
     }
     const status = getMcpStatus();
-    const lines = status.map(s => `${s.connected ? '●' : '○'} ${s.name}`);
+    const lines = status.map((s) => `${s.connected ? '●' : '○'} ${s.name}`);
     return { output: lines.join('\n') };
   }
 
@@ -23,7 +29,10 @@ export const mcp: CommandHandler = async (_ctx, args) => {
     const target = parts[3];
 
     if (!name || !transport || !target) {
-      return { output: 'usage: /mcp add <name> <stdio|http|sse> <command|url> [args...]' };
+      return {
+        output:
+          'usage: /mcp add <name> <stdio|http|sse> <command|url> [args...]',
+      };
     }
 
     let config: McpServerConfig;

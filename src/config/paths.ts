@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 
 export const BASE_DIR = path.join(os.homedir(), '.ai-cli');
 export const CONFIG_FILE = path.join(BASE_DIR, 'config.json');

@@ -18,7 +18,9 @@ describe('formatError', () => {
   });
 
   test('handles 402 status', () => {
-    const error = Object.assign(new Error('Payment required'), { statusCode: 402 });
+    const error = Object.assign(new Error('Payment required'), {
+      statusCode: 402,
+    });
     expect(formatError(error)).toContain('out of credits');
   });
 
@@ -28,7 +30,9 @@ describe('formatError', () => {
   });
 
   test('handles 429 status', () => {
-    const error = Object.assign(new Error('Too many requests'), { statusCode: 429 });
+    const error = Object.assign(new Error('Too many requests'), {
+      statusCode: 429,
+    });
     expect(formatError(error)).toBe('rate limited. try again later');
   });
 
@@ -48,7 +52,9 @@ describe('formatError', () => {
   });
 
   test('handles server errors', () => {
-    const error = Object.assign(new Error('Internal server error'), { statusCode: 500 });
+    const error = Object.assign(new Error('Internal server error'), {
+      statusCode: 500,
+    });
     expect(formatError(error)).toBe('server error. try again later');
   });
 

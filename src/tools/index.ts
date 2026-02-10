@@ -1,8 +1,9 @@
+import { getMcpTools } from '../utils/mcp.js';
 import { copyFile } from './copy-file.js';
-import { fetchUrl } from './fetch.js';
 import { createFolder } from './create-folder.js';
 import { deleteFile } from './delete-file.js';
 import { editFile } from './edit-file.js';
+import { fetchUrl } from './fetch.js';
 import { fileInfo } from './file-info.js';
 import { findFiles } from './find-files.js';
 import { killProcess } from './kill-process.js';
@@ -17,7 +18,6 @@ import { searchInFiles } from './search-in-files.js';
 import { startProcess } from './start-process.js';
 import { weather } from './weather.js';
 import { writeFile } from './write-file.js';
-import { getMcpTools } from '../utils/mcp.js';
 
 let cachedMcpTools: Record<string, unknown> | null = null;
 
@@ -33,6 +33,7 @@ export function clearMcpCache(): void {
 }
 
 export function getTools(mcpTools?: Record<string, unknown>) {
+  const search: Record<string, unknown> = getSearchTool();
   return {
     weather,
     fetchUrl,
@@ -52,7 +53,7 @@ export function getTools(mcpTools?: Record<string, unknown>) {
     readProcessLogs,
     killProcess,
     memory,
-    ...getSearchTool(),
+    ...search,
     ...(mcpTools || {}),
   };
 }

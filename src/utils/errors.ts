@@ -33,7 +33,11 @@ export function formatError(error: unknown): string {
   if (err.statusCode === 403) {
     return 'forbidden. check api key permissions';
   }
-  if (err.statusCode === 500 || err.statusCode === 502 || err.statusCode === 503) {
+  if (
+    err.statusCode === 500 ||
+    err.statusCode === 502 ||
+    err.statusCode === 503
+  ) {
     return 'server error. try again later';
   }
   if (msg.includes('timeout') || msg.includes('timed out')) {

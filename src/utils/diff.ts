@@ -25,12 +25,17 @@ export function createDiff(oldText: string, newText: string): string {
 export function createUnifiedDiff(
   oldText: string,
   newText: string,
-  context: number = 3
+  context: number = 3,
 ): string {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
 
-  const changes: { type: 'same' | 'add' | 'remove'; line: string; oldIdx?: number; newIdx?: number }[] = [];
+  const changes: {
+    type: 'same' | 'add' | 'remove';
+    line: string;
+    oldIdx?: number;
+    newIdx?: number;
+  }[] = [];
 
   let oldIdx = 0;
   let newIdx = 0;
@@ -43,7 +48,10 @@ export function createUnifiedDiff(
       changes.push({ type: 'same', line: oldLine || '', oldIdx, newIdx });
       oldIdx++;
       newIdx++;
-    } else if (oldIdx < oldLines.length && (newIdx >= newLines.length || !newLines.slice(newIdx).includes(oldLine))) {
+    } else if (
+      oldIdx < oldLines.length &&
+      (newIdx >= newLines.length || !newLines.slice(newIdx).includes(oldLine))
+    ) {
       changes.push({ type: 'remove', line: oldLine, oldIdx });
       oldIdx++;
     } else {
@@ -54,17 +62,18 @@ export function createUnifiedDiff(
 
   const result: string[] = [];
   let inHunk = false;
-  let hunkStart = -1;
+  let _hunkStart = -1;
 
   for (let i = 0; i < changes.length; i++) {
     const change = changes[i];
-    const hasNearbyChange = changes.slice(Math.max(0, i - context), i + context + 1)
-      .some(c => c.type !== 'same');
+    const hasNearbyChange = changes
+      .slice(Math.max(0, i - context), i + context + 1)
+      .some((c) => c.type !== 'same');
 
     if (hasNearbyChange) {
       if (!inHunk) {
         inHunk = true;
-        hunkStart = i;
+        _hunkStart = i;
       }
 
       if (change.type === 'same') {

@@ -17,8 +17,12 @@ function formatGitDiff(raw: string): string {
     const match = headerLine.match(/b\/(.+)$/);
     const file = match ? match[1] : headerLine;
 
-    const adds = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
-    const dels = lines.filter(l => l.startsWith('-') && !l.startsWith('---')).length;
+    const adds = lines.filter(
+      (l) => l.startsWith('+') && !l.startsWith('+++'),
+    ).length;
+    const dels = lines.filter(
+      (l) => l.startsWith('-') && !l.startsWith('---'),
+    ).length;
 
     if (adds + dels > 40) {
       formatted.push(`${cyan(file)} ${dim(`+${adds} -${dels}`)}`);
@@ -27,7 +31,13 @@ function formatGitDiff(raw: string): string {
 
     formatted.push(cyan(file));
     for (const line of lines.slice(1)) {
-      if (line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++') || line.startsWith('@@')) continue;
+      if (
+        line.startsWith('index ') ||
+        line.startsWith('---') ||
+        line.startsWith('+++') ||
+        line.startsWith('@@')
+      )
+        continue;
       if (line.startsWith('-')) formatted.push(red(line));
       else if (line.startsWith('+')) formatted.push(green(line));
     }
@@ -39,18 +49,42 @@ function formatGitDiff(raw: string): string {
 
 function gitDiff(staged: boolean): { output: string } {
   const args = staged
-    ? ['diff', '--staged', '--', ':!dist', ':!*.min.js', ':!*.min.css', ':!package-lock.json', ':!pnpm-lock.yaml', ':!yarn.lock']
-    : ['diff', '--', ':!dist', ':!*.min.js', ':!*.min.css', ':!package-lock.json', ':!pnpm-lock.yaml', ':!yarn.lock'];
+    ? [
+        'diff',
+        '--staged',
+        '--',
+        ':!dist',
+        ':!*.min.js',
+        ':!*.min.css',
+        ':!package-lock.json',
+        ':!pnpm-lock.yaml',
+        ':!yarn.lock',
+      ]
+    : [
+        'diff',
+        '--',
+        ':!dist',
+        ':!*.min.js',
+        ':!*.min.css',
+        ':!package-lock.json',
+        ':!pnpm-lock.yaml',
+        ':!yarn.lock',
+      ];
 
-  const result = spawnSync('git', args, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+  const result = spawnSync('git', args, {
+    encoding: 'utf-8',
+    maxBuffer: 10 * 1024 * 1024,
+  });
   if (result.error) return { output: 'git not found' };
   if (result.status !== 0) {
     const err = result.stderr?.trim() || '';
-    if (err.includes('not a git repository')) return { output: 'not a git repository' };
+    if (err.includes('not a git repository'))
+      return { output: 'not a git repository' };
     return { output: err || 'git error' };
   }
   const output = result.stdout?.trim() || '';
-  if (!output) return { output: staged ? 'no staged changes' : 'no unstaged changes' };
+  if (!output)
+    return { output: staged ? 'no staged changes' : 'no unstaged changes' };
   return { output: formatGitDiff(output) };
 }
 
@@ -106,7 +140,9 @@ export const git: CommandHandler = (ctx, args) => {
   }
 
   if (sub === 'status' || sub === 's') {
-    const result = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
+    const result = spawnSync('git', ['status', '--porcelain'], {
+      encoding: 'utf-8',
+    });
     if (result.error || result.status !== 0) {
       return { output: 'not a git repository' };
     }
@@ -122,9 +158,13 @@ export const git: CommandHandler = (ctx, args) => {
     if (result.status !== 0) {
       const err = result.stderr?.trim() || '';
       if (err.includes('no upstream')) {
-        const branch = spawnSync('git', ['branch', '--show-current'], { encoding: 'utf-8' });
+        const branch = spawnSync('git', ['branch', '--show-current'], {
+          encoding: 'utf-8',
+        });
         const name = branch.stdout?.trim() || 'HEAD';
-        const push = spawnSync('git', ['push', '-u', 'origin', name], { encoding: 'utf-8' });
+        const push = spawnSync('git', ['push', '-u', 'origin', name], {
+          encoding: 'utf-8',
+        });
         if (push.status === 0) {
           return { output: `pushed ${name} (set upstream)` };
         }
@@ -132,7 +172,11 @@ export const git: CommandHandler = (ctx, args) => {
       }
       return { output: err || 'push failed' };
     }
-    return { output: result.stderr?.includes('Everything up-to-date') ? 'up to date' : 'pushed' };
+    return {
+      output: result.stderr?.includes('Everything up-to-date')
+        ? 'up to date'
+        : 'pushed',
+    };
   }
 
   if (sub === 'pull') {
@@ -140,17 +184,25 @@ export const git: CommandHandler = (ctx, args) => {
     if (result.status !== 0) {
       return { output: result.stderr?.trim() || 'pull failed' };
     }
-    return { output: result.stdout?.includes('Already up to date') ? 'up to date' : 'pulled' };
+    return {
+      output: result.stdout?.includes('Already up to date')
+        ? 'up to date'
+        : 'pulled',
+    };
   }
 
   if (sub === 'log' || sub === 'l') {
     const n = param ? parseInt(param, 10) : 10;
-    const result = spawnSync('git', ['log', `--oneline`, `-${isNaN(n) ? 10 : n}`], { encoding: 'utf-8' });
+    const result = spawnSync(
+      'git',
+      ['log', `--oneline`, `-${Number.isNaN(n) ? 10 : n}`],
+      { encoding: 'utf-8' },
+    );
     if (result.error || result.status !== 0) {
       return { output: 'not a git repository' };
     }
     const lines = result.stdout?.trim().split('\n').filter(Boolean) || [];
-    const formatted = lines.map(line => {
+    const formatted = lines.map((line) => {
       const [hash, ...rest] = line.split(' ');
       return `${dim(hash)} ${rest.join(' ')}`;
     });
@@ -173,16 +225,24 @@ export const git: CommandHandler = (ctx, args) => {
     if (result.status !== 0) {
       return { output: result.stderr?.trim() || 'stash failed' };
     }
-    return { output: result.stdout?.includes('No local changes') ? 'nothing to stash' : 'stashed' };
+    return {
+      output: result.stdout?.includes('No local changes')
+        ? 'nothing to stash'
+        : 'stashed',
+    };
   }
 
   if (sub === 'branch' || sub === 'b') {
     if (param) {
-      const result = spawnSync('git', ['checkout', param], { encoding: 'utf-8' });
+      const result = spawnSync('git', ['checkout', param], {
+        encoding: 'utf-8',
+      });
       if (result.status !== 0) {
         const err = result.stderr?.trim() || '';
         if (err.includes('did not match')) {
-          const create = spawnSync('git', ['checkout', '-b', param], { encoding: 'utf-8' });
+          const create = spawnSync('git', ['checkout', '-b', param], {
+            encoding: 'utf-8',
+          });
           if (create.status === 0) {
             return { output: `created and switched to ${param}` };
           }
@@ -200,5 +260,7 @@ export const git: CommandHandler = (ctx, args) => {
     return { output: formatBranches(result.stdout || '') };
   }
 
-  return { output: 'usage: /git diff|staged|status|branch|commit|push|pull|log|stash' };
+  return {
+    output: 'usage: /git diff|staged|status|branch|commit|push|pull|log|stash',
+  };
 };

@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { log as debug } from '../utils/debug.js';
-import { confirm } from './confirm.js';
 import { mask } from '../utils/mask.js';
+import { confirm } from './confirm.js';
 
 const cwd = process.cwd();
 const TIMEOUT = 60000;

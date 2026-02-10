@@ -12,12 +12,12 @@ import { mcp } from './mcp.js';
 import { memory } from './memory.js';
 import { model } from './model.js';
 import { processes } from './processes.js';
+import { rollback } from './rollback.js';
 import { rules } from './rules.js';
 import { settings } from './settings.js';
 import { skills } from './skills.js';
 import { summary } from './summary.js';
 import type { CommandHandler } from './types.js';
-import { rollback } from './rollback.js';
 import { usage } from './usage.js';
 import { xix } from './xix.js';
 
@@ -54,7 +54,17 @@ export function resolveCommand(cmd: string): string {
   return aliases[cmd] || cmd;
 }
 
-const gitSubs = ['diff', 'staged', 'status', 'branch', 'commit', 'push', 'pull', 'log', 'stash'];
+const gitSubs = [
+  'diff',
+  'staged',
+  'status',
+  'branch',
+  'commit',
+  'push',
+  'pull',
+  'log',
+  'stash',
+];
 
 export function getCompletions(line: string): [string[], string] {
   if (!line.startsWith('/')) return [[], line];
@@ -63,15 +73,15 @@ export function getCompletions(line: string): [string[], string] {
   const parts = input.split(' ');
 
   if (parts.length === 1) {
-    const cmdNames = Object.keys(commands).filter(c => !c.includes('-'));
-    const matches = cmdNames.filter(c => c.startsWith(input));
-    return [matches.map(m => '/' + m), line];
+    const cmdNames = Object.keys(commands).filter((c) => !c.includes('-'));
+    const matches = cmdNames.filter((c) => c.startsWith(input));
+    return [matches.map((m) => `/${m}`), line];
   }
 
   if (parts[0] === 'git' && parts.length === 2) {
     const sub = parts[1];
-    const matches = gitSubs.filter(s => s.startsWith(sub));
-    return [matches.map(m => '/git ' + m), line];
+    const matches = gitSubs.filter((s) => s.startsWith(sub));
+    return [matches.map((m) => `/git ${m}`), line];
   }
 
   return [[], line];

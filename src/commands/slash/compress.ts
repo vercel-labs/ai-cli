@@ -32,4 +32,3 @@ export const compress: CommandHandler = async (ctx) => {
     summary,
   };
 };
-

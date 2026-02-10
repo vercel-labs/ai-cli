@@ -1,5 +1,5 @@
 import * as fs from 'node:fs';
-import { MCP_FILE, ensureBaseDir } from './paths.js';
+import { ensureBaseDir, MCP_FILE } from './paths.js';
 
 export interface McpServerConfig {
   type: 'stdio' | 'http' | 'sse';
@@ -28,12 +28,12 @@ function expandConfig(config: McpServerConfig): McpServerConfig {
   if (expanded.args) expanded.args = expanded.args.map(expandEnvVars);
   if (expanded.env) {
     expanded.env = Object.fromEntries(
-      Object.entries(expanded.env).map(([k, v]) => [k, expandEnvVars(v)])
+      Object.entries(expanded.env).map(([k, v]) => [k, expandEnvVars(v)]),
     );
   }
   if (expanded.headers) {
     expanded.headers = Object.fromEntries(
-      Object.entries(expanded.headers).map(([k, v]) => [k, expandEnvVars(v)])
+      Object.entries(expanded.headers).map(([k, v]) => [k, expandEnvVars(v)]),
     );
   }
   return expanded;

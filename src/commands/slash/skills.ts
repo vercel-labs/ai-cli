@@ -1,12 +1,16 @@
+import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
-import { SKILLS_DIR, ensureSkillsDir } from '../../config/paths.js';
-import { listSkills, getSkillByName, removeSkill } from '../../skills/index.js';
+import { ensureSkillsDir, SKILLS_DIR } from '../../config/paths.js';
+import { getSkillByName, listSkills, removeSkill } from '../../skills/index.js';
 import type { CommandHandler } from './types.js';
 
-function parseSkillTarget(target: string): { repo: string; subpath: string; name: string } | null {
-  const githubMatch = target.match(/github\.com\/([^/]+\/[^/]+)(?:\/tree\/[^/]+\/(.+))?/);
+function parseSkillTarget(
+  target: string,
+): { repo: string; subpath: string; name: string } | null {
+  const githubMatch = target.match(
+    /github\.com\/([^/]+\/[^/]+)(?:\/tree\/[^/]+\/(.+))?/,
+  );
   if (githubMatch) {
     const repo = githubMatch[1].replace(/\.git$/, '');
     const subpath = githubMatch[2] || '';
@@ -25,11 +29,20 @@ function parseSkillTarget(target: string): { repo: string; subpath: string; name
   return null;
 }
 
-async function downloadGithubFolder(repo: string, subpath: string, dest: string): Promise<void> {
+async function downloadGithubFolder(
+  repo: string,
+  subpath: string,
+  dest: string,
+): Promise<void> {
   const apiUrl = `https://api.github.com/repos/${repo}/contents/${subpath}`;
   const res = await fetch(apiUrl);
   if (!res.ok) throw new Error('github api failed');
-  const items = await res.json() as Array<{ name: string; type: string; download_url: string; path: string }>;
+  const items = (await res.json()) as Array<{
+    name: string;
+    type: string;
+    download_url: string;
+    path: string;
+  }>;
 
   fs.mkdirSync(dest, { recursive: true });
 
@@ -53,11 +66,13 @@ export const skills: CommandHandler = async (_ctx, args) => {
     if (names.length === 0) {
       return { output: 'no skills installed\nuse: /skills add <git-url>' };
     }
-    const list = names.map(name => {
-      const skill = getSkillByName(name);
-      const desc = skill?.description ? ` - ${skill.description}` : '';
-      return `  ${name}${desc}`;
-    }).join('\n');
+    const list = names
+      .map((name) => {
+        const skill = getSkillByName(name);
+        const desc = skill?.description ? ` - ${skill.description}` : '';
+        return `  ${name}${desc}`;
+      })
+      .join('\n');
     return { output: `skills:\n${list}` };
   }
 
@@ -67,7 +82,8 @@ export const skills: CommandHandler = async (_ctx, args) => {
 
   if (action === 'add' && target) {
     const parsed = parseSkillTarget(target);
-    const name = parsed?.name || path.basename(target, '.git').replace(/^skill-/, '');
+    const name =
+      parsed?.name || path.basename(target, '.git').replace(/^skill-/, '');
     const dest = path.join(SKILLS_DIR, name);
 
     if (fs.existsSync(dest)) {
@@ -80,7 +96,9 @@ export const skills: CommandHandler = async (_ctx, args) => {
       } else if (parsed) {
         await downloadGithubFolder(parsed.repo, '', dest);
       } else if (target.startsWith('http')) {
-        execSync(`git clone --depth 1 "${target}" "${dest}"`, { stdio: 'pipe' });
+        execSync(`git clone --depth 1 "${target}" "${dest}"`, {
+          stdio: 'pipe',
+        });
         const gitDir = path.join(dest, '.git');
         if (fs.existsSync(gitDir)) fs.rmSync(gitDir, { recursive: true });
       } else if (fs.existsSync(target)) {
@@ -98,7 +116,9 @@ export const skills: CommandHandler = async (_ctx, args) => {
       return { output: `added skill: ${name}` };
     } catch (err) {
       if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true });
-      return { output: `failed: ${err instanceof Error ? err.message : 'unknown'}` };
+      return {
+        output: `failed: ${err instanceof Error ? err.message : 'unknown'}`,
+      };
     }
   }
 
@@ -114,7 +134,9 @@ export const skills: CommandHandler = async (_ctx, args) => {
     if (!skill) {
       return { output: `skill "${target}" not found` };
     }
-    return { output: `${skill.name}\n${skill.description}\n\n${skill.content}` };
+    return {
+      output: `${skill.name}\n${skill.description}\n\n${skill.content}`,
+    };
   }
 
   if (action === 'path') {

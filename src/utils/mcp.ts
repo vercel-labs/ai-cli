@@ -11,7 +11,10 @@ interface McpConnection {
 const connections: Map<string, McpConnection> = new Map();
 let initialized = false;
 
-async function connectServer(name: string, config: McpServerConfig): Promise<McpConnection | null> {
+async function connectServer(
+  name: string,
+  config: McpServerConfig,
+): Promise<McpConnection | null> {
   try {
     let client: MCPClient;
 
@@ -22,7 +25,10 @@ async function connectServer(name: string, config: McpServerConfig): Promise<Mcp
         env: { ...process.env, ...config.env } as Record<string, string>,
       });
       client = await createMCPClient({ transport });
-    } else if ((config.type === 'http' || config.type === 'sse') && config.url) {
+    } else if (
+      (config.type === 'http' || config.type === 'sse') &&
+      config.url
+    ) {
       client = await createMCPClient({
         transport: {
           type: config.type,
@@ -58,7 +64,7 @@ export async function initMcp(): Promise<void> {
     names.map(async (name) => {
       const conn = await connectServer(name, servers[name]);
       if (conn) connections.set(name, conn);
-    })
+    }),
   );
 
   debug(`mcp: ${connections.size}/${names.length} connected`);

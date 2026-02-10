@@ -1,4 +1,10 @@
-import { canUndo, undoOne, undoCount, getStack, rollbackTo } from '../../utils/undo.js';
+import {
+  canUndo,
+  getStack,
+  rollbackTo,
+  undoCount,
+  undoOne,
+} from '../../utils/undo.js';
 import type { CommandHandler } from './types.js';
 
 export const rollback: CommandHandler = (_ctx, args) => {
@@ -23,7 +29,7 @@ export const rollback: CommandHandler = (_ctx, args) => {
   }
 
   const num = parseInt(arg, 10);
-  if (isNaN(num) || num < 1) {
+  if (Number.isNaN(num) || num < 1) {
     return { output: 'usage: /rollback <number>' };
   }
 
@@ -31,10 +37,15 @@ export const rollback: CommandHandler = (_ctx, args) => {
     const result = undoOne();
     const remaining = undoCount();
     const suffix = remaining > 0 ? ` (${remaining} more)` : '';
-    return { output: result.success ? `${result.message}${suffix}` : `failed: ${result.message}` };
+    return {
+      output: result.success
+        ? `${result.message}${suffix}`
+        : `failed: ${result.message}`,
+    };
   }
 
   const result = rollbackTo(num);
-  return { output: result.success ? result.message : `failed: ${result.message}` };
+  return {
+    output: result.success ? result.message : `failed: ${result.message}`,
+  };
 };
-

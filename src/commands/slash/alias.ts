@@ -1,4 +1,4 @@
-import { getAliases, setAlias, removeAlias } from '../../config/index.js';
+import { getAliases, removeAlias, setAlias } from '../../config/index.js';
 import type { CommandHandler } from './types.js';
 
 export const alias: CommandHandler = (_ctx, args) => {

@@ -8,13 +8,17 @@ export const weather = tool({
   }),
   execute: async ({ location }) => {
     try {
-      const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`, {
-        signal: AbortSignal.timeout(10000),
-      });
+      const res = await fetch(
+        `https://wttr.in/${encodeURIComponent(location)}?format=j1`,
+        {
+          signal: AbortSignal.timeout(10000),
+        },
+      );
       if (!res.ok) {
         return { error: 'failed to fetch weather' };
       }
-      const data = await res.json();
+      // biome-ignore lint/suspicious/noExplicitAny: external weather API response
+      const data = (await res.json()) as Record<string, any>;
       const current = data.current_condition?.[0];
       if (!current) {
         return { error: 'no weather data' };

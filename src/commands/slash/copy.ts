@@ -3,11 +3,12 @@ import type { CommandHandler } from './types.js';
 
 function copyToClipboard(text: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const proc = process.platform === 'darwin'
-      ? spawn('pbcopy')
-      : process.platform === 'win32'
-        ? spawn('clip')
-        : spawn('xclip', ['-selection', 'clipboard']);
+    const proc =
+      process.platform === 'darwin'
+        ? spawn('pbcopy')
+        : process.platform === 'win32'
+          ? spawn('clip')
+          : spawn('xclip', ['-selection', 'clipboard']);
 
     proc.stdin?.write(text);
     proc.stdin?.end();

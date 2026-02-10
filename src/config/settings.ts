@@ -1,6 +1,9 @@
-import { getConfig, setConfig, type Config } from './index.js';
+import { type Config, getConfig, setConfig } from './index.js';
 
-export type Settings = Pick<Config, 'spacing' | 'markdown' | 'model' | 'search' | 'steps'>;
+export type Settings = Pick<
+  Config,
+  'spacing' | 'markdown' | 'model' | 'search' | 'steps'
+>;
 
 export function loadSettings(): Settings {
   const config = getConfig();
@@ -17,6 +20,9 @@ export function getSetting<K extends keyof Settings>(key: K): Settings[K] {
   return loadSettings()[key];
 }
 
-export function setSetting<K extends keyof Settings>(key: K, value: Settings[K]): void {
+export function setSetting<K extends keyof Settings>(
+  key: K,
+  value: Settings[K],
+): void {
   setConfig({ [key]: value });
 }

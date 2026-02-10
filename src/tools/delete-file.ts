@@ -14,7 +14,7 @@ export const deleteFile = tool({
     const deleted: string[] = [];
     const errors: string[] = [];
 
-    const names = paths.map(p => path.basename(p)).join(', ');
+    const names = paths.map((p) => path.basename(p)).join(', ');
     const ok = await confirm(`delete ${names}?`);
     if (!ok) {
       return { message: 'cancelled', silent: true };
@@ -50,6 +50,9 @@ export const deleteFile = tool({
     }
 
     const msg = `deleted ${deleted.join(', ')}`;
-    return { message: errors.length ? `${msg} (errors: ${errors.join(', ')})` : msg, silent: true };
+    return {
+      message: errors.length ? `${msg} (errors: ${errors.join(', ')})` : msg,
+      silent: true,
+    };
   },
 });

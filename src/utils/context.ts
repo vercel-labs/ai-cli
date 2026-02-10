@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { generateText } from 'ai';
 import type { ModelMessage } from 'ai';
-import { GATEWAY_URL } from './models.js';
+import { generateText } from 'ai';
 import { RULES_FILE } from '../config/paths.js';
+import { GATEWAY_URL } from './models.js';
 
 interface ContextFile {
   path: string;
@@ -56,7 +56,9 @@ export async function getContextWindow(modelId: string): Promise<number> {
   }
 
   try {
-    const res = await fetch(`${GATEWAY_URL}/v1/models`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${GATEWAY_URL}/v1/models`, {
+      signal: AbortSignal.timeout(3000),
+    });
     const { data } = (await res.json()) as { data: ModelInfo[] };
     for (const m of data) {
       cachedModelInfo.set(m.id, m);
@@ -123,4 +125,3 @@ Output plain text only. No markdown, no ** or ##, no formatting. Use simple dash
     return '';
   }
 }
-

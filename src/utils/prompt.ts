@@ -1,12 +1,21 @@
 import * as os from 'node:os';
-import { loadContextFiles, buildContextPrompt } from './context.js';
-import { loadAllSkills, matchSkills, type Skill } from '../skills/index.js';
+import { loadAllSkills, matchSkills } from '../skills/index.js';
+import { buildContextPrompt, loadContextFiles } from './context.js';
 import { getMcpStatus } from './mcp.js';
 
-export function buildSystemPrompt(pm: { pm: string; run: string }, summary?: string, userMessage?: string): string {
+export function buildSystemPrompt(
+  pm: { pm: string; run: string },
+  summary?: string,
+  userMessage?: string,
+): string {
   const cwd = process.cwd();
   const platform = os.platform();
-  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const date = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
   const contextFiles = loadContextFiles();
   const contextPrompt = buildContextPrompt(contextFiles);
 
@@ -64,19 +73,23 @@ When user asks to commit, push, or switch models, tell them the slash command to
   if (contextPrompt) prompt += `\n\n${contextPrompt}`;
 
   if (allSkills.length > 0) {
-    const skillsList = allSkills.map(s => `- ${s.name}: ${s.description || 'no description'}`).join('\n');
+    const skillsList = allSkills
+      .map((s) => `- ${s.name}: ${s.description || 'no description'}`)
+      .join('\n');
     prompt += `\n\nInstalled skills (use /skills to manage):\n${skillsList}`;
   }
 
   if (matchedSkills.length > 0) {
-    const skillsPrompt = matchedSkills.map(s => `<skill name="${s.name}">\n${s.content}\n</skill>`).join('\n\n');
+    const skillsPrompt = matchedSkills
+      .map((s) => `<skill name="${s.name}">\n${s.content}\n</skill>`)
+      .join('\n\n');
     prompt += `\n\nActive skills for this query:\n${skillsPrompt}`;
   }
 
   const mcpServers = getMcpStatus();
-  const connectedMcp = mcpServers.filter(s => s.connected);
+  const connectedMcp = mcpServers.filter((s) => s.connected);
   if (connectedMcp.length > 0) {
-    const mcpList = connectedMcp.map(s => `- ${s.name}`).join('\n');
+    const mcpList = connectedMcp.map((s) => `- ${s.name}`).join('\n');
     prompt += `\n\nMCP servers connected (tools prefixed with server name):\n${mcpList}`;
   }
 

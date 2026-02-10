@@ -56,7 +56,9 @@ function findInDir(
 export const findFiles = tool({
   description: 'Find files by name pattern (supports * and ? wildcards).',
   inputSchema: z.object({
-    pattern: z.string().describe('File name pattern (e.g. "*.ts", "test_?.js")'),
+    pattern: z
+      .string()
+      .describe('File name pattern (e.g. "*.ts", "test_?.js")'),
     directory: z
       .string()
       .optional()
@@ -78,4 +80,3 @@ export const findFiles = tool({
     }
   },
 });
-

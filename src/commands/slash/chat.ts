@@ -1,4 +1,11 @@
-import { type Chat, createChat, deleteAllChats, deleteChat, listChats, searchChats } from '../../config/chats.js';
+import {
+  type Chat,
+  createChat,
+  deleteAllChats,
+  deleteChat,
+  listChats,
+  searchChats,
+} from '../../config/chats.js';
 import type { CommandHandler, CommandResult } from './types.js';
 
 const PAGE_SIZE = 10;
@@ -18,7 +25,14 @@ export const chat: CommandHandler = (ctx, args) => {
     }
     const deleted = deleteAllChats();
     const chat = createChat(ctx.model);
-    return { chat, tokens: 0, cost: 0, clearHistory: true, clearScreen: true, output: `deleted ${deleted} chat(s)` };
+    return {
+      chat,
+      tokens: 0,
+      cost: 0,
+      clearHistory: true,
+      clearScreen: true,
+      output: `deleted ${deleted} chat(s)`,
+    };
   }
 
   if (query === 'delete' || query === 'd') {
@@ -26,7 +40,14 @@ export const chat: CommandHandler = (ctx, args) => {
       return { output: 'nothing to delete' };
     }
     deleteChat(ctx.chat.id);
-    return { chat: null, tokens: 0, cost: 0, clearHistory: true, clearScreen: true, output: 'deleted' };
+    return {
+      chat: null,
+      tokens: 0,
+      cost: 0,
+      clearHistory: true,
+      clearScreen: true,
+      output: 'deleted',
+    };
   }
 
   if (!query) {

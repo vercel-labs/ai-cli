@@ -1,4 +1,4 @@
-import type * as readline from 'node:readline/promises';
+import type * as readline from 'node:readline';
 import type { ModelMessage } from 'ai';
 import type { Chat } from '../../config/chats.js';
 

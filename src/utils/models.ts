@@ -71,9 +71,12 @@ export async function resolveModel(query: string): Promise<string> {
   process.exit(1);
 }
 
-export async function getModelCapabilities(modelId: string): Promise<ModelCapabilities> {
-  if (capabilitiesCache.has(modelId)) {
-    return capabilitiesCache.get(modelId)!;
+export async function getModelCapabilities(
+  modelId: string,
+): Promise<ModelCapabilities> {
+  const cached = capabilitiesCache.get(modelId);
+  if (cached) {
+    return cached;
   }
 
   const models = await fetchModels();

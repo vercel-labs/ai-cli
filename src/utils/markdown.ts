@@ -10,23 +10,75 @@ const colors = {
 };
 
 const keywords = [
-  'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while',
-  'class', 'interface', 'type', 'import', 'export', 'from', 'default', 'async',
-  'await', 'new', 'this', 'try', 'catch', 'throw', 'finally', 'switch', 'case',
-  'break', 'continue', 'typeof', 'instanceof', 'in', 'of', 'true', 'false', 'null',
-  'undefined', 'void', 'static', 'public', 'private', 'protected', 'readonly',
-  'extends', 'implements', 'super', 'yield', 'delete', 'debugger', 'enum',
+  'const',
+  'let',
+  'var',
+  'function',
+  'return',
+  'if',
+  'else',
+  'for',
+  'while',
+  'class',
+  'interface',
+  'type',
+  'import',
+  'export',
+  'from',
+  'default',
+  'async',
+  'await',
+  'new',
+  'this',
+  'try',
+  'catch',
+  'throw',
+  'finally',
+  'switch',
+  'case',
+  'break',
+  'continue',
+  'typeof',
+  'instanceof',
+  'in',
+  'of',
+  'true',
+  'false',
+  'null',
+  'undefined',
+  'void',
+  'static',
+  'public',
+  'private',
+  'protected',
+  'readonly',
+  'extends',
+  'implements',
+  'super',
+  'yield',
+  'delete',
+  'debugger',
+  'enum',
 ];
 
 function highlightCode(code: string): string {
   let result = code;
 
   result = result.replace(/(\/\/[^\n]*)/g, `${colors.dim}$1${colors.reset}`);
-  result = result.replace(/(\/\*[\s\S]*?\*\/)/g, `${colors.dim}$1${colors.reset}`);
+  result = result.replace(
+    /(\/\*[\s\S]*?\*\/)/g,
+    `${colors.dim}$1${colors.reset}`,
+  );
 
-  result = result.replace(/("[^"]*"|'[^']*'|`[^`]*`)/g, `${colors.yellow}$1${colors.reset}`);
+  result = result.replace(
+    /("[^"]*"|'[^']*'|`[^`]*`)/g,
+    `${colors.yellow}$1${colors.reset}`,
+  );
 
-  result = result.replace(/\b(\d+\.?\d*)\b/g, `${colors.magenta}$1${colors.reset}`);
+  result = result.replace(
+    /\b(\d+\.?\d*)\b/g,
+    `${colors.magenta}$1${colors.reset}`,
+  );
 
   const keywordPattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
   result = result.replace(keywordPattern, `${colors.cyan}$1${colors.reset}`);
@@ -45,9 +97,15 @@ export function renderMarkdown(text: string): string {
 
   result = result.replace(/`([^`]+)`/g, `${colors.cyan}$1${colors.reset}`);
 
-  result = result.replace(/\*\*([^*]+)\*\*/g, `${colors.bold}$1${colors.reset}`);
+  result = result.replace(
+    /\*\*([^*]+)\*\*/g,
+    `${colors.bold}$1${colors.reset}`,
+  );
 
-  result = result.replace(/^#{1,6}\s+(.+)$/gm, `${colors.bold}$1${colors.reset}`);
+  result = result.replace(
+    /^#{1,6}\s+(.+)$/gm,
+    `${colors.bold}$1${colors.reset}`,
+  );
 
   return result;
 }

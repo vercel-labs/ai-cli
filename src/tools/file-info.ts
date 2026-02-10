@@ -6,12 +6,14 @@ import { z } from 'zod';
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 export const fileInfo = tool({
-  description: 'Get information about a file or directory (size, modified date, type).',
+  description:
+    'Get information about a file or directory (size, modified date, type).',
   inputSchema: z.object({
     filePath: z.string().describe('Absolute or relative path'),
   }),
@@ -40,4 +42,3 @@ export const fileInfo = tool({
     }
   },
 });
-

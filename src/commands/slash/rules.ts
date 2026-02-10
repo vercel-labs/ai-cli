@@ -1,6 +1,6 @@
-import * as fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { RULES_FILE, ensureBaseDir } from '../../config/paths.js';
+import * as fs from 'node:fs';
+import { ensureBaseDir, RULES_FILE } from '../../config/paths.js';
 import type { CommandHandler } from './types.js';
 
 export const rules: CommandHandler = (_ctx, args) => {

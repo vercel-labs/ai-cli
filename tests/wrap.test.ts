@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { wrap, createStreamWrap } from '../src/utils/wrap.js';
+import { createStreamWrap, wrap } from '../src/utils/wrap.js';
 
 describe('wrap', () => {
   test('returns short text unchanged', () => {
