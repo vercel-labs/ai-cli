@@ -108,6 +108,14 @@ export function clearRules(): void {
 }
 
 /**
+ * Drop the in-memory cache so the next read goes to disk.
+ * Useful for tests that wipe the data directory between runs.
+ */
+export function invalidatePermissionsCache(): void {
+  cached = null;
+}
+
+/**
  * Return all rules.
  */
 export function listRules(): Rule[] {
