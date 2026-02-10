@@ -25,7 +25,7 @@ export const writeFile = tool({
 
       const ok = await confirm(`${verb} ${filePath}?`);
       if (!ok) {
-        return { message: 'cancelled', silent: true };
+        return { error: 'User denied this action. Do not retry.' };
       }
 
       saveWrite(fullPath);

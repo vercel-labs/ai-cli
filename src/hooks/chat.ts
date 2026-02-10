@@ -154,9 +154,20 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   try {
     for await (const part of result.fullStream) {
-      if (silent) break;
-
       const partType = part.type as string;
+
+      // When a previous tool set silent, skip text / reasoning but keep
+      // processing tool events so errors and subsequent results are handled.
+      if (
+        silent &&
+        partType !== 'tool-call' &&
+        partType !== 'tool-result' &&
+        partType !== 'tool-error' &&
+        partType !== 'step-finish'
+      ) {
+        continue;
+      }
+
       switch (partType) {
         case 'error': {
           const errorPart = part as { error?: Error };
@@ -234,6 +245,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             silent = out.silent === true;
           } else if (out?.error && typeof out.error === 'string') {
             callbacks.onMessage('error', out.error);
+            silent = false;
           } else if (out?.silent === true) {
             silent = true;
           }

@@ -24,7 +24,7 @@ export const runCommand = tool({
 
     const ok = await confirm(`run: ${command}?`);
     if (!ok) {
-      return { message: 'cancelled', silent: true };
+      return { error: 'User denied this action. Do not retry.' };
     }
 
     debug(`runCommand: ${command}`);

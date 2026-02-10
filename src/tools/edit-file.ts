@@ -48,7 +48,7 @@ export const editFile = tool({
       const diff = shortDiff(oldText, newText);
       const ok = await confirm(`edit ${path.basename(filePath)}?\n${diff}`);
       if (!ok) {
-        return { message: 'cancelled', silent: true };
+        return { error: 'User denied this action. Do not retry.' };
       }
 
       saveWrite(fullPath);

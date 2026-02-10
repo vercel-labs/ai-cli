@@ -18,7 +18,7 @@ export const deleteFile = tool({
     const names = paths.map((p) => path.basename(p)).join(', ');
     const ok = await confirm(`delete ${names}?`);
     if (!ok) {
-      return { message: 'cancelled', silent: true };
+      return { error: 'User denied this action. Do not retry.' };
     }
 
     for (const filePath of paths) {
