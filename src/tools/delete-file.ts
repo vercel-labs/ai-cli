@@ -53,9 +53,9 @@ export const deleteFile = tool({
         saveDelete(fullPath);
 
         if (isDir) {
-          fs.rmSync(fullPath, { recursive: true });
+          await fs.promises.rm(fullPath, { recursive: true });
         } else {
-          fs.unlinkSync(fullPath);
+          await fs.promises.unlink(fullPath);
         }
         const name = path.basename(filePath);
         deleted.push(isDir ? `${name}/` : name);
