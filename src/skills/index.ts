@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { SKILLS_DIR, ensureSkillsDir } from '../config/paths.js';
+import { SKILLS_DIR, AGENTS_SKILLS_DIR, ensureSkillsDir } from '../config/paths.js';
 
 export interface Skill {
   name: string;
@@ -73,13 +73,31 @@ export function loadSkill(skillPath: string): Skill | null {
 export function loadAllSkills(): Skill[] {
   ensureSkillsDir();
   const skills: Skill[] = [];
+  const loadedNames = new Set<string>();
 
+  // Load from ~/.ai-cli/skills first (takes precedence)
   try {
     const entries = fs.readdirSync(SKILLS_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const skill = loadSkill(path.join(SKILLS_DIR, entry.name));
-      if (skill) skills.push(skill);
+      if (skill) {
+        skills.push(skill);
+        loadedNames.add(skill.name);
+      }
+    }
+  } catch {}
+
+  // Load from ~/.agents/skills (skip if already loaded)
+  try {
+    if (fs.existsSync(AGENTS_SKILLS_DIR)) {
+      const entries = fs.readdirSync(AGENTS_SKILLS_DIR, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (loadedNames.has(entry.name)) continue; // Skip duplicates
+        const skill = loadSkill(path.join(AGENTS_SKILLS_DIR, entry.name));
+        if (skill) skills.push(skill);
+      }
     }
   } catch {}
 
@@ -96,19 +114,44 @@ export function matchSkills(prompt: string, skills: Skill[]): Skill[] {
 }
 
 export function getSkillByName(name: string): Skill | null {
+  // Check ~/.ai-cli/skills first
   const skillPath = path.join(SKILLS_DIR, name);
-  if (!fs.existsSync(skillPath)) return null;
-  return loadSkill(skillPath);
+  if (fs.existsSync(skillPath)) {
+    return loadSkill(skillPath);
+  }
+  
+  // Check ~/.agents/skills
+  const agentsSkillPath = path.join(AGENTS_SKILLS_DIR, name);
+  if (fs.existsSync(agentsSkillPath)) {
+    return loadSkill(agentsSkillPath);
+  }
+  
+  return null;
 }
 
 export function listSkills(): string[] {
   ensureSkillsDir();
+  const skillNames = new Set<string>();
+  
+  // List from ~/.ai-cli/skills
   try {
     const entries = fs.readdirSync(SKILLS_DIR, { withFileTypes: true });
-    return entries.filter(e => e.isDirectory()).map(e => e.name);
-  } catch {
-    return [];
-  }
+    for (const entry of entries) {
+      if (entry.isDirectory()) skillNames.add(entry.name);
+    }
+  } catch {}
+  
+  // List from ~/.agents/skills
+  try {
+    if (fs.existsSync(AGENTS_SKILLS_DIR)) {
+      const entries = fs.readdirSync(AGENTS_SKILLS_DIR, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) skillNames.add(entry.name);
+      }
+    }
+  } catch {}
+  
+  return Array.from(skillNames);
 }
 
 export function removeSkill(name: string): boolean {
