@@ -60,7 +60,14 @@ export const editFile = tool({
       const updated = content.replace(oldText, newText);
       fs.writeFileSync(fullPath, updated, 'utf-8');
 
-      return { message: `Edited ${filePath}`, silent: true };
+      const indentedDiff = diff
+        .split('\n')
+        .map((l) => `  ${l}`)
+        .join('\n');
+      return {
+        message: `Edited ${filePath}\n${indentedDiff}`,
+        silent: true,
+      };
     } catch {
       return { error: `edit failed: ${filePath}` };
     }

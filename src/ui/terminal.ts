@@ -73,7 +73,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   let currentStreamWrap: ReturnType<typeof createStreamWrap> | null = null;
   let selectMode = false;
   let confirmMode = false;
-  let hadContentBeforeConfirm = false;
+  let needsSpacingAfterConfirm = false;
   let commandMode = false;
   let cmdSuggestionCount = 0; // number of suggestion lines currently rendered
   let editStreamRendered = false;
@@ -248,14 +248,11 @@ export async function terminal(model: string, version: string): Promise<void> {
             for (let i = 0; i < confirmLineCount; i++) {
               lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
             }
-            // When there was streamed text before the confirm, the erased
-            // spinner line sits between that text and the cursor — add a
-            // newline so the tool result has a blank-line gap from the text.
-            // When there was NO text, the blank line from the input prompt
-            // already provides the gap.
-            if (hadContentBeforeConfirm) {
-              lock.write('\n');
-            }
+            // Don't write '\n' here — the cursor position after erase is
+            // unpredictable (depends on spinner/editStream/thinking state).
+            // Instead, the onMessage callback will prepend '\n' before the
+            // tool result to guarantee exactly one blank line.
+            needsSpacingAfterConfirm = true;
           } else {
             lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
           }
@@ -553,14 +550,22 @@ export async function terminal(model: string, version: string): Promise<void> {
       }
       case 'info': {
         // Highlight the subject in "Verb subject" messages (e.g. "Deleted blog/")
-        const spaceIdx = msg.content.indexOf(' ');
-        if (spaceIdx > 0 && !msg.content.includes('\n')) {
-          const verb = msg.content.slice(0, spaceIdx + 1);
-          const subject = msg.content.slice(spaceIdx + 1);
-          out.write(`${dim(verb)}${subject}\n\n`);
+        const nlIdx = msg.content.indexOf('\n');
+        const firstLine =
+          nlIdx >= 0 ? msg.content.slice(0, nlIdx) : msg.content;
+        const spaceIdx = firstLine.indexOf(' ');
+        if (spaceIdx > 0) {
+          const verb = firstLine.slice(0, spaceIdx + 1);
+          const subject = firstLine.slice(spaceIdx + 1);
+          out.write(`${dim(verb)}${subject}\n`);
         } else {
-          out.write(`${dim(wrap(msg.content))}\n\n`);
+          out.write(`${dim(firstLine)}\n`);
         }
+        if (nlIdx >= 0) {
+          // Body lines (e.g. diff from editFile) — preserve original colors
+          out.write(`${msg.content.slice(nlIdx + 1)}\n`);
+        }
+        out.write('\n');
         break;
       }
       case 'error':
@@ -831,7 +836,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     addMessage('user', msg);
 
     busy = true;
-    hadContentBeforeConfirm = false;
+    needsSpacingAfterConfirm = false;
     const controller = new AbortController();
     abortController = controller;
     streamBuffer = '';
@@ -855,7 +860,6 @@ export async function terminal(model: string, version: string): Promise<void> {
           onStatus: (s) => {
             if (s) {
               if (!statusText && streamBuffer) {
-                hadContentBeforeConfirm = true;
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n\n`);
                 streamBuffer = '';
@@ -876,8 +880,16 @@ export async function terminal(model: string, version: string): Promise<void> {
           },
           onMessage: (type, content) => {
             clearStatus();
+            if (needsSpacingAfterConfirm) {
+              needsSpacingAfterConfirm = false;
+              // 'info' messages (e.g. "Edited …") already land on the
+              // correct row after the confirm erase.  Other types (e.g.
+              // 'tool' for "Ran …") need an explicit blank-line gap.
+              if (type !== 'info') {
+                out.write('\n');
+              }
+            }
             if (type === 'assistant') {
-              hadContentBeforeConfirm = true;
               if (streamBuffer) {
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n`);
@@ -894,7 +906,6 @@ export async function terminal(model: string, version: string): Promise<void> {
           onRecord: (type, content) => {
             // Finalize stream wrap without re-rendering text
             if (type === 'assistant' && streamBuffer) {
-              hadContentBeforeConfirm = true;
               const remaining = streamWrap.flush();
               if (remaining) out.write(remaining);
               out.write('\n');

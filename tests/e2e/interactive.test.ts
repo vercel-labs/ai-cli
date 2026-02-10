@@ -94,6 +94,7 @@ describe('edit confirm erased', () => {
       const screen = cli.getScreen();
       expect(screen).toContain('Edited');
       expect(screen).not.toContain('Edit test.json?');
+      expect(blankLinesAfter(screen, 'change the name')).toBe(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
