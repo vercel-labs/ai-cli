@@ -9,7 +9,9 @@ function loadMemories(): string[] {
       const data = JSON.parse(fs.readFileSync(MEMORIES_FILE, 'utf-8'));
       return Array.isArray(data) ? data : [];
     }
-  } catch {}
+  } catch {
+    // Corrupt or unreadable memories file - start fresh
+  }
   return [];
 }
 

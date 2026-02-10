@@ -96,7 +96,9 @@ export async function closeMcp(): Promise<void> {
     try {
       await conn.client.close();
       debug(`mcp: closed ${name}`);
-    } catch {}
+    } catch (e) {
+      debug(`mcp: error closing ${name}: ${e}`);
+    }
   }
   connections.clear();
   initialized = false;
@@ -112,6 +114,5 @@ export function getMcpStatus(): { name: string; connected: boolean }[] {
 
 export async function reconnectMcp(): Promise<void> {
   await closeMcp();
-  initialized = false;
   await initMcp();
 }

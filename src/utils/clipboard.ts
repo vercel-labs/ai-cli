@@ -30,11 +30,13 @@ return "ok"
           { shell: '/bin/sh' },
         );
       } catch {
+        // xclip not available, try wayland
         try {
           execSync(`wl-paste --type image/png > "${tempFile}" 2>/dev/null`, {
             shell: '/bin/sh',
           });
         } catch {
+          // Neither X11 nor Wayland clipboard available
           return null;
         }
       }

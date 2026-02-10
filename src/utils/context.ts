@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import type { ModelMessage } from 'ai';
 import { generateText } from 'ai';
 import { RULES_FILE } from '../config/paths.js';
+import { AI_CLI_HEADERS } from './constants.js';
+import { logError } from './errorlog.js';
 import { GATEWAY_URL } from './models.js';
 
 interface ContextFile {
@@ -16,7 +18,9 @@ function loadFile(filePath: string, type: string): ContextFile | null {
   try {
     const content = fs.readFileSync(filePath, 'utf-8').trim();
     if (content) return { path: filePath, content, type };
-  } catch {}
+  } catch (e) {
+    logError(e);
+  }
   return null;
 }
 
@@ -114,14 +118,12 @@ export async function summarizeHistory(
 
 Output plain text only. No markdown, no ** or ##, no formatting. Use simple dashes for lists. Be thorough but concise.`,
       prompt: conversationText,
-      headers: {
-        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
-        'X-Title': 'ai-cli',
-      },
+      headers: AI_CLI_HEADERS,
     });
 
     return result.text;
-  } catch {
+  } catch (e) {
+    logError(e);
     return '';
   }
 }

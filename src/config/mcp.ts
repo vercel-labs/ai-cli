@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { logError } from '../utils/errorlog.js';
 import { ensureBaseDir, MCP_FILE } from './paths.js';
 
 export interface McpServerConfig {
@@ -46,7 +47,9 @@ export function getMcpConfig(): McpConfig {
       const data = JSON.parse(fs.readFileSync(MCP_FILE, 'utf-8'));
       return { servers: data.servers || {} };
     }
-  } catch {}
+  } catch (e) {
+    logError(e);
+  }
   return { servers: {} };
 }
 

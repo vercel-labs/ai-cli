@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 import { saveDelete } from '../utils/undo.js';
 import { confirm } from './confirm.js';
 
@@ -22,7 +23,11 @@ export const deleteFile = tool({
 
     for (const filePath of paths) {
       try {
-        const fullPath = path.resolve(filePath);
+        const fullPath = safePath(filePath);
+        if (!fullPath) {
+          errors.push(pathError(filePath));
+          continue;
+        }
 
         if (!fs.existsSync(fullPath)) {
           errors.push(`not found: ${filePath}`);

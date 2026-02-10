@@ -9,6 +9,7 @@ import {
   resolveCommand,
   restoreHistory,
 } from '../commands/slash/index.js';
+import { setConfirmHandler } from '../tools/confirm.js';
 import type { Context } from '../commands/slash/types.js';
 import type { Chat } from '../config/chats.js';
 import {
@@ -118,6 +119,27 @@ export async function terminal(model: string, version: string): Promise<void> {
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
   }
+
+  setConfirmHandler(
+    (action: string) =>
+      new Promise<boolean>((resolve) => {
+        clearStatus();
+        process.stdout.write(`${dim(`confirm: ${action}`)} ${dim('[y/n] ')}`);
+        const onKey = (str: string | undefined) => {
+          const ch = (str ?? '').toLowerCase();
+          if (ch === 'y' || ch === '\r' || ch === '\n') {
+            process.stdin.removeListener('keypress', onKey);
+            process.stdout.write(`${dim('yes')}\n`);
+            resolve(true);
+          } else if (ch === 'n' || ch === '\x1b' || ch === '\x03') {
+            process.stdin.removeListener('keypress', onKey);
+            process.stdout.write(`${dim('no')}\n`);
+            resolve(false);
+          }
+        };
+        process.stdin.on('keypress', onKey);
+      }),
+  );
 
   process.stdin.on('data', (chunk: Buffer) => {
     const str = chunk.toString();
@@ -285,6 +307,11 @@ export async function terminal(model: string, version: string): Promise<void> {
     messages.push({ type, content });
   }
 
+  function addAndPrint(type: MessageType, content: string) {
+    addMessage(type, content);
+    printMessage({ type, content });
+  }
+
   async function selectModel(): Promise<string | null> {
     process.stdout.write(dim('loading models...\n'));
 
@@ -422,8 +449,7 @@ export async function terminal(model: string, version: string): Promise<void> {
           currentModel = selected;
           await updateCapabilities(selected);
           updateTitle();
-          addMessage('info', `switched to ${selected}`);
-          printMessage({ type: 'info', content: `switched to ${selected}` });
+          addAndPrint('info', `switched to ${selected}`);
         }
         prompt();
         return;
@@ -432,8 +458,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       if (cmd === 'purge') {
         const count = listChats().length;
         if (count === 0) {
-          addMessage('info', 'no chats to delete');
-          printMessage({ type: 'info', content: 'no chats to delete' });
+          addAndPrint('info', 'no chats to delete');
           prompt();
           return;
         }
@@ -444,13 +469,8 @@ export async function terminal(model: string, version: string): Promise<void> {
         tokens = 0;
         cost = 0;
         process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
-        addMessage('info', `ai ${version} [${currentModel}]`);
-        printMessage({
-          type: 'info',
-          content: `ai ${version} [${currentModel}]`,
-        });
-        addMessage('info', `deleted ${deleted} chat(s)`);
-        printMessage({ type: 'info', content: `deleted ${deleted} chat(s)` });
+        addAndPrint('info', `ai ${version} [${currentModel}]`);
+        addAndPrint('info', `deleted ${deleted} chat(s)`);
         prompt();
         return;
       }
@@ -458,8 +478,7 @@ export async function terminal(model: string, version: string): Promise<void> {
       const resolved = resolveCommand(cmd);
       const handler = commands[resolved];
       if (!handler) {
-        addMessage('info', 'unknown command. type /help');
-        printMessage({ type: 'info', content: 'unknown command. type /help' });
+        addAndPrint('info', 'unknown command. type /help');
         prompt();
         return;
       }
@@ -490,15 +509,10 @@ export async function terminal(model: string, version: string): Promise<void> {
         if (res.clearScreen) {
           process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
           messages.length = 0;
-          addMessage('info', `ai ${version} [${res.model || currentModel}]`);
-          printMessage({
-            type: 'info',
-            content: `ai ${version} [${res.model || currentModel}]`,
-          });
+          addAndPrint('info', `ai ${version} [${res.model || currentModel}]`);
         }
         if (res.output) {
-          addMessage('info', res.output);
-          printMessage({ type: 'info', content: res.output });
+          addAndPrint('info', res.output);
         }
         if (res.model) {
           currentModel = res.model;
@@ -529,8 +543,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (lastType === 'info' && m.type !== 'info') {
               process.stdout.write('\n'.repeat(spacing));
             }
-            addMessage(m.type as MessageType, m.content);
-            printMessage({ type: m.type as MessageType, content: m.content });
+            addAndPrint(m.type as MessageType, m.content);
             if (!isLast && m.type !== 'user' && m.type !== 'info') {
               process.stdout.write('\n'.repeat(spacing));
             }
@@ -636,8 +649,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     } catch (e) {
       clearStatus();
       if ((e as Error).name !== 'AbortError') {
-        addMessage('error', formatError(e));
-        printMessage({ type: 'error', content: formatError(e) });
+        addAndPrint('error', formatError(e));
       }
     }
 
@@ -657,10 +669,8 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
   updateTitle();
-  addMessage('info', `ai ${version} [${currentModel}]`);
-  addMessage('info', 'type /help for commands');
-  printMessage({ type: 'info', content: `ai ${version} [${currentModel}]` });
-  printMessage({ type: 'info', content: 'type /help for commands' });
+  addAndPrint('info', `ai ${version} [${currentModel}]`);
+  addAndPrint('info', 'type /help for commands');
 
   readline.emitKeypressEvents(process.stdin);
   if (process.stdin.isTTY) process.stdin.setRawMode(true);

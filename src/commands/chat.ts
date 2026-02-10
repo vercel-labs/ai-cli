@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { stepCountIs, streamText } from 'ai';
 import { gray } from 'yoctocolors';
 import { getTools } from '../tools/index.js';
+import { AI_CLI_HEADERS } from '../utils/constants.js';
 import { formatError } from '../utils/errors.js';
 import { createSpinner } from '../utils/spinner.js';
 
@@ -87,10 +88,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
           reasoningSummary: 'detailed',
         },
       },
-      headers: {
-        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
-        'X-Title': 'ai-cli',
-      },
+      headers: AI_CLI_HEADERS,
     });
 
     for await (const part of result.fullStream) {

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { pathError, safePath } from '../utils/safe-path.js';
 import { saveRename } from '../utils/undo.js';
 
 export const renameFile = tool({
@@ -12,8 +13,11 @@ export const renameFile = tool({
   }),
   execute: async ({ oldPath, newPath }) => {
     try {
-      const fullOldPath = path.resolve(oldPath);
-      const fullNewPath = path.resolve(newPath);
+      const fullOldPath = safePath(oldPath);
+      if (!fullOldPath) return { error: pathError(oldPath) };
+
+      const fullNewPath = safePath(newPath);
+      if (!fullNewPath) return { error: pathError(newPath) };
 
       if (!fs.existsSync(fullOldPath)) {
         return { error: `not found: ${oldPath}` };

@@ -2,6 +2,7 @@ import { type ModelMessage, stepCountIs, streamText } from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
 import { getSetting } from '../config/settings.js';
 import { getTools, loadMcpTools } from '../tools/index.js';
+import { AI_CLI_HEADERS } from '../utils/constants.js';
 import {
   getContextWindow,
   shouldCompress,
@@ -142,10 +143,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
         },
-        headers: {
-          'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
-          'X-Title': 'ai-cli',
-        },
+        headers: AI_CLI_HEADERS,
         abortSignal: options.abortSignal,
       });
     } catch (e) {
@@ -360,10 +358,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       providerOptions: {
         openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
       },
-      headers: {
-        'HTTP-Referer': 'https://www.npmjs.com/package/ai-cli',
-        'X-Title': 'ai-cli',
-      },
+      headers: AI_CLI_HEADERS,
       abortSignal: options.abortSignal,
     });
 

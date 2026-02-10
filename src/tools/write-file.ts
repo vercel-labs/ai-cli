@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { log as debug } from '../utils/debug.js';
+import { pathError, safePath } from '../utils/safe-path.js';
 import { saveWrite } from '../utils/undo.js';
 import { confirm } from './confirm.js';
 
@@ -16,7 +17,9 @@ export const writeFile = tool({
   execute: async ({ filePath, content }) => {
     debug(`writeFile: ${filePath} (${content.length} chars)`);
     try {
-      const fullPath = path.resolve(filePath);
+      const fullPath = safePath(filePath);
+      if (!fullPath) return { error: pathError(filePath) };
+
       const exists = fs.existsSync(fullPath);
       const verb = exists ? 'update' : 'create';
 

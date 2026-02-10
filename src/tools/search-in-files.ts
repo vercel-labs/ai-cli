@@ -67,7 +67,8 @@ export const searchInFiles = tool({
   execute: async ({ query, directory }) => {
     try {
       const baseDir = path.resolve(directory || '.');
-      const pattern = new RegExp(query, 'i');
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(escaped, 'i');
       const results: Array<{ file: string; line: number; content: string }> =
         [];
       searchDir(baseDir, baseDir, pattern, results, 50);
