@@ -34,6 +34,7 @@ import {
 import { detectPackageManager } from '../utils/package-manager.js';
 import { killAllProcesses } from '../utils/processes.js';
 import { createStreamWrap, wrap } from '../utils/wrap.js';
+import { Output } from './output.js';
 
 interface ReadlineInternal extends readline.Interface {
   line: string;
@@ -52,6 +53,8 @@ const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
 
 export async function terminal(model: string, version: string): Promise<void> {
+  const out = new Output();
+
   let currentModel = model;
   let chat: Chat | null = null;
   const history: ModelMessage[] = [];
@@ -64,6 +67,7 @@ export async function terminal(model: string, version: string): Promise<void> {
   const pm = detectPackageManager();
   let statusText = '';
   let streamBuffer = '';
+  let currentStreamWrap: ReturnType<typeof createStreamWrap> | null = null;
   let selectMode = false;
   let confirmMode = false;
   let commandMode = false;
@@ -121,26 +125,85 @@ export async function terminal(model: string, version: string): Promise<void> {
     process.stdin.setRawMode(true);
   }
 
+  let alwaysAllow = false;
+
   setConfirmHandler(
     (action: string) =>
       new Promise<boolean>((resolve) => {
+        if (alwaysAllow) {
+          resolve(true);
+          return;
+        }
+
+        // Flush stream & clear status BEFORE locking so they render normally
         clearStatus();
+        if (streamBuffer && currentStreamWrap) {
+          const remaining = currentStreamWrap.flush();
+          if (remaining) out.write(remaining);
+          streamBuffer = '';
+          currentStreamWrap.reset();
+          out.write('\n');
+        }
+
+        // Lock output — all other out.write() calls are now silently dropped
+        const lock = out.lock();
         confirmMode = true;
-        process.stdout.write(`${dim(`confirm: ${action}`)} ${dim('[y/n] ')}`);
-        const onKey = (str: string | undefined) => {
-          const ch = (str ?? '').toLowerCase();
-          if (ch === 'y' || ch === '\r' || ch === '\n') {
-            process.stdin.removeListener('keypress', onKey);
-            confirmMode = false;
-            process.stdout.write(`${dim('yes')}\n`);
+
+        const options = ['yes', 'no', 'always'];
+        let selected = 0;
+        const label = `  ${action}`;
+
+        const render = () => {
+          const parts = options.map((opt, i) =>
+            i === selected ? `[${opt}]` : ` ${opt} `,
+          );
+          lock.write(
+            `\r${ansi.eraseLine}${dim(`${label}  ${parts.join('  ')}`)}`,
+          );
+        };
+
+        render();
+
+        const finish = (choice: string) => {
+          process.stdin.removeListener('keypress', onKey);
+          lock.write(`\r${ansi.eraseLine}${dim(`${label}  ${choice}`)}\n`);
+          // Release lock BEFORE resolving so downstream writes render again
+          confirmMode = false;
+          lock.release();
+          if (choice === 'always') {
+            alwaysAllow = true;
             resolve(true);
-          } else if (ch === 'n' || ch === '\x1b' || ch === '\x03') {
-            process.stdin.removeListener('keypress', onKey);
-            confirmMode = false;
-            process.stdout.write(`${dim('no')}\n`);
-            resolve(false);
+          } else {
+            resolve(choice === 'yes');
           }
         };
+
+        const onKey = (
+          str: string | undefined,
+          key: { name?: string; ctrl?: boolean } | undefined,
+        ) => {
+          const name = key?.name;
+
+          if (name === 'left' || name === 'up') {
+            selected = Math.max(0, selected - 1);
+            render();
+            return;
+          }
+          if (name === 'right' || name === 'down') {
+            selected = Math.min(options.length - 1, selected + 1);
+            render();
+            return;
+          }
+          if (name === 'return') return finish(options[selected]);
+          if (name === 'escape') return finish('no');
+          if (key?.ctrl && name === 'c') return finish('no');
+
+          const ch = (str ?? '').toLowerCase();
+          if (ch === 'y') return finish('yes');
+          if (ch === 'n') return finish('no');
+          if (ch === 'a') return finish('always');
+        };
+
         process.stdin.on('keypress', onKey);
       }),
   );
@@ -278,16 +341,16 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   function clearStatus() {
     if (statusText) {
-      process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+      out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
       statusText = '';
     }
   }
 
   function showStatus(text: string) {
     if (statusText) {
-      process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+      out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
     }
-    process.stdout.write(`${dim(text)}\n`);
+    out.write(`${dim(text)}\n`);
     statusText = text;
   }
 
@@ -295,21 +358,21 @@ export async function terminal(model: string, version: string): Promise<void> {
     const markdown = getSetting('markdown');
     switch (msg.type) {
       case 'user':
-        process.stdout.write(`${dim('› ') + wrap(msg.content)}\n`);
+        out.write(`${dim('› ') + wrap(msg.content)}\n`);
         break;
       case 'assistant': {
         const content = markdown ? renderMarkdown(msg.content) : msg.content;
-        process.stdout.write(`${wrap(mask(content))}\n`);
+        out.write(`${wrap(mask(content))}\n`);
         break;
       }
       case 'tool':
-        process.stdout.write(`${dim(wrap(mask(msg.content)))}\n`);
+        out.write(`${dim(wrap(mask(msg.content)))}\n`);
         break;
       case 'info':
-        process.stdout.write(`${dim(wrap(msg.content))}\n`);
+        out.write(`${dim(wrap(msg.content))}\n`);
         break;
       case 'error':
-        process.stdout.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
+        out.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
         break;
     }
   }
@@ -579,6 +642,7 @@ export async function terminal(model: string, version: string): Promise<void> {
     abortController = controller;
     streamBuffer = '';
     const streamWrap = createStreamWrap();
+    currentStreamWrap = streamWrap;
 
     process.stdout.write(ansi.cursorHide);
     rl.pause();
@@ -597,7 +661,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (s) {
               if (!statusText && streamBuffer) {
                 const remaining = streamWrap.flush();
-                process.stdout.write(`${remaining}\n`);
+                out.write(`${remaining}\n`);
               }
               showStatus(s);
             } else {
@@ -609,7 +673,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (text.length > streamBuffer.length) {
               const newText = text.slice(streamBuffer.length);
               const wrapped = streamWrap.write(mask(newText));
-              process.stdout.write(wrapped);
+              out.write(wrapped);
               streamBuffer = text;
             }
           },
@@ -618,7 +682,7 @@ export async function terminal(model: string, version: string): Promise<void> {
             if (type === 'assistant') {
               if (streamBuffer) {
                 const remaining = streamWrap.flush();
-                process.stdout.write(`${remaining}\n`);
+                out.write(`${remaining}\n`);
               } else {
                 printMessage({ type, content });
               }
@@ -666,6 +730,7 @@ export async function terminal(model: string, version: string): Promise<void> {
 
     busy = false;
     abortController = null;
+    currentStreamWrap = null;
     process.stdout.write(ansi.cursorShow);
     rl.resume();
     prompt();
