@@ -19,6 +19,11 @@ interface StreamCallbacks {
     type: 'info' | 'tool' | 'assistant' | 'error',
     content: string,
   ) => void;
+  /** Record a message in the history without rendering it. */
+  onRecord: (
+    type: 'info' | 'tool' | 'assistant' | 'error',
+    content: string,
+  ) => void;
   onTokens: (fn: (t: number) => number) => void;
   onCost: (fn: (c: number) => number) => void;
   onSummary: (summary: string) => void;
@@ -288,7 +293,12 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   }
 
   if (buffer) {
-    callbacks.onMessage('assistant', buffer);
+    if (silent) {
+      // Text was already displayed via onPending; record without re-rendering
+      callbacks.onRecord('assistant', buffer);
+    } else {
+      callbacks.onMessage('assistant', buffer);
+    }
     callbacks.onPending('');
   }
 

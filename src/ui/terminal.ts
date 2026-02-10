@@ -693,6 +693,17 @@ export async function terminal(model: string, version: string): Promise<void> {
             }
             addMessage(type, content);
           },
+          onRecord: (type, content) => {
+            // Finalize stream wrap without re-rendering text
+            if (type === 'assistant' && streamBuffer) {
+              const remaining = streamWrap.flush();
+              if (remaining) out.write(remaining);
+              out.write('\n');
+              streamBuffer = '';
+              streamWrap.reset();
+            }
+            addMessage(type, content);
+          },
           onTokens: (fn) => {
             tokens = fn(tokens);
           },
