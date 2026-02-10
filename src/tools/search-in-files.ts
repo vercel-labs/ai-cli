@@ -33,7 +33,18 @@ function searchWithRg(
     // -n = line numbers, -i = case-insensitive, --no-heading, -M = max line length
     const out = execFileSync(
       'rg',
-      ['-n', '-i', '-F', '--no-heading', '-M', '200', '--max-count', String(max), '--', query],
+      [
+        '-n',
+        '-i',
+        '-F',
+        '--no-heading',
+        '-M',
+        '200',
+        '--max-count',
+        String(max),
+        '--',
+        query,
+      ],
       {
         cwd: baseDir,
         encoding: 'utf-8',

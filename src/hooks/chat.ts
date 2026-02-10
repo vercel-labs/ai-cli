@@ -732,7 +732,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       const text =
         typeof raw === 'string'
           ? raw
-          : (raw.find((p: any) => p.type === 'text') as any)?.text ?? '';
+          : ((raw.find((p: any) => p.type === 'text') as any)?.text ?? '');
       chat.title = text.slice(0, 50).trim();
     }
   }

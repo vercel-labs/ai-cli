@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
-# Pre-commit hook: run Biome formatter on staged files and re-stage them.
+# Pre-commit hook: run Biome formatter on all files and stage any changes.
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json')
+npx @biomejs/biome format . --write
 
-if [ -z "$STAGED" ]; then
-  exit 0
-fi
-
-# Format only the staged files
-echo "$STAGED" | xargs npx @biomejs/biome format --write
-
-# Re-stage the formatted files so changes are included in the commit
-echo "$STAGED" | xargs git add
+# Re-stage any files that were reformatted
+git add -u
 
 exit 0
