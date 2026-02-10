@@ -401,6 +401,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           } else if (tc.toolName === 'renameFile') {
             status = 'Renaming file';
             currentToolLabel = '';
+          } else if (tc.toolName === 'codeOutline') {
+            const f = input?.filePath || 'code';
+            status = `Analyzing ${f}`;
+            currentToolLabel = `Analyzed ${f}`;
+          } else if (tc.toolName === 'semanticSearch') {
+            const q = input?.query
+              ? String(input.query).slice(0, 60)
+              : 'code';
+            status = `Searching: ${q}`;
+            currentToolLabel = `Searched: ${q}`;
           } else if (tc.toolName === 'perplexity_search' && input?.query) {
             status = `Searching: ${input.query.slice(0, 60)}`;
             currentToolLabel = `Searched: ${input.query.slice(0, 60)}`;
