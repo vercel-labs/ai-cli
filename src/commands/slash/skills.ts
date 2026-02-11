@@ -29,6 +29,67 @@ function parseSkillTarget(
   return null;
 }
 
+function isNpmPackageName(target: string): boolean {
+  // Scoped: @scope/name
+  if (/^@[a-z0-9-]+\/[a-z0-9._-]+$/i.test(target)) return true;
+  // Bare: name (no slashes, no colons, not a path, not a URL)
+  if (
+    /^[a-z0-9._-]+$/i.test(target) &&
+    !target.startsWith('/') &&
+    !target.startsWith('.')
+  )
+    return true;
+  return false;
+}
+
+async function resolveNpmToGithub(
+  pkg: string,
+): Promise<{ repo: string; name: string } | null> {
+  try {
+    const res = await fetch(`https://registry.npmjs.org/${pkg}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      repository?: { type?: string; url?: string } | string;
+    };
+
+    const repoField =
+      typeof data.repository === 'string'
+        ? data.repository
+        : data.repository?.url || '';
+
+    // Extract owner/repo from GitHub URL patterns:
+    //   git+https://github.com/owner/repo.git
+    //   https://github.com/owner/repo
+    //   github:owner/repo
+    //   git://github.com/owner/repo.git
+    const ghMatch = repoField.match(
+      /github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/,
+    );
+    if (ghMatch) {
+      const repo = ghMatch[1];
+      const name = pkg.startsWith('@') ? pkg.split('/')[1] : pkg;
+      return { repo, name };
+    }
+
+    // Shorthand: "owner/repo"
+    const shorthand =
+      typeof data.repository === 'string'
+        ? data.repository.match(/^([^/]+\/[^/]+)$/)
+        : null;
+    if (shorthand) {
+      const name = pkg.startsWith('@') ? pkg.split('/')[1] : pkg;
+      return { repo: shorthand[1], name };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function findSkillSubpath(
   repo: string,
   name: string,
@@ -146,7 +207,16 @@ export const skills: CommandHandler = async (_ctx, args) => {
   const target = parts.slice(1).join(' ');
 
   if (action === 'add' && target) {
-    const parsed = parseSkillTarget(target);
+    let parsed = parseSkillTarget(target);
+
+    // If not a GitHub target, try resolving as an npm package name
+    if (!parsed && isNpmPackageName(target)) {
+      const npm = await resolveNpmToGithub(target);
+      if (npm) {
+        parsed = { repo: npm.repo, subpath: '', name: npm.name };
+      }
+    }
+
     const name =
       parsed?.name || path.basename(target, '.git').replace(/^skill-/, '');
     const dest = path.join(SKILLS_DIR, name);
@@ -188,6 +258,10 @@ export const skills: CommandHandler = async (_ctx, args) => {
         if (fs.existsSync(gitDir)) fs.rmSync(gitDir, { recursive: true });
       } else if (fs.existsSync(target)) {
         fs.cpSync(target, dest, { recursive: true });
+      } else if (isNpmPackageName(target)) {
+        return {
+          output: `package "${target}" not found on npm or has no github repo`,
+        };
       } else {
         return { output: 'invalid path or url' };
       }
