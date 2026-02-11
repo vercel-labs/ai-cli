@@ -53,6 +53,11 @@ interface Message {
 }
 
 import { dim, dimmer, green, red } from '../utils/color.js';
+import {
+  shimmerText,
+  nextShimmerPos,
+  SHIMMER_PADDING,
+} from '../utils/shimmer.js';
 
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
 
@@ -455,17 +460,16 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   process.stdout.on('resize', redraw);
 
-  const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
-  let spinnerIdx = 0;
+  let shimmerTimer: ReturnType<typeof setInterval> | null = null;
+  let shimmerPos = -SHIMMER_PADDING;
   /** Status text queued while the output was locked (e.g. during a confirm). */
   let pendingStatusText: string | null = null;
 
   function clearStatus() {
     pendingStatusText = null;
-    if (spinnerTimer) {
-      clearInterval(spinnerTimer);
-      spinnerTimer = null;
+    if (shimmerTimer) {
+      clearInterval(shimmerTimer);
+      shimmerTimer = null;
     }
     if (statusText) {
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
@@ -474,13 +478,9 @@ export async function terminal(model: string, version: string): Promise<void> {
   }
 
   function showStatus(text: string) {
-    if (spinnerTimer) {
-      clearInterval(spinnerTimer);
-      spinnerTimer = null;
-    }
     // If the output is locked (e.g. a confirm modal owns the terminal),
     // queue the status for later — writing through out.write() would be
-    // silently dropped, and the spinnerTimer would fire after the lock
+    // silently dropped, and the shimmerTimer would fire after the lock
     // is released and corrupt cursor positions.
     if (out.locked) {
       pendingStatusText = text;
@@ -489,21 +489,22 @@ export async function terminal(model: string, version: string): Promise<void> {
     pendingStatusText = null;
     const hadStatus = Boolean(statusText);
     if (hadStatus) {
-      out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+      // Text update only — keep shimmer position flowing
+      statusText = text;
+      return;
     }
-    if (!hadStatus) {
-      spacing.beforeStatus();
-    }
-    spinnerIdx = 0;
-    out.write(`${dim(`${spinnerFrames[0]} ${text}`)}\n`);
+    // First status line: set up spacing, reset shimmer, start timer
+    spacing.beforeStatus();
+    shimmerPos = -SHIMMER_PADDING;
+    out.write(`${shimmerText(text, shimmerPos)}\n`);
     statusText = text;
 
-    spinnerTimer = setInterval(() => {
+    shimmerTimer = setInterval(() => {
       if (!statusText) return;
-      spinnerIdx = (spinnerIdx + 1) % spinnerFrames.length;
+      shimmerPos = nextShimmerPos(shimmerPos, statusText.length);
       out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
-      out.write(`${dim(`${spinnerFrames[spinnerIdx]} ${statusText}`)}\n`);
-    }, 80);
+      out.write(`${shimmerText(statusText, shimmerPos)}\n`);
+    }, 50);
   }
 
   function formatToolOutput(text: string): string {
