@@ -130,7 +130,7 @@ export const toolActions: Record<string, string> = {
   fileInfo: 'checking...',
   runCommand: 'running...',
   startProcess: 'starting...',
-  readProcessLogs: 'reading logs...',
+  readProcessLogs: 'waiting for output...',
   killProcess: 'stopping...',
   memory: 'remembering...',
   weather: 'checking weather...',
