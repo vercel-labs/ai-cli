@@ -1,6 +1,6 @@
 {
   "name": "ai-cli",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "dist/ai.mjs",
   "devDependencies": {
     "@biomejs/biome": "2.1.4",
