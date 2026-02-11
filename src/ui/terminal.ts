@@ -18,6 +18,7 @@ import {
   createChat,
   deleteAllChats,
   listChats,
+  loadChat,
   saveChat,
 } from '../config/chats.js';
 import { setModel as saveModel } from '../config/index.js';
@@ -66,7 +67,11 @@ function trimLeadingBlankLines(text: string): string {
   return text.replace(/^(?:\r?\n)+/, '');
 }
 
-export async function terminal(model: string, version: string): Promise<void> {
+export async function terminal(
+  model: string,
+  version: string,
+  resumeId?: string,
+): Promise<void> {
   const out = new Output();
   const spacing = new SpacingController((text) => out.write(text));
 
@@ -492,9 +497,17 @@ export async function terminal(model: string, version: string): Promise<void> {
     inputStream.write(chunk);
   });
 
+  let cleaningUp = false;
   function cleanup() {
+    if (cleaningUp) return;
+    cleaningUp = true;
     killAllProcesses();
     process.stdout.write(`\n${ansi.cursorShow}`);
+    if (chat?.id && chat.messages.length > 0) {
+      process.stdout.write(
+        `${dim(`session: ${chat.id} — resume with`)} ai --resume ${chat.id}\n`,
+      );
+    }
     rl.close();
     process.exit(0);
   }
@@ -1088,9 +1101,49 @@ export async function terminal(model: string, version: string): Promise<void> {
 
   process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
   updateTitle();
-  addAndPrint('info', `ai ${version} [${currentModel}]`);
-  addMessage('info', 'type /help for commands');
-  out.write(`${dim('type /help for commands')}\n`);
+
+  if (resumeId) {
+    const resumed = loadChat(resumeId);
+    if (resumed) {
+      chat = resumed;
+      summary = resumed.summary || '';
+      tokens = resumed.tokens || 0;
+      cost = resumed.cost || 0;
+      if (resumed.model) {
+        currentModel = resumed.model;
+        await updateCapabilities(resumed.model);
+      }
+      restoreHistory({ chat: resumed }, history);
+      const display = resumed.display?.length
+        ? resumed.display
+        : resumed.messages.map((m) => ({
+            type: m.role,
+            content: m.content,
+          }));
+      const spacingSetting = getSetting('spacing') ?? 1;
+      let lastType = '';
+      for (let i = 0; i < display.length; i++) {
+        const m = display[i];
+        const isLast = i === display.length - 1;
+        if (lastType === 'info' && m.type !== 'info') {
+          process.stdout.write('\n'.repeat(spacingSetting));
+        }
+        addAndPrint(m.type as MessageType, m.content);
+        if (!isLast && m.type !== 'user' && m.type !== 'info') {
+          process.stdout.write('\n'.repeat(spacingSetting));
+        }
+        lastType = m.type;
+      }
+      updateTitle();
+    } else {
+      addAndPrint('info', `ai ${version} [${currentModel}]`);
+      addAndPrint('error', `session ${resumeId} not found`);
+    }
+  } else {
+    addAndPrint('info', `ai ${version} [${currentModel}]`);
+    addMessage('info', 'type /help for commands');
+    out.write(`${dim('type /help for commands')}\n`);
+  }
 
   readline.emitKeypressEvents(process.stdin);
   if (process.stdin.isTTY) process.stdin.setRawMode(true);
