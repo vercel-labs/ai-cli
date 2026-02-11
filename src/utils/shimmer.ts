@@ -2,40 +2,33 @@ import { isColorEnabled } from './color.js';
 
 /** Half-width of the shimmer glow (characters from center). */
 const SHIMMER_RADIUS = 8;
-/** 256-color gray shade for text the shimmer has already passed (darker). */
-const BASE_LEFT = 240;
-/** 256-color gray shade for text the shimmer hasn't reached yet (brighter). */
-const BASE_RIGHT = 246;
+/** 256-color gray shade for text outside the shimmer glow. */
+const BASE = 243;
 /** 256-color gray shade at the shimmer peak (near white). */
 const PEAK = 255;
 /** Extra frames of pause between shimmer sweeps. */
-const GAP_FRAMES = 8;
+const GAP_FRAMES = 6;
 
 /**
  * Compute the 256-color gray shade (232–255) for a character based on its
- * distance from the shimmer center. Uses a cosine falloff for a smooth
- * gradient. Left of center falls to BASE_LEFT (dark trail), right of
- * center falls to BASE_RIGHT (brighter, not-yet-reached).
+ * distance from the shimmer center. Uses a cosine falloff so the glow
+ * fades smoothly into the uniform base gray on both sides.
  */
 function charShade(charIdx: number, shimmerPos: number): number {
-  const d = charIdx - shimmerPos;
-  const absd = Math.abs(d);
-  if (absd >= SHIMMER_RADIUS) {
-    return d < 0 ? BASE_LEFT : BASE_RIGHT;
-  }
+  const d = Math.abs(charIdx - shimmerPos);
+  if (d >= SHIMMER_RADIUS) return BASE;
   // Cosine interpolation: 1.0 at center → 0.0 at SHIMMER_RADIUS
-  const t = (1 + Math.cos((absd / SHIMMER_RADIUS) * Math.PI)) / 2;
-  const base = d <= 0 ? BASE_LEFT : BASE_RIGHT;
-  return Math.round(base + (PEAK - base) * t);
+  const t = (1 + Math.cos((d / SHIMMER_RADIUS) * Math.PI)) / 2;
+  return Math.round(BASE + (PEAK - BASE) * t);
 }
 
 /**
  * Apply a shimmer highlight effect to text at a given position.
  * Uses 256-color grayscale for a smooth multi-shade gradient.
  *
- * The shimmer sweeps left-to-right. Text the shimmer has already passed
- * fades to a darker gray; text it hasn't reached stays brighter — creating
- * a natural trailing wake.
+ * A bright glow centered at `pos` sweeps left-to-right across text that
+ * is otherwise rendered in a uniform base gray. Because both sides of the
+ * glow share the same base shade, wrapping is seamless — no harsh jump.
  *
  * When NO_COLOR is set, returns the plain text.
  */

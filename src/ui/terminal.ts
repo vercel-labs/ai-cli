@@ -493,9 +493,10 @@ export async function terminal(model: string, version: string): Promise<void> {
       statusText = text;
       return;
     }
-    // First status line: set up spacing, reset shimmer, start timer
+    // New status line — set up spacing and start the timer.
+    // Don't reset shimmerPos: let it continue flowing across
+    // clearStatus/showStatus cycles so the animation never restarts.
     spacing.beforeStatus();
-    shimmerPos = -SHIMMER_PADDING;
     out.write(`${shimmerText(text, shimmerPos)}\n`);
     statusText = text;
 
