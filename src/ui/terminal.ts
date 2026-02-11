@@ -671,6 +671,32 @@ export async function terminal(
       return;
     }
 
+    // Backspace at start of line in multiline → merge with previous committed line
+    if (
+      (str === '\x7f' || str === '\b') &&
+      multilineLines.length > 0 &&
+      (rl as ReadlineInternal).cursor === 0
+    ) {
+      const internal = rl as ReadlineInternal;
+      const prevLine = multilineLines.pop()!;
+      const currentLine = internal.line;
+      const merged = prevLine + currentLine;
+      // Erase the current readline line, then move up and erase the committed line
+      process.stdout.write(`\r${ansi.eraseLine}`);
+      process.stdout.write(`${ansi.cursorUp(1)}${ansi.eraseLine}\r`);
+      // Update readline state with merged content
+      internal.line = merged;
+      internal.cursor = prevLine.length;
+      const prefix = multilineLines.length === 0 ? '› ' : '  ';
+      rl.setPrompt(dim(prefix));
+      // Render merged line and position cursor at the join point
+      process.stdout.write(`${dim(prefix)}${merged}`);
+      if (currentLine.length > 0) {
+        process.stdout.write(ansi.cursorBackward(currentLine.length));
+      }
+      return;
+    }
+
     // Ctrl+J / Alt+Enter / Shift+Enter (kitty) → add line to multiline buffer
     if (str === '\n' || str === '\x1b\r' || str === '\x1b[13;2u') {
       const internal = rl as ReadlineInternal;
