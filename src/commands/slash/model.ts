@@ -6,7 +6,7 @@ export const model: CommandHandler = async (ctx, args) => {
   const search = args?.trim().toLowerCase();
   if (!search) return {};
 
-  let allModels: { id: string; type: string }[];
+  let allModels: { id: string }[];
   try {
     allModels = await fetchModels();
   } catch {

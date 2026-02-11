@@ -13,7 +13,7 @@ export async function listModels(): Promise<void> {
     const grouped = new Map<string, Model[]>();
 
     for (const model of models) {
-      const provider = model.owned_by;
+      const provider = model.id.split('/')[0] ?? 'unknown';
       const existing = grouped.get(provider) ?? [];
       existing.push(model);
       grouped.set(provider, existing);
@@ -24,10 +24,7 @@ export async function listModels(): Promise<void> {
     for (const [provider, providerModels] of grouped) {
       console.log(dim(`  ${provider}`));
       for (const model of providerModels) {
-        const tags = model.tags?.length
-          ? dim(` [${model.tags.join(', ')}]`)
-          : '';
-        console.log(`    ${model.id}${tags}`);
+        console.log(`    ${model.id}`);
       }
       console.log();
     }
