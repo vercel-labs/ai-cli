@@ -3,3 +3,6 @@ dist
 ai
 gateway
 .DS_Store
+
+# opensrc - source code for packages
+opensrc/

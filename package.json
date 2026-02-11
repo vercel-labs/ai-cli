@@ -6,7 +6,7 @@
     "@biomejs/biome": "2.1.4",
     "@types/node": "^24.1.0",
     "@xterm/headless": "^6.0.0",
-    "ai": "6.0.71",
+    "ai": "6.0.79",
     "ansi-escapes": "^7.3.0",
     "arg": "^5.0.2",
     "esbuild": "^0.25.8",
@@ -38,7 +38,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@ai-sdk/gateway": "3.0.34",
+    "@ai-sdk/gateway": "3.0.40",
     "@ai-sdk/mcp": "^1.0.18",
     "@mozilla/readability": "^0.6.0",
     "linkedom": "^0.18.12"

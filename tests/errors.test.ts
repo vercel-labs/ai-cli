@@ -68,8 +68,34 @@ describe('formatError', () => {
     expect(formatError(error)).toBe('network error. check connection');
   });
 
-  test('handles unknown errors', () => {
+  test('handles tool failed errors', () => {
+    const error = new Error('tool failed: readFile');
+    expect(formatError(error)).toBe('tool failed. try again or /model to switch');
+  });
+
+  test('handles type validation errors by message', () => {
+    const error = new Error('Type validation failed: Value: {}');
+    expect(formatError(error)).toBe(
+      'provider returned unexpected data. try again or /model to switch',
+    );
+  });
+
+  test('handles type validation errors by name', () => {
+    const error = Object.assign(new Error(''), {
+      name: 'AI_TypeValidationError',
+    });
+    expect(formatError(error)).toBe(
+      'provider returned unexpected data. try again or /model to switch',
+    );
+  });
+
+  test('handles unknown errors with message', () => {
     const error = new Error('Something weird happened');
+    expect(formatError(error)).toBe('error: Something weird happened');
+  });
+
+  test('handles unknown errors without message', () => {
+    const error = new Error();
     expect(formatError(error)).toBe('error. try again');
   });
 

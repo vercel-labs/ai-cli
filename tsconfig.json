@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "lib": ["es2022"],
+    "lib": [
+      "es2022"
+    ],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
@@ -10,5 +12,10 @@
     "skipLibCheck": true,
     "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "opensrc"
+  ]
 }
