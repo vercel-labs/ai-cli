@@ -1,30 +1,74 @@
 import { logError } from './errorlog.js';
 
-type ApiError = Error & { statusCode?: number; cause?: Error };
+type ApiError = Error & {
+  statusCode?: number;
+  cause?: ApiError;
+  data?: { error?: { message?: string } };
+  responseBody?: string;
+  type?: string;
+};
+
+/**
+ * Collect all error messages from the error and its cause chain
+ * so gateway/provider-specific details aren't lost.
+ */
+function collectMessages(err: ApiError): string {
+  const parts: string[] = [];
+  if (err.message) parts.push(err.message.toLowerCase());
+  if (err.data?.error?.message)
+    parts.push(err.data.error.message.toLowerCase());
+  let cursor: ApiError | undefined = err.cause as ApiError | undefined;
+  while (cursor) {
+    if (cursor.message) parts.push(cursor.message.toLowerCase());
+    if (cursor.data?.error?.message)
+      parts.push(cursor.data.error.message.toLowerCase());
+    cursor = cursor.cause as ApiError | undefined;
+  }
+  return parts.join(' ');
+}
 
 export function formatError(error: unknown): string {
   logError(error);
   const err = error as ApiError;
-  const msg = err.message?.toLowerCase() || '';
-  const causeMsg = err.cause?.message?.toLowerCase() || '';
+  const all = collectMessages(err);
 
-  if (msg.includes('authentication') || err.statusCode === 401) {
+  if (all.includes('authentication') || err.statusCode === 401) {
     return 'invalid key. run: ai init';
   }
   if (
     err.statusCode === 402 ||
-    msg.includes('credit') ||
-    msg.includes('balance') ||
-    msg.includes('payment') ||
-    msg.includes('insufficient')
+    all.includes('credit') ||
+    all.includes('balance') ||
+    all.includes('payment') ||
+    all.includes('insufficient')
   ) {
     return 'out of credits. top up at vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai';
   }
-  if (err.statusCode === 429 || msg.includes('rate limit')) {
+  if (err.statusCode === 429 || all.includes('rate limit')) {
     return 'rate limited. try again later';
   }
-  if (msg.includes('unsupported') || causeMsg.includes('unsupported')) {
-    const match = msg.match(/unsupported[^:]*:\s*([^,]+)/i);
+
+  // Model not found / not available (404, gateway routing failures)
+  if (
+    err.statusCode === 404 ||
+    all.includes('was not found') ||
+    all.includes('does not have access') ||
+    all.includes('model not found')
+  ) {
+    return 'model not available. try /model to switch';
+  }
+
+  // Model doesn't support required features (tool use, streaming, etc.)
+  if (
+    all.includes("doesn't support") ||
+    all.includes('does not support') ||
+    all.includes('not supported')
+  ) {
+    return 'model does not support this feature. try /model to switch';
+  }
+
+  if (all.includes('unsupported')) {
+    const match = err.message?.match(/unsupported[^:]*:\s*([^,]+)/i);
     return match ? `unsupported: ${match[1]}` : 'unsupported operation';
   }
   if (err.statusCode === 400) {
@@ -40,11 +84,17 @@ export function formatError(error: unknown): string {
   ) {
     return 'server error. try again later';
   }
-  if (msg.includes('timeout') || msg.includes('timed out')) {
+  if (all.includes('timeout') || all.includes('timed out')) {
     return 'request timed out. try again';
   }
-  if (msg.includes('network') || msg.includes('econnrefused')) {
+  if (all.includes('network') || all.includes('econnrefused')) {
     return 'network error. check connection';
+  }
+  if (all.includes('content filter') || all.includes('content_filter')) {
+    return 'blocked by content filter. rephrase and try again';
+  }
+  if (all.includes('context length') || all.includes('too long')) {
+    return 'message too long. try /compress or shorten your input';
   }
   return 'error. try again';
 }

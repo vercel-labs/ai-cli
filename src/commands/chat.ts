@@ -89,6 +89,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
         },
       },
       headers: AI_CLI_HEADERS,
+      onError: () => {},
     });
 
     for await (const part of result.fullStream) {

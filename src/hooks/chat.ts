@@ -309,6 +309,10 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         },
         headers: AI_CLI_HEADERS,
         abortSignal: options.abortSignal,
+        // Suppress the SDK's default onError which console.error's the
+        // full error object.  We handle errors in our own stream loop
+        // and format them with formatError() for a clean user message.
+        onError: () => {},
       });
     } catch (e) {
       history.length = historyLen;
@@ -671,6 +675,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       },
       headers: AI_CLI_HEADERS,
       abortSignal: options.abortSignal,
+      onError: () => {},
     });
 
     let contBuffer = '';
