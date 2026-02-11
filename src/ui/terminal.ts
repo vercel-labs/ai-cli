@@ -652,29 +652,14 @@ export async function terminal(
     killAllProcesses();
     process.stdout.write(`\n${ansi.cursorShow}`);
     if (tokens > 0) {
-      const parts: string[] = [];
-      if (tokenUsage.inputTokens > 0) {
-        parts.push(`in: ${formatTokenCount(tokenUsage.inputTokens)}`);
+      const { inputTokens, outputTokens, cacheReadTokens } = tokenUsage;
+      let input = formatTokenCount(inputTokens);
+      if (cacheReadTokens > 0) {
+        input += ` (${formatTokenCount(cacheReadTokens)} cached)`;
       }
-      if (tokenUsage.outputTokens > 0) {
-        parts.push(`out: ${formatTokenCount(tokenUsage.outputTokens)}`);
-      }
-      if (tokenUsage.cacheReadTokens > 0) {
-        parts.push(`cached: ${formatTokenCount(tokenUsage.cacheReadTokens)}`);
-      }
-      if (tokenUsage.cacheWriteTokens > 0) {
-        parts.push(
-          `cache write: ${formatTokenCount(tokenUsage.cacheWriteTokens)}`,
-        );
-      }
-      if (tokenUsage.reasoningTokens > 0) {
-        parts.push(
-          `reasoning: ${formatTokenCount(tokenUsage.reasoningTokens)}`,
-        );
-      }
-      if (parts.length > 0) {
-        process.stdout.write(`${dim(`tokens: ${parts.join(' · ')}`)}\n`);
-      }
+      process.stdout.write(
+        `${dim(`total: ${input} input · ${formatTokenCount(outputTokens)} output`)}\n`,
+      );
     }
     if (chat?.id && chat.messages.length > 0) {
       process.stdout.write(

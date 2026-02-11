@@ -1,7 +1,12 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { type ModelMessage, stepCountIs, streamText } from 'ai';
+import {
+  type ModelMessage,
+  type SystemModelMessage,
+  stepCountIs,
+  streamText,
+} from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
 import { getSetting } from '../config/settings.js';
 import { getTools, loadMcpTools } from '../tools/index.js';
@@ -177,6 +182,67 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const ANTHROPIC_CACHE_CONTROL = {
+  anthropic: { cacheControl: { type: 'ephemeral' as const } },
+};
+
+function isAnthropicModel(model: string): boolean {
+  return model.startsWith('anthropic/');
+}
+
+function buildSystemParam(
+  sys: string,
+  model: string,
+): string | SystemModelMessage {
+  if (!isAnthropicModel(model)) return sys;
+  return {
+    role: 'system' as const,
+    content: sys,
+    providerOptions: ANTHROPIC_CACHE_CONTROL,
+  };
+}
+
+/**
+ * Add an ephemeral cache-control breakpoint to the last message in
+ * history so Anthropic can cache the conversation prefix.
+ * Mutates the array in place; call removeHistoryCacheBreakpoint()
+ * afterwards to clean up.
+ */
+function addHistoryCacheBreakpoint(
+  history: ModelMessage[],
+  model: string,
+): void {
+  if (!isAnthropicModel(model) || history.length === 0) return;
+  const last = history[history.length - 1];
+  if (last.role === 'user' || last.role === 'assistant') {
+    (last as { providerOptions?: Record<string, unknown> }).providerOptions = {
+      ...last.providerOptions,
+      ...ANTHROPIC_CACHE_CONTROL,
+    };
+  }
+}
+
+function removeHistoryCacheBreakpoint(
+  history: ModelMessage[],
+  model: string,
+): void {
+  if (!isAnthropicModel(model) || history.length === 0) return;
+  const last = history[history.length - 1];
+  if (
+    last.providerOptions &&
+    'anthropic' in last.providerOptions &&
+    (last.providerOptions as Record<string, unknown>).anthropic ===
+      ANTHROPIC_CACHE_CONTROL.anthropic
+  ) {
+    const { anthropic: _, ...rest } = last.providerOptions as Record<
+      string,
+      unknown
+    >;
+    (last as { providerOptions?: Record<string, unknown> }).providerOptions =
+      Object.keys(rest).length > 0 ? rest : undefined;
+  }
+}
+
 interface UsageResult {
   inputTokens?: number;
   outputTokens?: number;
@@ -327,12 +393,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   }> | null = null;
   let fetchContent: string | null = null;
 
+  // Add cache breakpoint on the last history message before the new user
+  // message so the conversation prefix can be cached by Anthropic.
+  addHistoryCacheBreakpoint(history, model);
+
   const result = await (async () => {
     try {
       const mcpTools = useTools ? await loadMcpTools() : {};
       return streamText({
         model,
-        system: sys,
+        system: buildSystemParam(sys, model),
         messages: history,
         tools: useTools ? getTools(mcpTools) : undefined,
         stopWhen: stepCountIs(steps),
@@ -351,6 +421,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       throw e;
     }
   })();
+
+  // Clean up the cache breakpoint so it doesn't leak into persisted history.
+  removeHistoryCacheBreakpoint(history, model);
 
   const flushReasoning = () => {
     if (reasoning && reasoningStart) {
@@ -700,7 +773,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
     const contResult = streamText({
       model,
-      system: sys,
+      system: buildSystemParam(sys, model),
       messages: contHistory,
       stopWhen: stepCountIs(1),
       providerOptions: {
