@@ -1138,7 +1138,6 @@ export async function terminal(
     rl.prompt();
   }
 
-  process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
   updateTitle();
 
   if (resumeId) {
