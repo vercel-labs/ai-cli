@@ -17,6 +17,7 @@ interface Args {
   '--list'?: boolean;
   '--image'?: string;
   '--no-color'?: boolean;
+  '--resume'?: string;
   _: string[];
 }
 
@@ -29,9 +30,11 @@ async function main() {
       '--list': Boolean,
       '--image': String,
       '--no-color': Boolean,
+      '--resume': String,
       '-m': '--model',
       '-h': '--help',
       '-l': '--list',
+      '-r': '--resume',
     }) as Args;
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -83,6 +86,15 @@ async function main() {
 
   const modelArg = args['--model'];
   const model = modelArg ? await resolveModel(modelArg) : savedModel;
+
+  if (args['--resume'] && process.stdin.isTTY) {
+    await inkCommand({
+      model,
+      version,
+      resume: args['--resume'],
+    });
+    return;
+  }
 
   let message = args._.join(' ');
 
