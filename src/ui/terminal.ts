@@ -577,18 +577,10 @@ export async function terminal(model: string, version: string): Promise<void> {
         break;
       }
       case 'info': {
-        // Highlight the subject in "Verb subject" messages (e.g. "Deleted blog/")
         const nlIdx = msg.content.indexOf('\n');
         const firstLine =
           nlIdx >= 0 ? msg.content.slice(0, nlIdx) : msg.content;
-        const spaceIdx = firstLine.indexOf(' ');
-        if (spaceIdx > 0) {
-          const verb = firstLine.slice(0, spaceIdx + 1);
-          const subject = firstLine.slice(spaceIdx + 1);
-          out.write(`${dim(verb)}${subject}\n`);
-        } else {
-          out.write(`${dim(firstLine)}\n`);
-        }
+        out.write(`${dim(firstLine)}\n`);
         if (nlIdx >= 0) {
           // Body lines (e.g. diff from editFile) — preserve original colors
           out.write(`${msg.content.slice(nlIdx + 1)}\n`);
