@@ -36,6 +36,7 @@ import {
 import { detectPackageManager } from '../utils/package-manager.js';
 import { killAllProcesses } from '../utils/processes.js';
 import { createStreamWrap, wrap } from '../utils/wrap.js';
+import { InlineMenu } from './inline-menu.js';
 import { Output } from './output.js';
 import { SpacingController } from './spacing.js';
 
@@ -85,7 +86,11 @@ export async function terminal(model: string, version: string): Promise<void> {
   let selectMode = false;
   let confirmMode = false;
   let commandMode = false;
-  let cmdSuggestionCount = 0; // number of suggestion lines currently rendered
+  let cmdBuffer = ''; // manual line buffer for command mode (bypasses readline)
+  const cmdMenu = new InlineMenu([], {
+    maxVisible: 8,
+    filter: (item, query) => item.startsWith(query),
+  });
   let editStreamRendered = false;
   let editStreamLineCount = 0;
   let pendingImage: { data: string; mimeType: string } | null = null;
@@ -95,36 +100,34 @@ export async function terminal(model: string, version: string): Promise<void> {
     reasoning: false,
   };
 
-  function clearCmdSuggestions(): void {
-    if (cmdSuggestionCount > 0) {
-      process.stdout.write(ansi.cursorSavePosition);
-      for (let i = 0; i < cmdSuggestionCount; i++) {
-        process.stdout.write(`\n${ansi.eraseLine}`);
-      }
-      process.stdout.write(ansi.cursorRestorePosition);
-      cmdSuggestionCount = 0;
-    }
+  /** Populate the command menu with the current slash-command names. */
+  function refreshCmdMenuItems(): void {
+    const [completions] = getCompletions('/');
+    cmdMenu.setItems(completions.map((c) => c.slice(1))); // strip leading /
   }
 
-  function renderCmdSuggestions(input: string): void {
-    clearCmdSuggestions();
-    const [completions] = getCompletions(`/${input}`);
-    if (completions.length === 0) return;
+  /** Enter command mode: switch prompt, open the menu. */
+  function enterCommandMode(): void {
+    commandMode = true;
+    cmdBuffer = '';
+    rl.setPrompt(dim('/ '));
+    refreshCmdMenuItems();
+    cmdMenu.open('');
+    redrawCmdLine();
+  }
 
-    process.stdout.write(ansi.cursorSavePosition);
-    const toShow = completions.slice(0, 8);
-    for (const c of toShow) {
-      process.stdout.write(`\n${ansi.eraseLine}${dim(`  ${c.slice(1)}`)}`);
-    }
-    if (completions.length > 8) {
-      process.stdout.write(
-        `\n${ansi.eraseLine}${dim(`  ... ${completions.length - 8} more`)}`,
-      );
-      cmdSuggestionCount = toShow.length + 1;
-    } else {
-      cmdSuggestionCount = toShow.length;
-    }
-    process.stdout.write(ansi.cursorRestorePosition);
+  /** Exit command mode: close menu, restore normal prompt. */
+  function exitCommandMode(): void {
+    commandMode = false;
+    cmdBuffer = '';
+    cmdMenu.close();
+    rl.setPrompt(dim('› '));
+    process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+  }
+
+  /** Redraw the command-mode prompt line (without touching readline). */
+  function redrawCmdLine(): void {
+    process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${cmdBuffer}`);
   }
 
   async function updateCapabilities(modelId: string): Promise<void> {
@@ -365,52 +368,109 @@ export async function terminal(model: string, version: string): Promise<void> {
       return;
     }
 
+    // ── Enter command mode when / is typed on an empty line ──
     if (!commandMode && rl.line === '' && str === '/') {
-      commandMode = true;
-      rl.setPrompt(dim('/ '));
-      process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}`);
-      renderCmdSuggestions('');
+      enterCommandMode();
       return;
     }
 
-    if (commandMode && rl.line === '' && (str === '\x7f' || str === '\b')) {
-      commandMode = false;
-      clearCmdSuggestions();
-      rl.setPrompt(dim('› '));
-      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
-      return;
-    }
-
-    if (str === '\t' && commandMode) {
-      const internal = rl as ReadlineInternal;
-      const [completions] = getCompletions(`/${internal.line}`);
-      if (completions.length === 1) {
-        const completed = `${completions[0].slice(1)} `;
-        internal.line = completed;
-        internal.cursor = completed.length;
-        clearCmdSuggestions();
-        process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${completed}`);
-      } else if (completions.length > 1) {
-        const common = completions
-          .reduce((a, b) => {
-            let i = 0;
-            while (i < a.length && i < b.length && a[i] === b[i]) i++;
-            return a.slice(0, i);
-          })
-          .slice(1);
-        if (common.length > internal.line.length) {
-          internal.line = common;
-          internal.cursor = common.length;
-          process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${common}`);
-          renderCmdSuggestions(common);
-        }
+    // ── All command-mode input is handled here (bypasses readline) ──
+    if (commandMode) {
+      // Escape — exit command mode
+      if (str === '\x1b' && str.length === 1) {
+        pendingImage = null;
+        (rl as ReadlineInternal).line = '';
+        (rl as ReadlineInternal).cursor = 0;
+        exitCommandMode();
+        return;
       }
+
+      // Backspace on empty buffer — exit command mode
+      if (cmdBuffer === '' && (str === '\x7f' || str === '\b')) {
+        exitCommandMode();
+        return;
+      }
+
+      // Backspace — remove last char
+      if (str === '\x7f' || str === '\b') {
+        cmdBuffer = cmdBuffer.slice(0, -1);
+        cmdMenu.setFilter(cmdBuffer);
+        redrawCmdLine();
+        return;
+      }
+
+      // Up arrow — move selection up
+      if (str === '\x1b[A') {
+        cmdMenu.moveUp();
+        redrawCmdLine();
+        return;
+      }
+
+      // Down arrow — move selection down
+      if (str === '\x1b[B') {
+        cmdMenu.moveDown();
+        redrawCmdLine();
+        return;
+      }
+
+      // Tab — complete with selected item
+      if (str === '\t') {
+        const selected = cmdMenu.getSelected();
+        if (selected) {
+          cmdBuffer = `${selected} `;
+          cmdMenu.setFilter(cmdBuffer.trimEnd());
+        }
+        redrawCmdLine();
+        return;
+      }
+
+      // Enter — submit the command
+      if (str === '\r' || str === '\n') {
+        // Use the selected menu item if available, otherwise use typed text
+        const selected = cmdMenu.getSelected();
+        const finalCmd = (selected ?? cmdBuffer).trimEnd();
+        cmdMenu.close();
+        commandMode = false;
+        cmdBuffer = '';
+
+        if (!finalCmd) {
+          rl.setPrompt(dim('› '));
+          process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+          return;
+        }
+
+        const fullLine = `/${finalCmd}`;
+        // Add to readline history so up-arrow recalls it
+        (rl as ReadlineInternal).history.unshift(fullLine);
+        (rl as ReadlineInternal).line = '';
+        (rl as ReadlineInternal).cursor = 0;
+        rl.setPrompt(dim('› '));
+        process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${finalCmd}\n`);
+        handleInput(fullLine);
+        return;
+      }
+
+      // Ctrl+C — exit
+      if (str === '\x03') {
+        exitCommandMode();
+        return;
+      }
+
+      // Printable character — append to buffer
+      if (str.length === 1 && str >= ' ') {
+        cmdBuffer += str;
+        cmdMenu.setFilter(cmdBuffer);
+        redrawCmdLine();
+        return;
+      }
+
+      // Ignore all other keys (arrows left/right, etc.) in command mode
       return;
     }
+
+    // ── Normal mode (not command mode) ──
 
     if (str === '\x1b' && str.length === 1) {
-      commandMode = false;
-      clearCmdSuggestions();
       pendingImage = null;
       rl.setPrompt(dim('› '));
       (rl as ReadlineInternal).line = '';
@@ -430,14 +490,6 @@ export async function terminal(model: string, version: string): Promise<void> {
     }
 
     inputStream.write(chunk);
-
-    // Update command suggestions after readline processes the keystroke
-    if (commandMode) {
-      setImmediate(() => {
-        const line = (rl as ReadlineInternal).line;
-        renderCmdSuggestions(line);
-      });
-    }
   });
 
   function cleanup() {
@@ -705,8 +757,9 @@ export async function terminal(model: string, version: string): Promise<void> {
     let msg = line.trim();
 
     if (commandMode) {
-      clearCmdSuggestions();
+      cmdMenu.close();
       commandMode = false;
+      cmdBuffer = '';
       rl.setPrompt(dim('› '));
       if (msg) {
         msg = `/${msg}`;
@@ -1046,28 +1099,29 @@ export async function terminal(model: string, version: string): Promise<void> {
   process.stdin.on('keypress', (_str, key) => {
     if (selectMode || busy || confirmMode) return;
 
+    // Command mode handles its own input in the 'data' handler — skip here
+    if (commandMode) return;
+
     if (key?.name === 'escape') {
-      commandMode = false;
       rl.setPrompt(dim('› '));
       rl.write(null, { ctrl: true, name: 'u' });
       process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
       return;
     }
 
+    // When history recalls a /command, enter command mode
     if (key?.name === 'up' || key?.name === 'down') {
       setImmediate(() => {
         const line = rl.line;
         if (line.startsWith('/') && !commandMode) {
           commandMode = true;
-          const rest = line.slice(1);
-          (rl as ReadlineInternal).line = rest;
-          (rl as ReadlineInternal).cursor = rest.length;
+          cmdBuffer = line.slice(1);
+          (rl as ReadlineInternal).line = '';
+          (rl as ReadlineInternal).cursor = 0;
           rl.setPrompt(dim('/ '));
-          process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${rest}`);
-        } else if (!line.startsWith('/') && commandMode) {
-          commandMode = false;
-          rl.setPrompt(dim('› '));
-          process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}${line}`);
+          refreshCmdMenuItems();
+          cmdMenu.open(cmdBuffer);
+          redrawCmdLine();
         }
       });
     }
