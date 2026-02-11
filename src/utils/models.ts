@@ -1,11 +1,9 @@
+import { gateway } from '@ai-sdk/gateway';
+import type { GatewayLanguageModelEntry } from '@ai-sdk/gateway';
+
 export const GATEWAY_URL = 'https://ai-gateway.vercel.sh';
 
-export interface Model {
-  id: string;
-  type: string;
-  owned_by: string;
-  tags?: string[];
-}
+export type Model = GatewayLanguageModelEntry;
 
 export interface ModelCapabilities {
   vision: boolean;
@@ -18,9 +16,8 @@ const capabilitiesCache: Map<string, ModelCapabilities> = new Map();
 
 export async function fetchModels(): Promise<Model[]> {
   if (cachedModels) return cachedModels;
-  const response = await fetch(`${GATEWAY_URL}/v1/models`);
-  const { data } = (await response.json()) as { data: Model[] };
-  cachedModels = data.filter((m) => m.type === 'language');
+  const { models } = await gateway.getAvailableModels();
+  cachedModels = models;
   return cachedModels;
 }
 
@@ -79,14 +76,17 @@ export async function getModelCapabilities(
     return cached;
   }
 
-  const models = await fetchModels();
-  const model = models.find((m) => m.id === modelId);
-  const tags = model?.tags || [];
+  const lower = modelId.toLowerCase();
 
   const capabilities: ModelCapabilities = {
-    vision: tags.includes('vision') || tags.includes('file-input'),
-    tools: tags.includes('tool-use'),
-    reasoning: tags.includes('reasoning'),
+    vision: true,
+    tools: true,
+    reasoning:
+      lower.includes('o1') ||
+      lower.includes('o3') ||
+      lower.includes('o4') ||
+      lower.includes('thinking') ||
+      lower.includes('reason'),
   };
 
   capabilitiesCache.set(modelId, capabilities);

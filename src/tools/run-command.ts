@@ -39,7 +39,7 @@ export function killRunningCommand(): void {
 
 export const runCommand = tool({
   description:
-    'Run shell commands. Use for: date, pwd, ls, git, npm/bun commands, build, test, etc. NEVER use for dev/start/watch/serve - those need startProcess.',
+    'Run shell commands. Use for: date, pwd, ls, git, package manager commands, build, test, etc. ALWAYS use the project package manager from the system prompt (pnpm/bun/yarn) — NEVER default to npm. NEVER use for dev/start/watch/serve - those need startProcess.',
   inputSchema: z.object({
     command: z.string().describe('The shell command to execute'),
   }),

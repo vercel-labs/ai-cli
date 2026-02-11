@@ -1,7 +1,12 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { type ModelMessage, stepCountIs, streamText } from 'ai';
+import {
+  type ModelMessage,
+  type SystemModelMessage,
+  stepCountIs,
+  streamText,
+} from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
 import { getSetting } from '../config/settings.js';
 import { getTools, loadMcpTools } from '../tools/index.js';
@@ -32,6 +37,14 @@ function sdkLog(event: string, data?: unknown): void {
   sdkLogStream.write(`${ts} ${event}${payload}\n`);
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  reasoningTokens: number;
+}
+
 interface StreamCallbacks {
   onStatus: (status: string) => void;
   onPending: (text: string) => void;
@@ -54,6 +67,7 @@ interface StreamCallbacks {
   ) => void;
   onTokens: (fn: (t: number) => number) => void;
   onCost: (fn: (c: number) => number) => void;
+  onUsage?: (usage: TokenUsage) => void;
   onSummary: (summary: string) => void;
   onBusy: (busy: boolean) => void;
 }
@@ -166,6 +180,90 @@ interface ProviderMeta {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const ANTHROPIC_CACHE_CONTROL = {
+  anthropic: { cacheControl: { type: 'ephemeral' as const } },
+};
+
+function isAnthropicModel(model: string): boolean {
+  return model.startsWith('anthropic/');
+}
+
+function buildSystemParam(
+  sys: string,
+  model: string,
+): string | SystemModelMessage {
+  if (!isAnthropicModel(model)) return sys;
+  return {
+    role: 'system' as const,
+    content: sys,
+    providerOptions: ANTHROPIC_CACHE_CONTROL,
+  };
+}
+
+/**
+ * Add an ephemeral cache-control breakpoint to the last message in
+ * history so Anthropic can cache the conversation prefix.
+ * Mutates the array in place; call removeHistoryCacheBreakpoint()
+ * afterwards to clean up.
+ */
+function addHistoryCacheBreakpoint(
+  history: ModelMessage[],
+  model: string,
+): void {
+  if (!isAnthropicModel(model) || history.length === 0) return;
+  const last = history[history.length - 1];
+  if (last.role === 'user' || last.role === 'assistant') {
+    (last as { providerOptions?: Record<string, unknown> }).providerOptions = {
+      ...last.providerOptions,
+      ...ANTHROPIC_CACHE_CONTROL,
+    };
+  }
+}
+
+function removeHistoryCacheBreakpoint(
+  history: ModelMessage[],
+  model: string,
+): void {
+  if (!isAnthropicModel(model) || history.length === 0) return;
+  const last = history[history.length - 1];
+  if (
+    last.providerOptions &&
+    'anthropic' in last.providerOptions &&
+    (last.providerOptions as Record<string, unknown>).anthropic ===
+      ANTHROPIC_CACHE_CONTROL.anthropic
+  ) {
+    const { anthropic: _, ...rest } = last.providerOptions as Record<
+      string,
+      unknown
+    >;
+    (last as { providerOptions?: Record<string, unknown> }).providerOptions =
+      Object.keys(rest).length > 0 ? rest : undefined;
+  }
+}
+
+interface UsageResult {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  inputTokenDetails?: {
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+  };
+  outputTokenDetails?: {
+    reasoningTokens?: number;
+  };
+}
+
+function extractTokenUsage(u: UsageResult): TokenUsage {
+  return {
+    inputTokens: u.inputTokens ?? 0,
+    outputTokens: u.outputTokens ?? 0,
+    cacheReadTokens: u.inputTokenDetails?.cacheReadTokens ?? 0,
+    cacheWriteTokens: u.inputTokenDetails?.cacheWriteTokens ?? 0,
+    reasoningTokens: u.outputTokenDetails?.reasoningTokens ?? 0,
+  };
 }
 
 let spacingSequenceTurn = 0;
@@ -295,12 +393,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   }> | null = null;
   let fetchContent: string | null = null;
 
+  // Add cache breakpoint on the last history message before the new user
+  // message so the conversation prefix can be cached by Anthropic.
+  addHistoryCacheBreakpoint(history, model);
+
   const result = await (async () => {
     try {
       const mcpTools = useTools ? await loadMcpTools() : {};
       return streamText({
         model,
-        system: sys,
+        system: buildSystemParam(sys, model),
         messages: history,
         tools: useTools ? getTools(mcpTools) : undefined,
         stopWhen: stepCountIs(steps),
@@ -309,12 +411,19 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         },
         headers: AI_CLI_HEADERS,
         abortSignal: options.abortSignal,
+        // Suppress the SDK's default onError which console.error's the
+        // full error object.  We handle errors in our own stream loop
+        // and format them with formatError() for a clean user message.
+        onError: () => {},
       });
     } catch (e) {
       history.length = historyLen;
       throw e;
     }
   })();
+
+  // Clean up the cache breakpoint so it doesn't leak into persisted history.
+  removeHistoryCacheBreakpoint(history, model);
 
   const flushReasoning = () => {
     if (reasoning && reasoningStart) {
@@ -608,6 +717,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     Promise.resolve(result.usage)
       .then((u) => {
         if (u?.totalTokens) callbacks.onTokens((t) => t + (u.totalTokens ?? 0));
+        if (u) callbacks.onUsage?.(extractTokenUsage(u as UsageResult));
       })
       .catch(() => {});
     Promise.resolve(
@@ -663,7 +773,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
     const contResult = streamText({
       model,
-      system: sys,
+      system: buildSystemParam(sys, model),
       messages: contHistory,
       stopWhen: stepCountIs(1),
       providerOptions: {
@@ -671,6 +781,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       },
       headers: AI_CLI_HEADERS,
       abortSignal: options.abortSignal,
+      onError: () => {},
     });
 
     let contBuffer = '';
@@ -703,6 +814,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
     if (contUsage?.totalTokens) {
       callbacks.onTokens((t) => t + (contUsage.totalTokens ?? 0));
+    }
+    if (contUsage) {
+      callbacks.onUsage?.(extractTokenUsage(contUsage as UsageResult));
     }
     if (contMeta?.gateway?.cost) {
       callbacks.onCost(
@@ -762,6 +876,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   if (usage?.totalTokens) {
     callbacks.onTokens((t) => t + (usage.totalTokens ?? 0));
+  }
+  if (usage) {
+    callbacks.onUsage?.(extractTokenUsage(usage as UsageResult));
   }
 
   if (meta?.gateway?.cost) {

@@ -6,6 +6,9 @@ export interface ManagedProcess {
   startedAt: number;
   process: ChildProcess;
   logs: string[];
+  urls: string[];
+  exitCode: number | null;
+  exitedAt: number | null;
 }
 
 const MAX_LOG_LINES = 100;
@@ -26,6 +29,9 @@ export function startManagedProcess(command: string): ManagedProcess {
     startedAt: Date.now(),
     process: proc,
     logs: [],
+    urls: [],
+    exitCode: null,
+    exitedAt: null,
   };
 
   const addLog = (data: Buffer) => {
@@ -41,20 +47,36 @@ export function startManagedProcess(command: string): ManagedProcess {
   proc.stdout?.on('data', addLog);
   proc.stderr?.on('data', addLog);
 
-  proc.on('exit', () => {
-    processes.delete(managed.pid);
+  proc.on('exit', (code) => {
+    managed.exitCode = code ?? 1;
+    managed.exitedAt = Date.now();
   });
 
   processes.set(managed.pid, managed);
   return managed;
 }
 
+export function isRunning(proc: ManagedProcess): boolean {
+  return proc.exitCode === null;
+}
+
 export function getProcesses(): ManagedProcess[] {
   return Array.from(processes.values());
 }
 
+export function getRunningProcesses(): ManagedProcess[] {
+  return Array.from(processes.values()).filter(isRunning);
+}
+
 export function getProcess(pid: number): ManagedProcess | undefined {
   return processes.get(pid);
+}
+
+export function setProcessUrls(pid: number, urls: string[]): void {
+  const managed = processes.get(pid);
+  if (managed) {
+    managed.urls = urls;
+  }
 }
 
 export function killManagedProcess(pid: number): boolean {
@@ -68,9 +90,19 @@ export function killManagedProcess(pid: number): boolean {
 
 export function killAllProcesses(): void {
   for (const managed of processes.values()) {
-    managed.process.kill();
+    if (isRunning(managed)) {
+      managed.process.kill();
+    }
   }
   processes.clear();
+}
+
+export function clearExitedProcesses(): void {
+  for (const [pid, managed] of processes.entries()) {
+    if (!isRunning(managed)) {
+      processes.delete(pid);
+    }
+  }
 }
 
 export function getProcessLogs(pid: number, lines = 50): string[] {

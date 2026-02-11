@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { getProcesses, killManagedProcess } from '../utils/processes.js';
+import { getRunningProcesses, killManagedProcess } from '../utils/processes.js';
 
 export const killProcess = tool({
   description:
@@ -17,7 +17,7 @@ export const killProcess = tool({
     let targetPid = pid;
 
     if (!targetPid) {
-      const procs = getProcesses();
+      const procs = getRunningProcesses();
       if (procs.length === 0) {
         return { error: 'No background processes running' };
       }

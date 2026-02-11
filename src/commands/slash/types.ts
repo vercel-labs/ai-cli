@@ -1,6 +1,7 @@
 import type * as readline from 'node:readline';
 import type { ModelMessage } from 'ai';
 import type { Chat } from '../../config/chats.js';
+import type { TokenUsage } from '../../hooks/chat.js';
 
 export interface Context {
   model: string;
@@ -9,6 +10,7 @@ export interface Context {
   history: ModelMessage[];
   tokens: number;
   cost: number;
+  tokenUsage: TokenUsage;
   rl: readline.Interface;
   createRl: () => readline.Interface;
   printHeader: () => void;

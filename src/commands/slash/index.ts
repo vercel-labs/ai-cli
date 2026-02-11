@@ -4,7 +4,6 @@ import { chat, restoreHistory } from './chat.js';
 import { clear } from './clear.js';
 import { compress } from './compress.js';
 import { copy } from './copy.js';
-import { git } from './git.js';
 import { help } from './help.js';
 import { info } from './info.js';
 import { init } from './init.js';
@@ -41,7 +40,6 @@ export const commands: Record<string, CommandHandler> = {
   memory,
   rollback,
   copy,
-  git,
   settings,
   permissions,
   rules,
@@ -56,18 +54,6 @@ export function resolveCommand(cmd: string): string {
   return aliases[cmd] || cmd;
 }
 
-const gitSubs = [
-  'diff',
-  'staged',
-  'status',
-  'branch',
-  'commit',
-  'push',
-  'pull',
-  'log',
-  'stash',
-];
-
 export function getCompletions(line: string): [string[], string] {
   if (!line.startsWith('/')) return [[], line];
 
@@ -78,12 +64,6 @@ export function getCompletions(line: string): [string[], string] {
     const cmdNames = Object.keys(commands).filter((c) => !c.includes('-'));
     const matches = cmdNames.filter((c) => c.startsWith(input));
     return [matches.map((m) => `/${m}`), line];
-  }
-
-  if (parts[0] === 'git' && parts.length === 2) {
-    const sub = parts[1];
-    const matches = gitSubs.filter((s) => s.startsWith(sub));
-    return [matches.map((m) => `/git ${m}`), line];
   }
 
   return [[], line];

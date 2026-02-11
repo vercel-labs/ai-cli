@@ -7,6 +7,12 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(4)}`;
 }
 
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
 export const usage: CommandHandler = async (ctx) => {
   const lines: string[] = [];
 
@@ -29,6 +35,22 @@ export const usage: CommandHandler = async (ctx) => {
     );
   } catch {
     lines.push(`tokens: ~${ctx.tokens.toLocaleString()}`);
+  }
+
+  const u = ctx.tokenUsage;
+  if (u.inputTokens > 0 || u.outputTokens > 0) {
+    lines.push('');
+    lines.push(`input:     ${formatTokenCount(u.inputTokens)}`);
+    lines.push(`output:    ${formatTokenCount(u.outputTokens)}`);
+    if (u.cacheReadTokens > 0) {
+      lines.push(`cached:    ${formatTokenCount(u.cacheReadTokens)}`);
+    }
+    if (u.cacheWriteTokens > 0) {
+      lines.push(`cache write: ${formatTokenCount(u.cacheWriteTokens)}`);
+    }
+    if (u.reasoningTokens > 0) {
+      lines.push(`reasoning: ${formatTokenCount(u.reasoningTokens)}`);
+    }
   }
 
   lines.push(`cost: ${formatCost(ctx.cost)}`);

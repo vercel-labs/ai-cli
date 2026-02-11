@@ -114,6 +114,11 @@ export function deleteAllChats(): number {
 export function searchChats(query: string): Chat[] {
   const chats = listChats();
   const q = query.toLowerCase();
+
+  // Exact ID match takes priority
+  const byId = chats.find((c) => c.id === query);
+  if (byId) return [byId];
+
   return chats.filter(
     (c) =>
       c.title.toLowerCase().includes(q) ||
