@@ -88,13 +88,23 @@ export async function terminal(
   let statusText = '';
   let streamBuffer = '';
   let currentStreamWrap: ReturnType<typeof createStreamWrap> | null = null;
-  let selectMode = false;
   let confirmMode = false;
   let commandMode = false;
   let cmdBuffer = ''; // manual line buffer for command mode (bypasses readline)
   const cmdMenu = new InlineMenu([], {
     maxVisible: 8,
     filter: (item, query) => item.startsWith(query),
+  });
+  let modelSelectMode = false;
+  let modelBuffer = ''; // manual line buffer for model select mode
+  const modelMenu = new InlineMenu([], {
+    maxVisible: 10,
+    filterAndSort: (items, query) =>
+      items
+        .map((id) => ({ id, score: scoreMatch(id, query) }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((x) => x.id),
   });
   let editStreamRendered = false;
   let editStreamLineCount = 0;
@@ -133,6 +143,36 @@ export async function terminal(
   /** Redraw the command-mode prompt line (without touching readline). */
   function redrawCmdLine(): void {
     process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${cmdBuffer}`);
+  }
+
+  /** Enter model select mode with the given model list. */
+  function enterModelSelectMode(models: string[]): void {
+    modelSelectMode = true;
+    modelBuffer = '';
+    modelMenu.setItems(models);
+    // Pre-select the current model if it's in the list
+    modelMenu.open('');
+    const idx = models.indexOf(currentModel);
+    if (idx > 0) {
+      for (let i = 0; i < idx; i++) modelMenu.moveDown();
+    }
+    redrawModelLine();
+  }
+
+  /** Exit model select mode, restore normal prompt. */
+  function exitModelSelectMode(): void {
+    modelSelectMode = false;
+    modelBuffer = '';
+    modelMenu.close();
+    rl.setPrompt(dim('› '));
+    process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+  }
+
+  /** Redraw the model-select prompt line. */
+  function redrawModelLine(): void {
+    process.stdout.write(
+      `\r${ansi.eraseLine}${dim('model › ')}${modelBuffer || dim('type to filter...')}`,
+    );
   }
 
   async function updateCapabilities(modelId: string): Promise<void> {
@@ -334,8 +374,104 @@ export async function terminal(
       return;
     }
 
-    if (selectMode || busy) {
+    if (busy) {
       inputStream.write(chunk);
+      return;
+    }
+
+    // ── Model select mode input (bypasses readline) ──
+    if (modelSelectMode) {
+      // Escape — cancel
+      if (str === '\x1b' && str.length === 1) {
+        exitModelSelectMode();
+        prompt();
+        return;
+      }
+
+      // Ctrl+C — cancel
+      if (str === '\x03') {
+        exitModelSelectMode();
+        prompt();
+        return;
+      }
+
+      // Backspace on empty — cancel
+      if (modelBuffer === '' && (str === '\x7f' || str === '\b')) {
+        exitModelSelectMode();
+        prompt();
+        return;
+      }
+
+      // Backspace — remove last char
+      if (str === '\x7f' || str === '\b') {
+        modelBuffer = modelBuffer.slice(0, -1);
+        modelMenu.setFilter(modelBuffer);
+        redrawModelLine();
+        return;
+      }
+
+      // Up arrow — move selection up
+      if (str === '\x1b[A') {
+        modelMenu.moveUp();
+        redrawModelLine();
+        return;
+      }
+
+      // Down arrow — move selection down
+      if (str === '\x1b[B') {
+        modelMenu.moveDown();
+        redrawModelLine();
+        return;
+      }
+
+      // Tab — complete with selected
+      if (str === '\t') {
+        const selected = modelMenu.getSelected();
+        if (selected) {
+          modelBuffer = selected;
+          modelMenu.setFilter(modelBuffer);
+          redrawModelLine();
+        }
+        return;
+      }
+
+      // Enter — select model
+      if (str === '\r' || str === '\n') {
+        const selected = modelMenu.getSelected();
+        modelMenu.close();
+        modelSelectMode = false;
+        modelBuffer = '';
+        rl.setPrompt(dim('› '));
+
+        if (selected && selected !== currentModel) {
+          process.stdout.write(`\r${ansi.eraseLine}`);
+          saveModel(selected);
+          currentModel = selected;
+          updateCapabilities(selected).then(() => {
+            updateTitle();
+            addAndPrint('info', `switched to ${selected}`);
+            prompt();
+          });
+        } else if (selected) {
+          process.stdout.write(`\r${ansi.eraseLine}`);
+          addAndPrint('info', `already using ${selected}`);
+          prompt();
+        } else {
+          process.stdout.write(`\r${ansi.eraseLine}`);
+          prompt();
+        }
+        return;
+      }
+
+      // Printable character — append to buffer
+      if (str.length === 1 && str >= ' ') {
+        modelBuffer += str;
+        modelMenu.setFilter(modelBuffer);
+        redrawModelLine();
+        return;
+      }
+
+      // Ignore all other keys in model select mode
       return;
     }
 
@@ -513,7 +649,7 @@ export async function terminal(
   }
 
   function redraw() {
-    if (busy || selectMode || confirmMode) return;
+    if (busy || modelSelectMode || confirmMode) return;
     process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
     for (const msg of messages) {
       printMessage(msg);
@@ -668,104 +804,8 @@ export async function terminal(
     printMessage({ type, content });
   }
 
-  async function selectModel(): Promise<string | null> {
-    process.stdout.write(dim('loading models...\n'));
-
-    let models: string[];
-    try {
-      const m = await fetchModels();
-      models = m.map((x) => x.id);
-    } catch {
-      process.stdout.write(dim('failed to load models\n'));
-      return null;
-    }
-
-    return new Promise((resolve) => {
-      let filtered = models;
-      let search = '';
-      let index = models.indexOf(currentModel);
-      if (index === -1) index = 0;
-      let closed = false;
-
-      const render = () => {
-        process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
-        process.stdout.write(search || dim('type to filter...'));
-        process.stdout.write(
-          `\n${dim('↑↓ navigate · enter select · esc cancel')}\n\n`,
-        );
-        const start = Math.max(0, index - 5);
-        const visible = filtered.slice(start, start + 10);
-        visible.forEach((id, i) => {
-          const selected = start + i === index;
-          process.stdout.write(
-            `${(selected ? '› ' : '  ') + (selected ? id : dim(id))}\n`,
-          );
-        });
-        process.stdout.write(`\n${dim(`current: ${currentModel}`)}\n`);
-        process.stdout.write(ansi.cursorTo(search.length, 0));
-      };
-
-      const filter = () => {
-        if (search) {
-          filtered = models
-            .map((id) => ({ id, score: scoreMatch(id, search) }))
-            .filter((x) => x.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .map((x) => x.id);
-        } else {
-          filtered = models;
-        }
-        index = 0;
-        render();
-      };
-
-      const finish = (result: string | null) => {
-        if (closed) return;
-        closed = true;
-
-        try {
-          if (process.stdin.isTTY) process.stdin.setRawMode(false);
-        } catch {}
-        process.stdin.removeListener('keypress', onKeypress);
-
-        process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
-        for (const msg of messages) printMessage(msg);
-
-        setImmediate(() => resolve(result));
-      };
-
-      const onKeypress = (str: string | undefined, key: readline.Key) => {
-        if (closed || !key) return;
-
-        if (key.name === 'escape' || (key.ctrl && key.name === 'c')) {
-          finish(null);
-        } else if (key.name === 'return') {
-          finish(filtered[index] || null);
-        } else if (key.name === 'up') {
-          index = Math.max(0, index - 1);
-          render();
-        } else if (key.name === 'down') {
-          index = Math.min(filtered.length - 1, index + 1);
-          render();
-        } else if (key.name === 'backspace') {
-          search = search.slice(0, -1);
-          filter();
-        } else if (str && str.length === 1 && str >= ' ') {
-          search += str;
-          filter();
-        }
-      };
-
-      try {
-        if (process.stdin.isTTY) process.stdin.setRawMode(true);
-      } catch {}
-      process.stdin.on('keypress', onKeypress);
-      render();
-    });
-  }
-
   async function handleInput(line: string) {
-    if (selectMode) return;
+    if (modelSelectMode) return;
 
     let msg = line.trim();
 
@@ -798,18 +838,17 @@ export async function terminal(
       const args = parts.slice(1).join(' ');
 
       if ((cmd === 'model' || cmd === 'm') && !args) {
-        selectMode = true;
-        const selected = await selectModel();
-        selectMode = false;
-        if (process.stdin.isTTY) process.stdin.setRawMode(true);
-        if (selected) {
-          saveModel(selected);
-          currentModel = selected;
-          await updateCapabilities(selected);
-          updateTitle();
-          addAndPrint('info', `switched to ${selected}`);
+        process.stdout.write(dim('loading models...\n'));
+        try {
+          const m = await fetchModels();
+          const models = m.map((x) => x.id);
+          // Erase the "loading models..." line before showing the menu
+          process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + '\r');
+          enterModelSelectMode(models);
+        } catch {
+          addAndPrint('info', 'failed to load models');
+          prompt();
         }
-        prompt();
         return;
       }
 
@@ -1150,7 +1189,7 @@ export async function terminal(
   process.stdin.resume();
 
   process.stdin.on('keypress', (_str, key) => {
-    if (selectMode || busy || confirmMode) return;
+    if (modelSelectMode || busy || confirmMode) return;
 
     // Command mode handles its own input in the 'data' handler — skip here
     if (commandMode) return;

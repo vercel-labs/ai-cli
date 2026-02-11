@@ -6,6 +6,12 @@ export interface InlineMenuOptions {
   maxVisible?: number;
   /** Custom filter function. Defaults to prefix matching. */
   filter?: (item: string, query: string) => boolean;
+  /**
+   * Fully custom filter+sort. When provided, overrides `filter`.
+   * Receives all items and the query; returns the filtered & sorted result.
+   * Useful for fuzzy/scored matching (e.g. model search).
+   */
+  filterAndSort?: (items: string[], query: string) => string[];
 }
 
 /**
@@ -30,11 +36,15 @@ export class InlineMenu {
   private _isOpen = false;
   private maxVisible: number;
   private filterFn: (item: string, query: string) => boolean;
+  private filterAndSortFn:
+    | ((items: string[], query: string) => string[])
+    | null;
 
   constructor(items: string[], opts?: InlineMenuOptions) {
     this.items = items;
     this.maxVisible = opts?.maxVisible ?? 8;
     this.filterFn = opts?.filter ?? ((item, query) => item.startsWith(query));
+    this.filterAndSortFn = opts?.filterAndSort ?? null;
   }
 
   /** Whether the menu is currently displayed. */
@@ -103,6 +113,8 @@ export class InlineMenu {
   private applyFilter(query: string): void {
     if (!query) {
       this.filtered = this.items.slice();
+    } else if (this.filterAndSortFn) {
+      this.filtered = this.filterAndSortFn(this.items, query);
     } else {
       this.filtered = this.items.filter((item) => this.filterFn(item, query));
     }
