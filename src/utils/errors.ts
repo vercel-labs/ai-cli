@@ -96,5 +96,15 @@ export function formatError(error: unknown): string {
   if (all.includes('context length') || all.includes('too long')) {
     return 'message too long. try /compress or shorten your input';
   }
-  return 'error. try again';
+  if (all.includes('tool failed')) {
+    return 'tool failed. try again or /model to switch';
+  }
+  if (
+    all.includes('type validation failed') ||
+    err.name === 'AI_TypeValidationError'
+  ) {
+    return 'provider returned unexpected data. try again or /model to switch';
+  }
+  const msg = err.message?.slice(0, 200);
+  return msg ? `error: ${msg}` : 'error. try again';
 }
