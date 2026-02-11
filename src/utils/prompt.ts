@@ -61,7 +61,7 @@ Environment:
 - Directory: ${cwd}
 - Platform: ${platform}
 - Date: ${date}
-- Package manager: ${pm.pm} (run scripts with "${pm.run}")
+- Package manager: ${pm.pm} (ALWAYS use "${pm.pm}" for install/add/remove, "${pm.run}" to run scripts — NEVER use npm unless it is the detected package manager)
 
 Preferences:
 - Always use TypeScript unless told otherwise
