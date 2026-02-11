@@ -98,6 +98,7 @@ export async function terminal(
   let confirmMode = false;
   let commandMode = false;
   let cmdBuffer = ''; // manual line buffer for command mode (bypasses readline)
+  let multilineLines: string[] = []; // accumulated lines for multiline input
   const cmdMenu = new InlineMenu([], {
     maxVisible: 8,
     filter: (item, query) => item.startsWith(query),
@@ -517,7 +518,12 @@ export async function terminal(
     }
 
     // ── Enter command mode when / is typed on an empty line ──
-    if (!commandMode && rl.line === '' && str === '/') {
+    if (
+      !commandMode &&
+      multilineLines.length === 0 &&
+      rl.line === '' &&
+      str === '/'
+    ) {
       enterCommandMode();
       return;
     }
@@ -619,6 +625,12 @@ export async function terminal(
     // ── Normal mode (not command mode) ──
 
     if (str === '\x1b' && str.length === 1) {
+      if (multilineLines.length > 0) {
+        for (let i = 0; i < multilineLines.length; i++) {
+          process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine);
+        }
+        multilineLines = [];
+      }
       pendingImage = null;
       rl.setPrompt(dim('› '));
       (rl as ReadlineInternal).line = '';
@@ -634,6 +646,45 @@ export async function terminal(
 
     if (str === '\x1b[1;3C' || str === '\x1bf') {
       inputStream.write('\x1bf');
+      return;
+    }
+
+    // Don't submit empty input
+    if (
+      str === '\r' &&
+      multilineLines.length === 0 &&
+      (rl as ReadlineInternal).line.trim() === ''
+    ) {
+      return;
+    }
+
+    // Ctrl+C during multiline → cancel multiline input
+    if (str === '\x03' && multilineLines.length > 0) {
+      for (let i = 0; i < multilineLines.length; i++) {
+        process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine);
+      }
+      multilineLines = [];
+      rl.setPrompt(dim('› '));
+      (rl as ReadlineInternal).line = '';
+      (rl as ReadlineInternal).cursor = 0;
+      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+      return;
+    }
+
+    // Ctrl+J / Alt+Enter / Shift+Enter (kitty) → add line to multiline buffer
+    if (str === '\n' || str === '\x1b\r' || str === '\x1b[13;2u') {
+      const internal = rl as ReadlineInternal;
+      const currentLine = internal.line;
+      multilineLines.push(currentLine);
+      // Erase readline's rendered line and rewrite as committed
+      process.stdout.write(`\r${ansi.eraseLine}`);
+      const prefix = multilineLines.length === 1 ? '› ' : '  ';
+      process.stdout.write(`${dim(prefix)}${currentLine}\n`);
+      // Reset readline for the next line
+      internal.line = '';
+      internal.cursor = 0;
+      rl.setPrompt(dim('  '));
+      process.stdout.write(dim('  '));
       return;
     }
 
@@ -778,9 +829,15 @@ export async function terminal(
   function printMessage(msg: Message, trailing = true) {
     const markdown = getSetting('markdown');
     switch (msg.type) {
-      case 'user':
-        out.write(`${dim('› ') + wrap(msg.content)}\n${trailing ? '\n' : ''}`);
+      case 'user': {
+        const wrapped = wrap(msg.content);
+        const userLines = wrapped.split('\n');
+        const formatted = userLines
+          .map((l, i) => (i === 0 ? `${dim('› ')}${l}` : `${dim('  ')}${l}`))
+          .join('\n');
+        out.write(`${formatted}\n${trailing ? '\n' : ''}`);
         break;
+      }
       case 'assistant': {
         const assistant = trimLeadingBlankLines(msg.content);
         const content = markdown ? renderMarkdown(assistant) : assistant;
@@ -842,6 +899,14 @@ export async function terminal(
       }
     }
 
+    // Combine with any accumulated multiline lines
+    const wasMultiline = multilineLines.length > 0;
+    if (wasMultiline) {
+      msg = [...multilineLines, line].join('\n').trim();
+      multilineLines = [];
+      rl.setPrompt(dim('› '));
+    }
+
     if (!msg) {
       prompt();
       return;
@@ -854,7 +919,7 @@ export async function terminal(
 
     if (busy) return;
 
-    if (msg.startsWith('/')) {
+    if (msg.startsWith('/') && !wasMultiline) {
       const parts = msg.slice(1).split(' ');
       const cmd = parts[0].toLowerCase();
       const args = parts.slice(1).join(' ');
@@ -1209,8 +1274,8 @@ export async function terminal(
     }
   } else {
     addAndPrint('info', `ai ${version} [${currentModel}]`);
-    addMessage('info', 'type /help for commands');
-    out.write(`${dim('type /help for commands')}\n`);
+    addMessage('info', 'type /help for commands · ctrl+j for newline');
+    out.write(`${dim('type /help for commands · ctrl+j for newline')}\n`);
   }
 
   readline.emitKeypressEvents(process.stdin);
