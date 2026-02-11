@@ -1,6 +1,5 @@
-import { dim } from './color.js';
-
-const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+import { isColorEnabled } from './color.js';
+import { shimmerText, nextShimmerPos, SHIMMER_PADDING } from './shimmer.js';
 
 function formatElapsed(ms: number): string {
   const secs = Math.floor(ms / 1000);
@@ -11,7 +10,7 @@ function formatElapsed(ms: number): string {
 }
 
 export function createSpinner() {
-  let frame = 0;
+  let pos = -SHIMMER_PADDING;
   let text = '';
   let interval: ReturnType<typeof setInterval> | null = null;
   let running = false;
@@ -21,13 +20,18 @@ export function createSpinner() {
     if (!running) return;
     const elapsed = formatElapsed(Date.now() - startTime);
     const termWidth = process.stdout.columns || 80;
-    const suffix = ` (${elapsed})`;
-    const maxWidth = termWidth - 4 - suffix.length;
+    const suffix = ` ${elapsed}`;
+    const maxWidth = termWidth - 1 - suffix.length;
     const display = text.length > maxWidth ? text.slice(-maxWidth) : text;
-    process.stdout.write(
-      `\r${dim(frames[frame])} ${dim(display + suffix)}\x1b[K`,
-    );
-    frame = (frame + 1) % frames.length;
+    const fullText = `${display}${suffix}`;
+
+    if (isColorEnabled()) {
+      process.stdout.write(`\r${shimmerText(fullText, pos)}\x1b[K`);
+    } else {
+      process.stdout.write(`\r${fullText}\x1b[K`);
+    }
+
+    pos = nextShimmerPos(pos, fullText.length);
   };
 
   return {
@@ -35,9 +39,10 @@ export function createSpinner() {
       if (running) return;
       text = initialText;
       startTime = Date.now();
+      pos = -SHIMMER_PADDING;
       running = true;
       render();
-      interval = setInterval(render, 80);
+      interval = setInterval(render, 50);
     },
     update(newText: string) {
       text = newText.replace(/\s+/g, ' ').trim();
