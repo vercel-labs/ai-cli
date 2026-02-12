@@ -15,7 +15,7 @@ export function loadSettings(): Settings {
     markdown: config.markdown ?? true,
     model: config.model ?? '',
     search: config.search ?? 'perplexity',
-    steps: config.steps ?? 10,
+    steps: config.steps ?? 30,
   };
   return cached;
 }

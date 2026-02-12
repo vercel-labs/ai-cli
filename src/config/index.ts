@@ -18,7 +18,6 @@ const defaults: Config = {
   spacing: 1,
   markdown: true,
   search: 'perplexity',
-  steps: 10,
 };
 
 function migrateOldConfig(): Config | null {
@@ -62,6 +61,19 @@ export function getConfig(): Config {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+
+      // Migrate: the old default was steps=10 which was too low.  Remove it
+      // from persisted config so the new code default (30) takes effect.
+      // Users who explicitly want 10 can re-set it via /settings steps 10.
+      if (data.steps === 10) {
+        delete data.steps;
+        try {
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
+        } catch {
+          // best-effort cleanup
+        }
+      }
+
       return { ...defaults, ...data };
     }
 

@@ -8,7 +8,7 @@ export const settings: CommandHandler = (_ctx, args) => {
     const output = `settings:
   model:     ${current.model || '(default)'}
   search:    ${current.search || 'perplexity'}
-  steps:     ${current.steps || 10}
+  steps:     ${current.steps || 30}
   spacing:   ${current.spacing}
   markdown:  ${current.markdown ? 'on' : 'off'}
 
