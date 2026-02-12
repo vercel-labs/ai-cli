@@ -4,7 +4,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { green, red } from '../utils/color.js';
 import { log as debug } from '../utils/debug.js';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
 import { saveWrite } from '../utils/undo.js';
 import { confirm } from './confirm.js';
 
@@ -43,8 +43,16 @@ export const writeFile = tool({
   execute: async ({ filePath, content }) => {
     debug(`writeFile: ${filePath} (${content.length} chars)`);
     try {
-      const fullPath = safePath(filePath);
-      if (!fullPath) return { error: pathError(filePath) };
+      let fullPath = safePath(filePath);
+      if (!fullPath) {
+        const allowed = await confirm(
+          `write file outside project: ${filePath}`,
+          { tool: 'writeFile', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to file outside project.' };
+        fullPath = resolveAnyPath(filePath);
+      }
 
       const exists = fs.existsSync(fullPath);
       const verb = exists ? 'Update' : 'Create';

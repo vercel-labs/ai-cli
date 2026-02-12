@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -20,8 +21,16 @@ export const fileInfo = tool({
   }),
   execute: async ({ filePath }) => {
     try {
-      const fullPath = safePath(filePath);
-      if (!fullPath) return { error: pathError(filePath) };
+      let fullPath = safePath(filePath);
+      if (!fullPath) {
+        const allowed = await confirm(
+          `get info for path outside project: ${filePath}`,
+          { tool: 'fileInfo', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to path outside project.' };
+        fullPath = resolveAnyPath(filePath);
+      }
 
       if (!fs.existsSync(fullPath)) {
         return { error: `not found: ${filePath}` };

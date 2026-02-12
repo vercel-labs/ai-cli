@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 
 function loadGitignore(dir: string): Set<string> {
   const patterns = new Set<string>();
@@ -76,8 +77,16 @@ export const listDirectory = tool({
   }),
   execute: async ({ dirPath = '.', depth = 3 }) => {
     try {
-      const fullPath = safePath(dirPath);
-      if (!fullPath) return { error: pathError(dirPath) };
+      let fullPath = safePath(dirPath);
+      if (!fullPath) {
+        const allowed = await confirm(
+          `list directory outside project: ${dirPath}`,
+          { tool: 'listDirectory', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to directory outside project.' };
+        fullPath = resolveAnyPath(dirPath);
+      }
       const ignored = loadGitignore(fullPath);
       const maxDepth = Math.min(depth, 5);
       const lines = buildTree(fullPath, ignored, '', 0, maxDepth);
