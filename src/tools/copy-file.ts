@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 
 export const copyFile = tool({
   description: 'Copy a file to a new location.',
@@ -12,11 +13,27 @@ export const copyFile = tool({
   }),
   execute: async ({ sourcePath, destPath }) => {
     try {
-      const fullSourcePath = safePath(sourcePath);
-      if (!fullSourcePath) return { error: pathError(sourcePath) };
+      let fullSourcePath = safePath(sourcePath);
+      if (!fullSourcePath) {
+        const allowed = await confirm(
+          `copy from outside project: ${sourcePath}`,
+          { tool: 'copyFile', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to path outside project.' };
+        fullSourcePath = resolveAnyPath(sourcePath);
+      }
 
-      const fullDestPath = safePath(destPath);
-      if (!fullDestPath) return { error: pathError(destPath) };
+      let fullDestPath = safePath(destPath);
+      if (!fullDestPath) {
+        const allowed = await confirm(`copy to outside project: ${destPath}`, {
+          tool: 'copyFile',
+          noAlways: true,
+        });
+        if (!allowed)
+          return { error: 'User denied access to path outside project.' };
+        fullDestPath = resolveAnyPath(destPath);
+      }
 
       if (!fs.existsSync(fullSourcePath)) {
         return { error: `not found: ${sourcePath}` };

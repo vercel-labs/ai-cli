@@ -3,7 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 
 /* ── ripgrep --files + grep backend ──────────────────────── */
 
@@ -133,8 +134,16 @@ export const findFiles = tool({
   }),
   execute: async ({ pattern, directory }) => {
     try {
-      const searchDir = safePath(directory || '.');
-      if (!searchDir) return { error: pathError(directory || '.') };
+      let searchDir = safePath(directory || '.');
+      if (!searchDir) {
+        const allowed = await confirm(
+          `find files outside project: ${directory || '.'}`,
+          { tool: 'findFiles', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to directory outside project.' };
+        searchDir = resolveAnyPath(directory || '.');
+      }
       const max = 100;
 
       // Try ripgrep --files first

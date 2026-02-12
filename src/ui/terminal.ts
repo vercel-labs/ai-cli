@@ -301,7 +301,9 @@ export async function terminal(
         }
         confirmMode = true;
 
-        const options = ['yes', 'no', 'always'];
+        const options = opts?.noAlways
+          ? ['yes', 'no']
+          : ['yes', 'no', 'always'];
         let selected = 0;
 
         // Split multiline actions: write header/body once, re-render only options

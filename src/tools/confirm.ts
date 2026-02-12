@@ -3,6 +3,8 @@ import { isAllowed } from '../utils/permissions.js';
 export interface ConfirmOpts {
   tool?: string;
   command?: string;
+  /** When true, the "always" option is hidden from the prompt. */
+  noAlways?: boolean;
 }
 
 let handler: ((action: string, opts?: ConfirmOpts) => Promise<boolean>) | null =

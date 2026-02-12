@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { mask } from '../utils/mask.js';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 
 export const readFile = tool({
   description:
@@ -12,8 +13,16 @@ export const readFile = tool({
   }),
   execute: async ({ filePath }) => {
     try {
-      const fullPath = safePath(filePath);
-      if (!fullPath) return { error: pathError(filePath) };
+      let fullPath = safePath(filePath);
+      if (!fullPath) {
+        const allowed = await confirm(
+          `read file outside project: ${filePath}`,
+          { tool: 'readFile', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to file outside project.' };
+        fullPath = resolveAnyPath(filePath);
+      }
 
       if (!fs.existsSync(fullPath)) {
         return {
