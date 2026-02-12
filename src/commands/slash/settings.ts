@@ -8,14 +8,12 @@ export const settings: CommandHandler = (_ctx, args) => {
     const output = `settings:
   model:     ${current.model || '(default)'}
   search:    ${current.search || 'perplexity'}
-  steps:     ${current.steps || 30}
   spacing:   ${current.spacing}
   markdown:  ${current.markdown ? 'on' : 'off'}
 
 usage:
   /settings model <name>
   /settings search perplexity|parallel
-  /settings steps <1-50>
   /settings spacing <0-4>
   /settings markdown on|off
 
@@ -41,15 +39,6 @@ for rules: /rules`;
       return { output: `search provider set to ${value}` };
     }
     return { output: 'use: /settings search perplexity|parallel' };
-  }
-
-  if (key === 'steps') {
-    const num = parseInt(value, 10);
-    if (Number.isNaN(num) || num < 1 || num > 50) {
-      return { output: 'use: /settings steps <1-50>' };
-    }
-    setSetting('steps', num);
-    return { output: `max steps set to ${num}` };
   }
 
   if (key === 'spacing') {

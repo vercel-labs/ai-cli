@@ -2,42 +2,18 @@ import type { StopCondition } from 'ai';
 
 interface ToolOutput {
   error?: string;
-  message?: string;
-}
-
-export type StopReason = 'hard-cap' | 'stuck-loop' | null;
-
-/** Track the reason the last smartStop fired. */
-let lastStopReason: StopReason = null;
-
-/** Return the reason the most recent smartStop condition fired, or null. */
-export function getStopReason(): StopReason {
-  return lastStopReason;
 }
 
 /**
- * A stop condition that lets the agent work until it's done while
- * preventing infinite loops.
+ * A stop condition that detects when the agent is stuck in a loop.
  *
- * Stops when:
- * 1. A hard step cap is reached (configurable, default 30).
- * 2. The agent appears stuck: 3+ consecutive steps where every tool
- *    result returned an error.
+ * The agent runs until the model naturally stops (no more tool calls).
+ * This condition only fires when 3+ consecutive steps have every tool
+ * result returning an error — e.g. repeated "use startProcess" or
+ * "No matches found" loops.
  */
-export function smartStop(maxSteps: number): StopCondition<any> {
-  // Reset the reason each time a new smartStop is created (new stream).
-  lastStopReason = null;
-
+export function smartStop(): StopCondition<any> {
   return ({ steps }) => {
-    // Hard cap
-    if (steps.length >= maxSteps) {
-      lastStopReason = 'hard-cap';
-      return true;
-    }
-
-    // Stuck-loop detection: 3+ consecutive steps where every tool
-    // result was an error (e.g. repeated "use startProcess" or
-    // "No matches found" loops).
     const STUCK_THRESHOLD = 3;
     if (steps.length >= STUCK_THRESHOLD) {
       const recent = steps.slice(-STUCK_THRESHOLD);
@@ -49,13 +25,8 @@ export function smartStop(maxSteps: number): StopCondition<any> {
           return out?.error != null;
         });
       });
-      if (allErrored) {
-        lastStopReason = 'stuck-loop';
-        return true;
-      }
+      if (allErrored) return true;
     }
-
-    lastStopReason = null;
     return false;
   };
 }

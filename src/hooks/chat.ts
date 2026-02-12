@@ -8,7 +8,6 @@ import {
   streamText,
 } from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
-import { getSetting } from '../config/settings.js';
 import { getTools, loadMcpTools } from '../tools/index.js';
 import { AI_CLI_HEADERS } from '../utils/constants.js';
 import {
@@ -19,7 +18,7 @@ import {
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
 import { buildSystemPrompt, toolActions } from '../utils/prompt.js';
-import { getStopReason, smartStop } from '../utils/stop-condition.js';
+import { smartStop } from '../utils/stop-condition.js';
 
 let sdkLogStream: fs.WriteStream | null = null;
 
@@ -375,7 +374,6 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     content: options.image ? userContent : message,
   });
 
-  const steps = getSetting('steps') || 30;
   const useTools = options.hasTools !== false;
 
   let silent = false;
@@ -408,7 +406,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         system: buildSystemParam(sys, model),
         messages: history,
         tools: useTools ? getTools(mcpTools) : undefined,
-        stopWhen: smartStop(steps),
+        stopWhen: smartStop(),
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
         },
@@ -705,21 +703,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     throw streamError;
   }
 
-  // When the stream ends because the step limit was reached mid-tool-use,
+  // When the stream ends because stuck-loop detection fired,
   // notify the user so they know the agent didn't just silently stop.
   if (lastFinishReason === 'tool-calls' && !buffer) {
-    const reason = getStopReason();
-    if (reason === 'stuck-loop') {
-      callbacks.onMessage(
-        'info',
-        'Stopped: agent appeared stuck (repeated errors). Try rephrasing or checking tool output.',
-      );
-    } else {
-      callbacks.onMessage(
-        'info',
-        `Reached step limit (${steps}). Send a follow-up to continue, or use /settings steps <n> to adjust.`,
-      );
-    }
+    callbacks.onMessage(
+      'info',
+      'Stopped: agent appeared stuck (repeated errors). Try rephrasing or checking tool output.',
+    );
   }
 
   if (buffer) {
