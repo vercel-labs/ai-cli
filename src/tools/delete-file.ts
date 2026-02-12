@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
 import { saveDelete } from '../utils/undo.js';
 import { confirm } from './confirm.js';
 
@@ -18,10 +18,17 @@ export const deleteFile = tool({
     // Validate paths before prompting the user
     const validPaths: { filePath: string; fullPath: string }[] = [];
     for (const filePath of paths) {
-      const fullPath = safePath(filePath);
+      let fullPath = safePath(filePath);
       if (!fullPath) {
-        errors.push(pathError(filePath));
-        continue;
+        const allowed = await confirm(
+          `delete path outside project: ${filePath}`,
+          { tool: 'deleteFile', noAlways: true },
+        );
+        if (!allowed) {
+          errors.push('User denied access to path outside project.');
+          continue;
+        }
+        fullPath = resolveAnyPath(filePath);
       }
       if (!fs.existsSync(fullPath)) {
         errors.push(`not found: ${filePath}`);

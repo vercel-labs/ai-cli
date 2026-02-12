@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { pathError, safePath } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 import { saveRename } from '../utils/undo.js';
 
 export const renameFile = tool({
@@ -13,11 +14,27 @@ export const renameFile = tool({
   }),
   execute: async ({ oldPath, newPath }) => {
     try {
-      const fullOldPath = safePath(oldPath);
-      if (!fullOldPath) return { error: pathError(oldPath) };
+      let fullOldPath = safePath(oldPath);
+      if (!fullOldPath) {
+        const allowed = await confirm(
+          `rename from outside project: ${oldPath}`,
+          { tool: 'renameFile', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to path outside project.' };
+        fullOldPath = resolveAnyPath(oldPath);
+      }
 
-      const fullNewPath = safePath(newPath);
-      if (!fullNewPath) return { error: pathError(newPath) };
+      let fullNewPath = safePath(newPath);
+      if (!fullNewPath) {
+        const allowed = await confirm(`rename to outside project: ${newPath}`, {
+          tool: 'renameFile',
+          noAlways: true,
+        });
+        if (!allowed)
+          return { error: 'User denied access to path outside project.' };
+        fullNewPath = resolveAnyPath(newPath);
+      }
 
       if (!fs.existsSync(fullOldPath)) {
         return { error: `not found: ${oldPath}` };

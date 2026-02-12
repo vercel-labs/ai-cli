@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { safePath, pathError } from '../utils/safe-path.js';
+import { resolveAnyPath, safePath } from '../utils/safe-path.js';
+import { confirm } from './confirm.js';
 
 interface Symbol {
   name: string;
@@ -175,8 +176,16 @@ export const codeOutline = tool({
   }),
   execute: async ({ filePath, maxFiles = 20 }) => {
     try {
-      const fullPath = safePath(filePath);
-      if (!fullPath) return { error: pathError(filePath) };
+      let fullPath = safePath(filePath);
+      if (!fullPath) {
+        const allowed = await confirm(
+          `outline code outside project: ${filePath}`,
+          { tool: 'codeOutline', noAlways: true },
+        );
+        if (!allowed)
+          return { error: 'User denied access to path outside project.' };
+        fullPath = resolveAnyPath(filePath);
+      }
 
       if (!fs.existsSync(fullPath)) {
         return { error: `not found: ${filePath}` };
