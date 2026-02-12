@@ -8,7 +8,6 @@ import {
   streamText,
 } from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
-import { getSetting } from '../config/settings.js';
 import { getTools, loadMcpTools } from '../tools/index.js';
 import { AI_CLI_HEADERS } from '../utils/constants.js';
 import {
@@ -19,6 +18,7 @@ import {
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
 import { buildSystemPrompt, toolActions } from '../utils/prompt.js';
+import { smartStop } from '../utils/stop-condition.js';
 
 let sdkLogStream: fs.WriteStream | null = null;
 
@@ -154,6 +154,7 @@ interface ToolInput {
   query?: string;
   objective?: string;
   command?: string;
+  directory?: string;
   dirPath?: string;
   filePath?: string;
   paths?: string[];
@@ -373,7 +374,6 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     content: options.image ? userContent : message,
   });
 
-  const steps = getSetting('steps') || 10;
   const useTools = options.hasTools !== false;
 
   let silent = false;
@@ -385,6 +385,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   let editStreamActive = false;
   let editStreamLastCount = 0;
   let streamError: Error | null = null;
+  let lastFinishReason = '';
   let searchResults: Array<{
     title?: string;
     url?: string;
@@ -405,7 +406,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         system: buildSystemParam(sys, model),
         messages: history,
         tools: useTools ? getTools(mcpTools) : undefined,
-        stopWhen: stepCountIs(steps),
+        stopWhen: smartStop(),
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
         },
@@ -582,6 +583,12 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             const f = input?.filePath || 'code';
             status = `Analyzing ${f}`;
             currentToolLabel = `Analyzed ${f}`;
+          } else if (tc.toolName === 'searchInFiles') {
+            const q = input?.query ? String(input.query).slice(0, 60) : 'code';
+            const d = input?.directory || '';
+            const label = d ? `"${q}" in ${d}` : `"${q}"`;
+            status = `Searching: ${label}`;
+            currentToolLabel = `Searched: ${label}`;
           } else if (tc.toolName === 'semanticSearch') {
             const q = input?.query ? String(input.query).slice(0, 60) : 'code';
             status = `Searching: ${q}`;
@@ -673,6 +680,12 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           debug(`step-finish: ${sf.finishReason}`);
           break;
         }
+
+        case 'finish': {
+          const fp = part as { finishReason?: string };
+          lastFinishReason = fp.finishReason ?? '';
+          break;
+        }
       }
 
       if (streamError) break;
@@ -688,6 +701,15 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   if (streamError) {
     history.length = historyLen;
     throw streamError;
+  }
+
+  // When the stream ends because stuck-loop detection fired,
+  // notify the user so they know the agent didn't just silently stop.
+  if (lastFinishReason === 'tool-calls' && !buffer) {
+    callbacks.onMessage(
+      'info',
+      'Stopped: agent appeared stuck (repeated errors). Try rephrasing or checking tool output.',
+    );
   }
 
   if (buffer) {

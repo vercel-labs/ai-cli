@@ -29,43 +29,55 @@ function searchWithRg(
   query: string,
   baseDir: string,
   max: number,
+  file?: string,
 ): Match[] | null {
   if (!hasRg()) return null;
   try {
     // -n = line numbers, -i = case-insensitive, --no-heading, -M = max line length
-    const out = execFileSync(
-      'rg',
-      [
-        '-n',
-        '-i',
-        '-F',
-        '--no-heading',
-        '-M',
-        '200',
-        '--max-count',
-        String(max),
-        '--',
-        query,
-      ],
-      {
-        cwd: baseDir,
-        encoding: 'utf-8',
-        timeout: 10000,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        maxBuffer: 1024 * 1024,
-      },
-    );
+    const args = [
+      '-n',
+      '-i',
+      '-F',
+      '--no-heading',
+      '-M',
+      '200',
+      '--max-count',
+      String(max),
+      '--',
+      query,
+    ];
+    // When a specific file is provided, pass it as a positional argument
+    // so rg searches only that file instead of the entire directory.
+    if (file) args.push(file);
+
+    const out = execFileSync('rg', args, {
+      cwd: baseDir,
+      encoding: 'utf-8',
+      timeout: 10000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 1024 * 1024,
+    });
     const results: Match[] = [];
     for (const line of out.split('\n')) {
       if (!line || results.length >= max) break;
-      // Format: file:line:content
-      const m = line.match(/^(.+?):(\d+):(.*)$/);
+      // Format: file:line:content  (or line:content when searching a single file)
+      const m = file
+        ? line.match(/^(\d+):(.*)$/)
+        : line.match(/^(.+?):(\d+):(.*)$/);
       if (m) {
-        results.push({
-          file: m[1],
-          line: Number.parseInt(m[2], 10),
-          content: m[3].trim().slice(0, 100),
-        });
+        if (file) {
+          results.push({
+            file,
+            line: Number.parseInt(m[1], 10),
+            content: m[2].trim().slice(0, 100),
+          });
+        } else {
+          results.push({
+            file: m[1],
+            line: Number.parseInt(m[2], 10),
+            content: m[3].trim().slice(0, 100),
+          });
+        }
       }
     }
     return results;
@@ -132,6 +144,30 @@ function searchDirNode(
   }
 }
 
+function searchFileNode(
+  filePath: string,
+  baseDir: string,
+  pattern: RegExp,
+  results: Match[],
+  maxResults: number,
+): void {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length && results.length < maxResults; i++) {
+      if (pattern.test(lines[i])) {
+        results.push({
+          file: path.relative(baseDir, filePath),
+          line: i + 1,
+          content: lines[i].trim().slice(0, 100),
+        });
+      }
+    }
+  } catch {
+    // unreadable file — skip
+  }
+}
+
 /* ── tool ─────────────────────────────────────────────────── */
 
 export const searchInFiles = tool({
@@ -158,8 +194,22 @@ export const searchInFiles = tool({
       }
       const max = 50;
 
+      // If the resolved path is a file rather than a directory, search
+      // that single file directly instead of silently returning nothing.
+      let singleFile: string | null = null;
+      try {
+        if (fs.statSync(baseDir).isFile()) {
+          singleFile = baseDir;
+          baseDir = path.dirname(baseDir);
+        }
+      } catch {
+        // path doesn't exist yet — fall through to normal search
+      }
+
       // Try ripgrep first
-      const rgResults = searchWithRg(query, baseDir, max);
+      const rgResults = singleFile
+        ? searchWithRg(query, baseDir, max, path.basename(singleFile))
+        : searchWithRg(query, baseDir, max);
       if (rgResults !== null) {
         if (rgResults.length === 0) {
           return { matches: [], message: 'No matches found' };
@@ -171,7 +221,12 @@ export const searchInFiles = tool({
       const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const pattern = new RegExp(escaped, 'i');
       const results: Match[] = [];
-      searchDirNode(baseDir, baseDir, pattern, results, max);
+
+      if (singleFile) {
+        searchFileNode(singleFile, baseDir, pattern, results, max);
+      } else {
+        searchDirNode(baseDir, baseDir, pattern, results, max);
+      }
 
       if (results.length === 0) {
         return { matches: [], message: 'No matches found' };

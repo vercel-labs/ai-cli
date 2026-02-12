@@ -22,7 +22,6 @@ describe('settings', () => {
     expect(settings.spacing).toBe(1);
     expect(settings.markdown).toBe(true);
     expect(settings.search).toBe('perplexity');
-    expect(settings.steps).toBe(10);
   });
 
   test('getSetting returns individual values', () => {
