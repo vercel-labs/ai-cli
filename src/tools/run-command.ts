@@ -46,7 +46,7 @@ export const runCommand = tool({
   execute: async ({ command }) => {
     const lower = command.toLowerCase();
     const blocked = ['dev', 'start', 'serve', 'watch', 'preview'];
-    if (blocked.some((b) => lower.includes(b))) {
+    if (blocked.some((b) => new RegExp(`\\b${b}\\b`).test(lower))) {
       return { error: 'use startProcess for long-running commands' };
     }
 

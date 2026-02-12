@@ -46,8 +46,7 @@ const details: Record<string, string> = {
   /settings model <name>        default model
   /settings spacing <0-4>       line spacing
   /settings markdown on|off     render markdown
-  /settings search parallel|perplexity
-  /settings steps <1-50>        max tool steps`,
+  /settings search parallel|perplexity`,
 
   skills: `/skills
   /skills            list installed skills

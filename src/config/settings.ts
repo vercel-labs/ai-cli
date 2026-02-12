@@ -2,7 +2,7 @@ import { type Config, getConfig, setConfig } from './index.js';
 
 export type Settings = Pick<
   Config,
-  'spacing' | 'markdown' | 'model' | 'search' | 'steps'
+  'spacing' | 'markdown' | 'model' | 'search'
 >;
 
 let cached: Settings | null = null;
@@ -15,7 +15,6 @@ export function loadSettings(): Settings {
     markdown: config.markdown ?? true,
     model: config.model ?? '',
     search: config.search ?? 'perplexity',
-    steps: config.steps ?? 10,
   };
   return cached;
 }

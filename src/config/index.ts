@@ -11,14 +11,12 @@ export interface Config {
   spacing?: number;
   markdown?: boolean;
   search?: 'perplexity' | 'parallel';
-  steps?: number;
 }
 
 const defaults: Config = {
   spacing: 1,
   markdown: true,
   search: 'perplexity',
-  steps: 10,
 };
 
 function migrateOldConfig(): Config | null {
@@ -62,6 +60,17 @@ export function getConfig(): Config {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+
+      // Migrate: steps setting has been removed — clean it from persisted config.
+      if ('steps' in data) {
+        delete data.steps;
+        try {
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
+        } catch {
+          // best-effort cleanup
+        }
+      }
+
       return { ...defaults, ...data };
     }
 
