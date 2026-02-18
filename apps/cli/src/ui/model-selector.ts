@@ -37,6 +37,7 @@ export class ModelSelector {
     this.active = false;
     this.buffer = '';
     this.menu.close();
+    this.write(`\r${ansi.eraseLine}`);
   }
 
   getSelected(): string | null {

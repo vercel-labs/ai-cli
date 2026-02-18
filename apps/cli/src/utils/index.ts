@@ -1,3 +1,5 @@
+import { DEFAULT_MODEL } from './constants.js';
+
 export async function readStdin(): Promise<string> {
   const chunks: string[] = [];
   for await (const chunk of process.stdin) {
@@ -5,8 +7,6 @@ export async function readStdin(): Promise<string> {
   }
   return chunks.join('').trim();
 }
-
-import { DEFAULT_MODEL } from './constants.js';
 
 export function showHelp(): void {
   console.log(`ai - AI-powered chat interface

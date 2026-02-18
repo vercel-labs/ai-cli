@@ -22,20 +22,12 @@ const defaults: Config = {
 let cachedConfig: Config | null = null;
 let cachedMtimeMs: number | null = null;
 
-function configFileChanged(): boolean {
+function checkConfigFile(): { changed: boolean; mtimeMs: number | null } {
   try {
-    const stat = fs.statSync(CONFIG_FILE);
-    return stat.mtimeMs !== cachedMtimeMs;
+    const mtimeMs = fs.statSync(CONFIG_FILE).mtimeMs;
+    return { changed: mtimeMs !== cachedMtimeMs, mtimeMs };
   } catch {
-    return true;
-  }
-}
-
-function snapshotMtime(): void {
-  try {
-    cachedMtimeMs = fs.statSync(CONFIG_FILE).mtimeMs;
-  } catch {
-    cachedMtimeMs = null;
+    return { changed: true, mtimeMs: null };
   }
 }
 
@@ -76,7 +68,8 @@ function migrateOldConfig(): Config | null {
 }
 
 export function getConfig(): Config {
-  if (cachedConfig && !configFileChanged()) return cachedConfig;
+  const check = checkConfigFile();
+  if (cachedConfig && !check.changed) return cachedConfig;
   ensureBaseDir();
   let result: Config;
   try {
@@ -95,7 +88,7 @@ export function getConfig(): Config {
 
       result = { ...defaults, ...data };
       cachedConfig = result;
-      snapshotMtime();
+      cachedMtimeMs = check.mtimeMs;
       return result;
     }
 
@@ -104,7 +97,7 @@ export function getConfig(): Config {
       result = { ...defaults, ...migrated };
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(result, null, 2), 'utf-8');
       cachedConfig = result;
-      snapshotMtime();
+      cachedMtimeMs = check.mtimeMs;
       return result;
     }
   } catch (e) {
