@@ -1,4 +1,4 @@
-import type { StopCondition } from 'ai';
+import type { StopCondition, ToolSet } from 'ai';
 
 interface ToolOutput {
   error?: string;
@@ -12,7 +12,7 @@ interface ToolOutput {
  * result returning an error — e.g. repeated "use startProcess" or
  * "No matches found" loops.
  */
-export function smartStop(): StopCondition<any> {
+export function smartStop<T extends ToolSet>(): StopCondition<T> {
   return ({ steps }) => {
     const STUCK_THRESHOLD = 3;
     if (steps.length >= STUCK_THRESHOLD) {

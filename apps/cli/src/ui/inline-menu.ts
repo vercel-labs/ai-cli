@@ -133,7 +133,7 @@ export class InlineMenu {
         process.stdout.write(`\n${ansi.eraseLine}`);
       }
       // Move back up to the prompt row (relative — survives scrolling)
-      process.stdout.write(ansi.cursorUp(this.lineCount) + '\r');
+      process.stdout.write(`${ansi.cursorUp(this.lineCount)}\r`);
       this.lineCount = 0;
     }
   }
@@ -180,6 +180,6 @@ export class InlineMenu {
     }
 
     // Move back up to the prompt row (relative — survives scrolling)
-    process.stdout.write(ansi.cursorUp(this.lineCount) + '\r');
+    process.stdout.write(`${ansi.cursorUp(this.lineCount)}\r`);
   }
 }

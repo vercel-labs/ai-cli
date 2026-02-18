@@ -763,7 +763,7 @@ export async function terminal(
       (rl as ReadlineInternal).cursor === 0
     ) {
       const internal = rl as ReadlineInternal;
-      const prevLine = multilineLines.pop()!;
+      const prevLine = multilineLines.pop() ?? '';
       const currentLine = internal.line;
       const merged = prevLine + currentLine;
       // Erase the current readline line, then move up and erase the committed line
@@ -1058,7 +1058,7 @@ export async function terminal(
           const m = await fetchModels();
           const models = m.map((x) => x.id);
           // Erase the "loading models..." line before showing the menu
-          process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine + '\r');
+          process.stdout.write(`${ansi.cursorUp(1)}${ansi.eraseLine}\r`);
           enterModelSelectMode(models);
         } catch {
           addAndPrint('info', 'failed to load models');
