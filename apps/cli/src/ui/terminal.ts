@@ -1058,7 +1058,7 @@ export async function terminal(
         callbacks: makeCallbacks(),
         abortSignal: controller.signal,
         image: pendingImage,
-        hasTools: planMode ? false : capabilities.tools,
+        hasTools: capabilities.tools,
         planMode,
       });
 

@@ -61,3 +61,19 @@ export function getTools(mcpTools?: Record<string, unknown>) {
     ...(mcpTools || {}),
   };
 }
+
+export function getReadOnlyTools(mcpTools?: Record<string, unknown>) {
+  const search: Record<string, unknown> = getSearchTool();
+  return {
+    readFile,
+    listDirectory,
+    findFiles,
+    searchInFiles,
+    codeOutline,
+    semanticSearch,
+    fileInfo,
+    fetchUrl,
+    ...search,
+    ...(mcpTools || {}),
+  };
+}

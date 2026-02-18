@@ -113,9 +113,11 @@ When user asks to switch models, tell them the slash command to type.`;
 
   if (options?.planMode) {
     prompt += `\n\nPlan mode is ACTIVE:
-- Analyze the request and output a numbered plan of steps you would take
-- Do NOT execute any actions yet — only describe what you would do
-- Be specific: mention exact files, commands, and changes
+- FIRST use read-only tools (readFile, searchInFiles, codeOutline, findFiles, listDirectory, semanticSearch) to understand the relevant code before planning
+- Read the key files related to the request so your plan is grounded in the actual codebase
+- THEN output a numbered plan of specific steps you would take
+- Do NOT make any changes — only describe what you would do
+- Be specific: mention exact files, functions, and changes
 - Keep it concise — one line per step
 - End with "ready to execute" so the user knows the plan is complete`;
   }
