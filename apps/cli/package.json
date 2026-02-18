@@ -1,0 +1,46 @@
+{
+  "name": "ai-cli",
+  "version": "0.0.10",
+  "main": "dist/ai.mjs",
+  "bin": {
+    "ai": "dist/ai.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "bun test tests/*.test.ts",
+    "test:e2e": "bun test tests/e2e/",
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "typecheck": "tsc --noEmit",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "prepublishOnly": "bun run build"
+  },
+  "type": "module",
+  "dependencies": {
+    "@ai-sdk/gateway": "3.0.40",
+    "@ai-sdk/mcp": "^1.0.18",
+    "@mozilla/readability": "^0.6.0",
+    "linkedom": "^0.18.12"
+  },
+  "devDependencies": {
+    "@ai-cli/typescript-config": "workspace:*",
+    "@types/node": "^24.1.0",
+    "@xterm/headless": "^6.0.0",
+    "ai": "6.0.79",
+    "ansi-escapes": "^7.3.0",
+    "arg": "^5.0.2",
+    "esbuild": "^0.25.8",
+    "rc9": "^2.1.2",
+    "typescript": "^5.8.3",
+    "yoctocolors": "^2.1.1",
+    "zod": "^4.1.8"
+  }
+}

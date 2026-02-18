@@ -1,11 +1,15 @@
 # AGENTS.md
 
+## Monorepo Structure
+
+This is a Turborepo monorepo. The CLI application lives in `apps/cli/` and shared configuration packages live in `packages/`.
+
 ## Package Manager
 
 Use **bun** for all package management and script execution:
 
 - `bun install` to install dependencies
-- `bun add <package>` to add a dependency
+- `bun add <package>` to add a dependency (use `--cwd apps/cli` to target the CLI app)
 - `bun add -d <package>` to add a dev dependency
 - `bun run <script>` to run package.json scripts
 - `bun test` to run tests
@@ -18,7 +22,7 @@ Before installing any npm package, always check the latest version first:
 npm view <package> version
 ```
 
-Then install that specific version (e.g. `bun add <package>@<version>`). Never blindly install without verifying the latest version.
+Then install that specific version (e.g. `bun add --cwd apps/cli <package>@<version>`). Never blindly install without verifying the latest version.
 
 ## Type Checking
 
@@ -28,7 +32,7 @@ Run the type checker after every agent turn:
 bun run typecheck
 ```
 
-This runs `tsc --noEmit` and ensures no type errors have been introduced. Fix any type errors before moving on.
+This runs `turbo run typecheck` across all workspaces and ensures no type errors have been introduced. Fix any type errors before moving on.
 
 <!-- opensrc:start -->
 
