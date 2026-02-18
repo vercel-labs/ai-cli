@@ -33,7 +33,10 @@ echo "explain this" | ai     # pipe input
 
 - `-m, --model` - model (default: anthropic/claude-sonnet-4.5)
 - `--image` - attach image file
+- `-r, --resume` - resume a previous chat by ID
 - `-l, --list` - list models
+- `--no-color` - disable color output
+- `-v, --version` - show version
 - `-h, --help` - help
 
 ## commands
@@ -49,16 +52,6 @@ echo "explain this" | ai     # pipe input
 - `/copy` - copy response
 - `/rollback` - undo changes
 
-### git
-- `/git status` - file status
-- `/git diff` - unstaged changes
-- `/git staged` - staged changes
-- `/git branch` - list/switch branches
-- `/git commit` - ai-generated commit message
-- `/git push` - push to remote
-- `/git log` - recent commits
-- `/git stash` - stash/pop changes
-
 ### context
 - `/usage` - token usage and cost
 - `/compress` - compress history
@@ -73,6 +66,7 @@ echo "explain this" | ai     # pipe input
 - `/memory` - saved memories
 - `/mcp` - mcp servers
 - `/settings` - preferences
+- `/permissions` - tool permission rules
 - `/alias` - shortcuts
 - `/purge` - delete all chats
 - `/help` - commands

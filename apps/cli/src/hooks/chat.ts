@@ -495,8 +495,12 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         }
 
         case 'tool-input-start': {
-          const tcs = part as unknown as { toolName: string };
-          if (tcs.toolName === 'editFile' && callbacks.onEditStream) {
+          const tcs = part as Record<string, unknown>;
+          if (
+            typeof tcs.toolName === 'string' &&
+            tcs.toolName === 'editFile' &&
+            callbacks.onEditStream
+          ) {
             flushReasoning();
             editStreamActive = true;
             editStreamArgs = '';
@@ -510,8 +514,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
         case 'tool-input-delta': {
           if (editStreamActive && callbacks.onEditStream) {
-            const tcd = part as unknown as { delta: string };
-            editStreamArgs += tcd.delta;
+            const tcd = part as Record<string, unknown>;
+            const delta = typeof tcd.delta === 'string' ? tcd.delta : '';
+            editStreamArgs += delta;
 
             const fp = extractJsonStringValue(editStreamArgs, 'filePath');
             if (fp) {

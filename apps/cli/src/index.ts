@@ -15,6 +15,7 @@ const version = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.2';
 interface Args {
   '--model'?: string;
   '--help'?: boolean;
+  '--version'?: boolean;
   '--list'?: boolean;
   '--image'?: string;
   '--no-color'?: boolean;
@@ -28,12 +29,14 @@ async function main() {
     args = arg({
       '--model': String,
       '--help': Boolean,
+      '--version': Boolean,
       '--list': Boolean,
       '--image': String,
       '--no-color': Boolean,
       '--resume': String,
       '-m': '--model',
       '-h': '--help',
+      '-v': '--version',
       '-l': '--list',
       '-r': '--resume',
     }) as Args;
@@ -50,8 +53,13 @@ async function main() {
     process.env.NO_COLOR = '1';
   }
 
+  if (args['--version']) {
+    console.log(version);
+    process.exit(0);
+  }
+
   if (args['--help']) {
-    showHelp();
+    showHelp(version);
     process.exit(0);
   }
 

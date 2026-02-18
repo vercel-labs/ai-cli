@@ -53,12 +53,14 @@ const details: Record<string, string> = {
   /skills add <url>  install skill
   /skills remove <n> uninstall skill
   /skills show <n>   view skill content
-  /skills create <n> create new skill`,
+  /skills create <n> create new skill
+  /skills path       show skills directory`,
 
   rules: `/rules
   /rules             show global rules
   /rules edit        open in editor
-  /rules clear       remove rules`,
+  /rules clear       remove rules
+  /rules path        show rules file path`,
 
   model: `/model
   /model             interactive model selector
@@ -76,6 +78,12 @@ const details: Record<string, string> = {
   /mcp remove <name>      remove server
   /mcp reload             reconnect all servers
   /mcp get <name>         show server config`,
+
+  permissions: `/permissions
+  /permissions             list permission rules
+  /permissions remove <n>  remove rule by index
+  /permissions clear       clear all rules
+  use "always" on a confirm prompt to add one`,
 
   info: `/info
   shows version, current model, balance, storage, and feedback link`,
@@ -106,6 +114,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /rules       rules',
     '  /mcp         mcp servers',
     '  /settings    settings',
+    '  /permissions permissions rules',
     '  /model       model',
     '  /alias       shortcuts',
     '  /info        info',
