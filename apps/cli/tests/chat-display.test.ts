@@ -3,6 +3,9 @@ import {
   trimLeadingBlankLines,
   formatToolOutput,
   getChatDisplay,
+  printMessage,
+  renderChatDisplay,
+  type MessageType,
 } from '../src/ui/chat-display.js';
 
 describe('trimLeadingBlankLines', () => {
@@ -109,5 +112,121 @@ describe('getChatDisplay', () => {
       messages: [{ role: 'user', content: 'test' }],
     });
     expect(result).toEqual([{ type: 'user', content: 'test' }]);
+  });
+});
+
+function collect(fn: (write: (text: string) => void) => void): string {
+  const parts: string[] = [];
+  fn((text) => parts.push(text));
+  return parts.join('');
+}
+
+describe('printMessage', () => {
+  test('prints user message with prefix and trailing newline', () => {
+    const out = collect((w) =>
+      printMessage({ type: 'user', content: 'hello' }, w),
+    );
+    expect(out).toContain('hello');
+    expect(out).toContain('›');
+    expect(out.endsWith('\n\n')).toBe(true);
+  });
+
+  test('prints assistant message with content', () => {
+    const out = collect((w) =>
+      printMessage({ type: 'assistant', content: 'world' }, w),
+    );
+    expect(out).toContain('world');
+    expect(out.endsWith('\n')).toBe(true);
+  });
+
+  test('prints tool message', () => {
+    const out = collect((w) =>
+      printMessage({ type: 'tool', content: '$ echo hi' }, w),
+    );
+    expect(out).toContain('Ran echo hi');
+  });
+
+  test('prints error message', () => {
+    const out = collect((w) =>
+      printMessage({ type: 'error', content: 'bad thing' }, w),
+    );
+    expect(out).toContain('error');
+    expect(out).toContain('bad thing');
+  });
+
+  test('prints info message with header and body', () => {
+    const out = collect((w) =>
+      printMessage({ type: 'info', content: 'header\nbody line' }, w),
+    );
+    expect(out).toContain('header');
+    expect(out).toContain('body line');
+  });
+
+  test('respects trailing=false', () => {
+    const withTrailing = collect((w) =>
+      printMessage({ type: 'user', content: 'hi' }, w, true),
+    );
+    const without = collect((w) =>
+      printMessage({ type: 'user', content: 'hi' }, w, false),
+    );
+    expect(withTrailing.length).toBeGreaterThan(without.length);
+  });
+});
+
+describe('renderChatDisplay', () => {
+  test('calls addAndPrint for each message', () => {
+    const calls: { type: string; content: string }[] = [];
+    renderChatDisplay(
+      [
+        { type: 'user', content: 'hi' },
+        { type: 'assistant', content: 'hey' },
+      ],
+      () => {},
+      (type, content) => calls.push({ type, content }),
+    );
+    expect(calls).toEqual([
+      { type: 'user', content: 'hi' },
+      { type: 'assistant', content: 'hey' },
+    ]);
+  });
+
+  test('adds spacing between non-user non-info messages', () => {
+    const written: string[] = [];
+    renderChatDisplay(
+      [
+        { type: 'assistant', content: 'a' },
+        { type: 'tool', content: 'b' },
+      ],
+      (text) => written.push(text),
+      () => {},
+    );
+    expect(written.some((s) => s.includes('\n'))).toBe(true);
+  });
+
+  test('adds spacing when transitioning from info to non-info', () => {
+    const written: string[] = [];
+    renderChatDisplay(
+      [
+        { type: 'info', content: 'version info' },
+        { type: 'user', content: 'hello' },
+      ],
+      (text) => written.push(text),
+      () => {},
+    );
+    expect(written.some((s) => s.includes('\n'))).toBe(true);
+  });
+
+  test('does not add trailing spacing after last message', () => {
+    const written: string[] = [];
+    renderChatDisplay(
+      [
+        { type: 'assistant', content: 'a' },
+        { type: 'assistant', content: 'b' },
+      ],
+      (text) => written.push(text),
+      () => {},
+    );
+    const spacingWrites = written.filter((s) => /^\n+$/.test(s));
+    expect(spacingWrites.length).toBe(1);
   });
 });

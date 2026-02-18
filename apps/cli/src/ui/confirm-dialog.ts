@@ -6,6 +6,13 @@ import type { SpacingController } from './spacing.js';
 interface ConfirmDeps {
   out: { write(text: string): void; lock(): Lock | null };
   spacing: SpacingController;
+  stdin: {
+    // biome-ignore lint/suspicious/noExplicitAny: Node EventEmitter callback signatures vary
+    on(event: string, listener: (...args: any[]) => void): void;
+    // biome-ignore lint/suspicious/noExplicitAny: Node EventEmitter callback signatures vary
+    removeListener(event: string, listener: (...args: any[]) => void): void;
+  };
+  getCwd: () => string;
   getEditStreamState: () => { rendered: boolean; lineCount: number };
   resetEditStreamState: () => void;
   setConfirmMode: (mode: boolean) => void;
@@ -81,7 +88,7 @@ export function createConfirmHandler(deps: ConfirmDeps): ConfirmHandler {
       render();
 
       const finish = (choice: string) => {
-        process.stdin.removeListener('keypress', onKey);
+        deps.stdin.removeListener('keypress', onKey);
         const accepted = choice === 'yes' || choice === 'always';
 
         if (accepted) {
@@ -103,7 +110,7 @@ export function createConfirmHandler(deps: ConfirmDeps): ConfirmHandler {
         }
         if (choice === 'always') {
           if (opts?.tool) {
-            addRule(opts.tool, process.cwd(), opts.command);
+            addRule(opts.tool, deps.getCwd(), opts.command);
           }
           resolve(true);
         } else {
@@ -137,6 +144,6 @@ export function createConfirmHandler(deps: ConfirmDeps): ConfirmHandler {
         if (ch === 'a') return finish('always');
       };
 
-      process.stdin.on('keypress', onKey);
+      deps.stdin.on('keypress', onKey);
     });
 }

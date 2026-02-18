@@ -194,7 +194,7 @@ export async function terminal(
   function exitModelSelectMode(): void {
     modelSelector.exit();
     rl.setPrompt(dim('› '));
-    process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+    process.stdout.write(`${dim('› ')}`);
   }
 
   async function updateCapabilities(modelId: string): Promise<void> {
@@ -248,6 +248,8 @@ export async function terminal(
     createConfirmHandler({
       out,
       spacing,
+      stdin: process.stdin,
+      getCwd: () => process.cwd(),
       getEditStreamState: () => ({
         rendered: editStreamRendered,
         lineCount: editStreamLineCount,
