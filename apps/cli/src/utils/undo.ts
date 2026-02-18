@@ -100,7 +100,10 @@ function applyUndo(op: Operation): { success: boolean; message: string } {
 
     return { success: false, message: 'unknown operation' };
   } catch (e) {
-    return { success: false, message: (e as Error).message };
+    return {
+      success: false,
+      message: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 

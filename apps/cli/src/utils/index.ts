@@ -6,6 +6,8 @@ export async function readStdin(): Promise<string> {
   return chunks.join('').trim();
 }
 
+import { DEFAULT_MODEL } from './constants.js';
+
 export function showHelp(): void {
   console.log(`ai - AI-powered chat interface
 
@@ -15,7 +17,7 @@ Usage:
   ai -m <model> <message>
 
 Options:
-  -m, --model   Specify AI model (default: anthropic/claude-sonnet-4.5)
+  -m, --model   Specify AI model (default: ${DEFAULT_MODEL})
   --image       Attach an image file (png, jpg, gif, webp)
   -l, --list    List available models
   -h, --help    Show this help message

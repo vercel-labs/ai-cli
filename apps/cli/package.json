@@ -15,6 +15,7 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "bun test tests/*.test.ts",
+    "test:coverage": "bun test --coverage tests/*.test.ts",
     "test:e2e": "bun test tests/e2e/",
     "lint": "biome lint .",
     "format": "biome format . --write",

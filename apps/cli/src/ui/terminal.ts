@@ -9,10 +9,7 @@ import {
   resolveCommand,
   restoreHistory,
 } from '../commands/slash/index.js';
-import { setConfirmHandler } from '../tools/confirm.js';
-import { killRunningCommand } from '../tools/run-command.js';
 import type { Context } from '../commands/slash/types.js';
-import { addRule } from '../utils/permissions.js';
 import type { Chat } from '../config/chats.js';
 import {
   createChat,
@@ -24,20 +21,36 @@ import {
 import { setModel as saveModel } from '../config/index.js';
 import { getSetting } from '../config/settings.js';
 import { streamChat, type TokenUsage } from '../hooks/chat.js';
+import { setConfirmHandler } from '../tools/confirm.js';
+import { killRunningCommand } from '../tools/run-command.js';
 import { getClipboardImage } from '../utils/clipboard.js';
+import { dim, green, red } from '../utils/color.js';
 import { formatError } from '../utils/errors.js';
-import { renderMarkdown } from '../utils/markdown.js';
 import { mask } from '../utils/mask.js';
 import {
   fetchModels,
   getModelCapabilities,
   type ModelCapabilities,
-  scoreMatch,
 } from '../utils/models.js';
 import { detectPackageManager } from '../utils/package-manager.js';
 import { killAllProcesses } from '../utils/processes.js';
-import { createStreamWrap, wrap } from '../utils/wrap.js';
+import {
+  nextShimmerPos,
+  SHIMMER_PADDING,
+  shimmerText,
+} from '../utils/shimmer.js';
+import { createStreamWrap } from '../utils/wrap.js';
+import {
+  getChatDisplay,
+  type Message,
+  type MessageType,
+  printMessage,
+  renderChatDisplay,
+  trimLeadingBlankLines,
+} from './chat-display.js';
+import { createConfirmHandler } from './confirm-dialog.js';
 import { InlineMenu } from './inline-menu.js';
+import { ModelSelector } from './model-selector.js';
 import { Output } from './output.js';
 import { SpacingController } from './spacing.js';
 
@@ -47,25 +60,7 @@ interface ReadlineInternal extends readline.Interface {
   history: string[];
 }
 
-type MessageType = 'user' | 'assistant' | 'tool' | 'error' | 'info';
-
-interface Message {
-  type: MessageType;
-  content: string;
-}
-
-import { dim, dimmer, green, red } from '../utils/color.js';
-import {
-  shimmerText,
-  nextShimmerPos,
-  SHIMMER_PADDING,
-} from '../utils/shimmer.js';
-
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
-
-function trimLeadingBlankLines(text: string): string {
-  return text.replace(/^(?:\r?\n)+/, '');
-}
 
 export async function terminal(
   model: string,
@@ -105,17 +100,7 @@ export async function terminal(
     maxVisible: 8,
     filter: (item, query) => item.startsWith(query),
   });
-  let modelSelectMode = false;
-  let modelBuffer = ''; // manual line buffer for model select mode
-  const modelMenu = new InlineMenu([], {
-    maxVisible: 10,
-    filterAndSort: (items, query) =>
-      items
-        .map((id) => ({ id, score: scoreMatch(id, query) }))
-        .filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((x) => x.id),
-  });
+  const modelSelector = new ModelSelector();
   let editStreamRendered = false;
   let editStreamLineCount = 0;
   let pendingImage: { data: string; mimeType: string } | null = null;
@@ -202,34 +187,14 @@ export async function terminal(
     }
   }
 
-  /** Enter model select mode with the given model list. */
   function enterModelSelectMode(models: string[]): void {
-    modelSelectMode = true;
-    modelBuffer = '';
-    modelMenu.setItems(models);
-    // Pre-select the current model if it's in the list
-    modelMenu.open('');
-    const idx = models.indexOf(currentModel);
-    if (idx > 0) {
-      for (let i = 0; i < idx; i++) modelMenu.moveDown();
-    }
-    redrawModelLine();
+    modelSelector.enter(models, currentModel);
   }
 
-  /** Exit model select mode, restore normal prompt. */
   function exitModelSelectMode(): void {
-    modelSelectMode = false;
-    modelBuffer = '';
-    modelMenu.close();
+    modelSelector.exit();
     rl.setPrompt(dim('› '));
     process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
-  }
-
-  /** Redraw the model-select prompt line. */
-  function redrawModelLine(): void {
-    process.stdout.write(
-      `\r${ansi.eraseLine}${dim('model › ')}${modelBuffer || dim('type to filter...')}`,
-    );
   }
 
   async function updateCapabilities(modelId: string): Promise<void> {
@@ -280,9 +245,21 @@ export async function terminal(
   }
 
   setConfirmHandler(
-    (action, opts) =>
-      new Promise<boolean>((resolve) => {
-        // Flush stream & clear status BEFORE locking so they render normally
+    createConfirmHandler({
+      out,
+      spacing,
+      getEditStreamState: () => ({
+        rendered: editStreamRendered,
+        lineCount: editStreamLineCount,
+      }),
+      resetEditStreamState: () => {
+        editStreamRendered = false;
+        editStreamLineCount = 0;
+      },
+      setConfirmMode: (mode) => {
+        confirmMode = mode;
+      },
+      flushStream: () => {
         clearStatus();
         if (streamBuffer && currentStreamWrap) {
           const remaining = currentStreamWrap.flush();
@@ -291,135 +268,10 @@ export async function terminal(
           currentStreamWrap.reset();
           out.write('\n');
         }
-
-        // Lock output — all other out.write() calls are now silently dropped
-        const lock = out.lock();
-        if (!lock) {
-          // Another modal already owns the output; auto-deny to avoid corruption
-          resolve(false);
-          return;
-        }
-        confirmMode = true;
-
-        const options = opts?.noAlways
-          ? ['yes', 'no']
-          : ['yes', 'no', 'always'];
-        let selected = 0;
-
-        // Split multiline actions: write header/body once, re-render only options
-        const actionLines = action.split('\n');
-        const headerLine = actionLines[0];
-        const bodyLines = actionLines.slice(1);
-        const hasBody = bodyLines.length > 0;
-
-        // Track how many lines the confirm UI occupies (excluding options line)
-        let confirmLineCount = 0;
-        if (editStreamRendered) {
-          // Diff was already streamed to screen — just add spacing
-          confirmLineCount = editStreamLineCount + 1; // streamed lines + blank
-          editStreamRendered = false;
-          editStreamLineCount = 0;
-          lock.write('\n');
-        } else {
-          // Dim the verb and punctuation but keep the subject readable.
-          // Confirm actions follow "Verb subject?" pattern.
-          const qIdx = headerLine.lastIndexOf('?');
-          const spIdx = headerLine.indexOf(' ');
-          if (spIdx > 0 && qIdx > spIdx) {
-            const verb = headerLine.slice(0, spIdx + 1);
-            const subject = headerLine.slice(spIdx + 1, qIdx);
-            const punct = headerLine.slice(qIdx);
-            lock.write(`${dim(verb)}${subject}${dim(punct)}\n`);
-          } else {
-            lock.write(`${dim(headerLine)}\n`);
-          }
-          confirmLineCount = 1; // header line
-          if (hasBody) {
-            for (const line of bodyLines) {
-              lock.write(`  ${line}\n`);
-            }
-            lock.write('\n');
-            confirmLineCount += bodyLines.length + 1; // body + blank
-          }
-        }
-
-        const render = () => {
-          const parts = options.map((opt, i) =>
-            i === selected ? `${dim('[')}${opt}${dim(']')}` : dim(` ${opt} `),
-          );
-          lock.write(`\r${ansi.eraseLine}${dim('› ')}${parts.join(dim('  '))}`);
-        };
-
-        render();
-
-        const finish = (choice: string) => {
-          process.stdin.removeListener('keypress', onKey);
-          const accepted = choice === 'yes' || choice === 'always';
-
-          if (accepted) {
-            // Erase the confirm prompt entirely — the tool result will
-            // describe what happened (e.g. "Ran ...", "Edited ...").
-            lock.write(`\r${ansi.eraseLine}`); // clear options line
-            for (let i = 0; i < confirmLineCount; i++) {
-              lock.write(`${ansi.cursorUp(1)}${ansi.eraseLine}`);
-            }
-            // Don't request another gap — the blank line originally
-            // written by beforeStatus() is still in the terminal above
-            // the cursor and serves as the one-line separator.
-            spacing.markAfterConfirmAccepted();
-          } else {
-            lock.write(`\r${ansi.eraseLine}${dim(`› ${choice}`)}\n`);
-            // Treat confirm choices like user messages for spacing.
-            spacing.markAfterConfirm();
-          }
-
-          // Release lock BEFORE resolving so downstream writes render again
-          confirmMode = false;
-          lock.release();
-          // If a status update was queued while the lock was held (e.g.
-          // "Running …"), show it now so the user sees progress.
-          if (accepted && pendingStatusText) {
-            showStatus(pendingStatusText);
-          }
-          if (choice === 'always') {
-            // Persist the rule for this tool/command in this directory
-            if (opts?.tool) {
-              addRule(opts.tool, process.cwd(), opts.command);
-            }
-            resolve(true);
-          } else {
-            resolve(choice === 'yes');
-          }
-        };
-
-        const onKey = (
-          str: string | undefined,
-          key: { name?: string; ctrl?: boolean } | undefined,
-        ) => {
-          const name = key?.name;
-
-          if (name === 'left' || name === 'up') {
-            selected = Math.max(0, selected - 1);
-            render();
-            return;
-          }
-          if (name === 'right' || name === 'down') {
-            selected = Math.min(options.length - 1, selected + 1);
-            render();
-            return;
-          }
-          if (name === 'return') return finish(options[selected]);
-          if (name === 'escape') return finish('no');
-          if (key?.ctrl && name === 'c') return finish('no');
-
-          const ch = (str ?? '').toLowerCase();
-          if (ch === 'y') return finish('yes');
-          if (ch === 'n') return finish('no');
-          if (ch === 'a') return finish('always');
-        };
-
-        process.stdin.on('keypress', onKey);
-      }),
+      },
+      getPendingStatusText: () => pendingStatusText,
+      showStatus,
+    }),
   );
 
   process.stdin.on('data', (chunk: Buffer) => {
@@ -439,68 +291,14 @@ export async function terminal(
     }
 
     // ── Model select mode input (bypasses readline) ──
-    if (modelSelectMode) {
-      // Escape — cancel
-      if (str === '\x1b' && str.length === 1) {
+    if (modelSelector.active) {
+      const result = modelSelector.handleInput(str);
+      if (result === 'cancel') {
         exitModelSelectMode();
         prompt();
-        return;
-      }
-
-      // Ctrl+C — cancel
-      if (str === '\x03') {
+      } else if (result === 'select') {
+        const selected = modelSelector.getSelected();
         exitModelSelectMode();
-        prompt();
-        return;
-      }
-
-      // Backspace on empty — cancel
-      if (modelBuffer === '' && (str === '\x7f' || str === '\b')) {
-        exitModelSelectMode();
-        prompt();
-        return;
-      }
-
-      // Backspace — remove last char
-      if (str === '\x7f' || str === '\b') {
-        modelBuffer = modelBuffer.slice(0, -1);
-        modelMenu.setFilter(modelBuffer);
-        redrawModelLine();
-        return;
-      }
-
-      // Up arrow — move selection up
-      if (str === '\x1b[A') {
-        modelMenu.moveUp();
-        redrawModelLine();
-        return;
-      }
-
-      // Down arrow — move selection down
-      if (str === '\x1b[B') {
-        modelMenu.moveDown();
-        redrawModelLine();
-        return;
-      }
-
-      // Tab — complete with selected
-      if (str === '\t') {
-        const selected = modelMenu.getSelected();
-        if (selected) {
-          modelBuffer = selected;
-          modelMenu.setFilter(modelBuffer);
-          redrawModelLine();
-        }
-        return;
-      }
-
-      // Enter — select model
-      if (str === '\r' || str === '\n') {
-        const selected = modelMenu.getSelected();
-        modelMenu.close();
-        modelSelectMode = false;
-        modelBuffer = '';
-        rl.setPrompt(dim('› '));
 
         if (selected && selected !== currentModel) {
           process.stdout.write(`\r${ansi.eraseLine}`);
@@ -519,18 +317,7 @@ export async function terminal(
           process.stdout.write(`\r${ansi.eraseLine}`);
           prompt();
         }
-        return;
       }
-
-      // Printable character — append to buffer
-      if (str.length === 1 && str >= ' ') {
-        modelBuffer += str;
-        modelMenu.setFilter(modelBuffer);
-        redrawModelLine();
-        return;
-      }
-
-      // Ignore all other keys in model select mode
       return;
     }
 
@@ -848,13 +635,13 @@ export async function terminal(
   }
 
   function redraw() {
-    if (busy || modelSelectMode || confirmMode) return;
+    if (busy || modelSelector.active || confirmMode) return;
     process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
     for (const msg of messages) {
-      printMessage(msg);
+      renderMessage(msg);
     }
-    const spacing = getSetting('spacing') ?? 1;
-    process.stdout.write('\n'.repeat(spacing));
+    const spacingLines = getSetting('spacing') ?? 1;
+    process.stdout.write('\n'.repeat(spacingLines));
     rl.prompt();
   }
 
@@ -908,96 +695,10 @@ export async function terminal(
     }, 50);
   }
 
-  function formatToolOutput(text: string): string {
-    const TAIL = 5;
-    const lines = text.split('\n');
+  const write = (text: string) => out.write(text);
 
-    // Command output: first line is "$ command"
-    if (lines[0]?.startsWith('$ ')) {
-      const command = lines[0].slice(2);
-      const body = lines.slice(1);
-      const header = `Ran ${command}`;
-
-      if (body.length === 0) return header;
-
-      if (body.length > TAIL) {
-        const hidden = body.length - TAIL;
-        const tail = body.slice(-TAIL).map((l) => `  ${l}`);
-        return `${header}\n  ... ${hidden} lines ...\n${tail.join('\n')}`;
-      }
-      return `${header}\n${body.map((l) => `  ${l}`).join('\n')}`;
-    }
-
-    // Labeled tool output: "> Label\nbody"
-    if (lines[0]?.startsWith('> ')) {
-      const header = lines[0].slice(2);
-      const body = lines.slice(1);
-
-      if (body.length === 0) return header;
-
-      if (body.length > TAIL) {
-        const hidden = body.length - TAIL;
-        const tail = body.slice(-TAIL).map((l) => `  ${l}`);
-        return `${header}\n  ... ${hidden} lines ...\n${tail.join('\n')}`;
-      }
-      return `${header}\n${body.map((l) => `  ${l}`).join('\n')}`;
-    }
-
-    // Other tool output: indent all lines
-    if (lines.length > TAIL) {
-      const hidden = lines.length - TAIL;
-      const tail = lines.slice(-TAIL).map((l) => `  ${l}`);
-      return `  ... ${hidden} lines ...\n${tail.join('\n')}`;
-    }
-    return lines.map((l) => `  ${l}`).join('\n');
-  }
-
-  function printMessage(msg: Message, trailing = true) {
-    const markdown = getSetting('markdown');
-    switch (msg.type) {
-      case 'user': {
-        const wrapped = wrap(msg.content);
-        const userLines = wrapped.split('\n');
-        const formatted = userLines
-          .map((l, i) => (i === 0 ? `${dim('› ')}${l}` : `${dim('  ')}${l}`))
-          .join('\n');
-        out.write(`${formatted}\n${trailing ? '\n' : ''}`);
-        break;
-      }
-      case 'assistant': {
-        const assistant = trimLeadingBlankLines(msg.content);
-        const content = markdown ? renderMarkdown(assistant) : assistant;
-        out.write(`${wrap(mask(content))}\n`);
-        break;
-      }
-      case 'tool': {
-        const formatted = formatToolOutput(mask(msg.content));
-        const nlIdx = formatted.indexOf('\n');
-        if (nlIdx >= 0) {
-          const header = formatted.slice(0, nlIdx);
-          const body = formatted.slice(nlIdx + 1);
-          out.write(`${dim(header)}\n${dimmer(body)}\n${trailing ? '\n' : ''}`);
-        } else {
-          out.write(`${dim(formatted)}\n${trailing ? '\n' : ''}`);
-        }
-        break;
-      }
-      case 'info': {
-        const nlIdx = msg.content.indexOf('\n');
-        const firstLine =
-          nlIdx >= 0 ? msg.content.slice(0, nlIdx) : msg.content;
-        out.write(`${dim(firstLine)}\n`);
-        if (nlIdx >= 0) {
-          // Body lines (e.g. diff from editFile) — preserve original colors
-          out.write(`${msg.content.slice(nlIdx + 1)}\n`);
-        }
-        if (trailing) out.write('\n');
-        break;
-      }
-      case 'error':
-        out.write(`${dim(`error: ${wrap(msg.content)}`)}\n`);
-        break;
-    }
+  function renderMessage(msg: Message, trailing = true) {
+    printMessage(msg, write, trailing);
   }
 
   function addMessage(type: MessageType, content: string) {
@@ -1006,11 +707,19 @@ export async function terminal(
 
   function addAndPrint(type: MessageType, content: string) {
     addMessage(type, content);
-    printMessage({ type, content });
+    renderMessage({ type, content });
+  }
+
+  function restoreDisplay(display: { type: string; content: string }[]): void {
+    renderChatDisplay(
+      display,
+      (text) => process.stdout.write(text),
+      addAndPrint,
+    );
   }
 
   async function handleInput(line: string) {
-    if (modelSelectMode) return;
+    if (modelSelector.active) return;
 
     let msg = line.trim();
 
@@ -1055,7 +764,7 @@ export async function terminal(
       if ((cmd === 'model' || cmd === 'm') && !args) {
         process.stdout.write(dim('loading models...\n'));
         try {
-          const m = await fetchModels();
+          const m = await fetchModels(true);
           const models = m.map((x) => x.id);
           // Erase the "loading models..." line before showing the menu
           process.stdout.write(`${ansi.cursorUp(1)}${ansi.eraseLine}\r`);
@@ -1142,26 +851,7 @@ export async function terminal(
           restoreHistory({ chat: res.chat }, history);
           process.stdout.write(ansi.clearTerminal + ansi.cursorTo(0, 0));
           messages.length = 0;
-          const display = res.chat.display?.length
-            ? res.chat.display
-            : res.chat.messages.map((m) => ({
-                type: m.role,
-                content: m.content,
-              }));
-          const spacing = getSetting('spacing') ?? 1;
-          let lastType = '';
-          for (let i = 0; i < display.length; i++) {
-            const m = display[i];
-            const isLast = i === display.length - 1;
-            if (lastType === 'info' && m.type !== 'info') {
-              process.stdout.write('\n'.repeat(spacing));
-            }
-            addAndPrint(m.type as MessageType, m.content);
-            if (!isLast && m.type !== 'user' && m.type !== 'info') {
-              process.stdout.write('\n'.repeat(spacing));
-            }
-            lastType = m.type;
-          }
+          restoreDisplay(getChatDisplay(res.chat));
         } else if (chat) {
           chat.display = messages.map((m) => ({
             type: m.type,
@@ -1233,12 +923,12 @@ export async function terminal(
                 const remaining = streamWrap.flush();
                 out.write(`${remaining}\n`);
               } else {
-                printMessage({ type, content: normalizedContent }, false);
+                renderMessage({ type, content: normalizedContent }, false);
               }
               streamBuffer = '';
               streamWrap.reset();
             } else {
-              printMessage({ type, content: normalizedContent }, false);
+              renderMessage({ type, content: normalizedContent }, false);
             }
             addMessage(type, normalizedContent);
             spacing.markAfterBareMessage();
@@ -1375,26 +1065,7 @@ export async function terminal(
         await updateCapabilities(resumed.model);
       }
       restoreHistory({ chat: resumed }, history);
-      const display = resumed.display?.length
-        ? resumed.display
-        : resumed.messages.map((m) => ({
-            type: m.role,
-            content: m.content,
-          }));
-      const spacingSetting = getSetting('spacing') ?? 1;
-      let lastType = '';
-      for (let i = 0; i < display.length; i++) {
-        const m = display[i];
-        const isLast = i === display.length - 1;
-        if (lastType === 'info' && m.type !== 'info') {
-          process.stdout.write('\n'.repeat(spacingSetting));
-        }
-        addAndPrint(m.type as MessageType, m.content);
-        if (!isLast && m.type !== 'user' && m.type !== 'info') {
-          process.stdout.write('\n'.repeat(spacingSetting));
-        }
-        lastType = m.type;
-      }
+      restoreDisplay(getChatDisplay(resumed));
       updateTitle();
     } else {
       addAndPrint('info', `ai ${version} [${currentModel}]`);
@@ -1411,7 +1082,7 @@ export async function terminal(
   process.stdin.resume();
 
   process.stdin.on('keypress', (_str, key) => {
-    if (modelSelectMode || busy || confirmMode) return;
+    if (modelSelector.active || busy || confirmMode) return;
 
     // Command mode handles its own input in the 'data' handler — skip here
     if (commandMode) return;

@@ -8,6 +8,9 @@ import { confirm } from './confirm.js';
 
 type Match = { file: string; line: number; content: string };
 
+const SEARCH_TIMEOUT_MS = 10000;
+const SEARCH_MAX_BUFFER = 1024 * 1024;
+
 /* ── ripgrep backend ─────────────────────────────────────── */
 
 function rgAvailable(): boolean {
@@ -53,9 +56,9 @@ function searchWithRg(
     const out = execFileSync('rg', args, {
       cwd: baseDir,
       encoding: 'utf-8',
-      timeout: 10000,
+      timeout: SEARCH_TIMEOUT_MS,
       stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 1024 * 1024,
+      maxBuffer: SEARCH_MAX_BUFFER,
     });
     const results: Match[] = [];
     for (const line of out.split('\n')) {

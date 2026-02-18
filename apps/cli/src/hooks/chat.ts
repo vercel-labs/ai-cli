@@ -267,6 +267,8 @@ function extractTokenUsage(u: UsageResult): TokenUsage {
   };
 }
 
+const CHAT_TITLE_MAX_LENGTH = 50;
+
 let spacingSequenceTurn = 0;
 
 export async function streamChat(options: StreamOptions): Promise<Chat> {
@@ -725,7 +727,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   if (silent) {
     chat.messages.push({ role: 'user', content: message });
     if (chat.messages.length === 2 && chat.title === 'New chat') {
-      chat.title = message.slice(0, 50).trim();
+      chat.title = message.slice(0, CHAT_TITLE_MAX_LENGTH).trim();
     }
     Promise.resolve(result.response)
       .then((res) => {
@@ -735,13 +737,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
           }
         }
       })
-      .catch(() => {});
+      .catch((e) => debug(`response resolve error: ${e}`));
     Promise.resolve(result.usage)
       .then((u) => {
         if (u?.totalTokens) callbacks.onTokens((t) => t + (u.totalTokens ?? 0));
         if (u) callbacks.onUsage?.(extractTokenUsage(u as UsageResult));
       })
-      .catch(() => {});
+      .catch((e) => debug(`usage resolve error: ${e}`));
     Promise.resolve(
       result.providerMetadata as PromiseLike<ProviderMeta | undefined>,
     )
@@ -751,7 +753,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             (c) => c + (Number.parseFloat(m.gateway?.cost ?? '0') || 0),
           );
       })
-      .catch(() => {});
+      .catch((e) => debug(`metadata resolve error: ${e}`));
     return chat;
   }
 
@@ -934,7 +936,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   if (chat.messages.length === 2 && chat.title === 'New chat') {
     const first = chat.messages.find((m) => m.role === 'user');
     if (first) {
-      chat.title = first.content.slice(0, 50).trim();
+      chat.title = first.content.slice(0, CHAT_TITLE_MAX_LENGTH).trim();
     }
   }
 

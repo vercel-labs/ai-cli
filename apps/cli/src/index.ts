@@ -5,6 +5,7 @@ import { inkCommand } from './commands/ink.js';
 import { listModels } from './commands/models.js';
 import { getApiKey, getModel } from './config/index.js';
 import { getSetting } from './config/settings.js';
+import { DEFAULT_MODEL } from './utils/constants.js';
 import { readStdin, showHelp } from './utils/index.js';
 import { resolveModel } from './utils/models.js';
 
@@ -59,9 +60,8 @@ async function main() {
     process.exit(0);
   }
 
-  const hardcodedDefault = 'anthropic/claude-sonnet-4.5';
   const settingsModel = getSetting('model');
-  const savedModel = getModel() || settingsModel || hardcodedDefault;
+  const savedModel = getModel() || settingsModel || DEFAULT_MODEL;
 
   if (args._.includes('init')) {
     await initCommand();

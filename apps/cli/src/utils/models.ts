@@ -1,5 +1,5 @@
-import { gateway } from '@ai-sdk/gateway';
 import type { GatewayLanguageModelEntry } from '@ai-sdk/gateway';
+import { gateway } from '@ai-sdk/gateway';
 
 export const GATEWAY_URL = 'https://ai-gateway.vercel.sh';
 
@@ -12,12 +12,21 @@ export interface ModelCapabilities {
 }
 
 let cachedModels: Model[] | null = null;
+let modelsCachedAt = 0;
+const MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
 const capabilitiesCache: Map<string, ModelCapabilities> = new Map();
 
-export async function fetchModels(): Promise<Model[]> {
-  if (cachedModels) return cachedModels;
+export async function fetchModels(forceRefresh = false): Promise<Model[]> {
+  if (
+    !forceRefresh &&
+    cachedModels &&
+    Date.now() - modelsCachedAt < MODEL_CACHE_TTL_MS
+  ) {
+    return cachedModels;
+  }
   const { models } = await gateway.getAvailableModels();
   cachedModels = models;
+  modelsCachedAt = Date.now();
   return cachedModels;
 }
 
@@ -68,6 +77,9 @@ export async function resolveModel(query: string): Promise<string> {
   process.exit(1);
 }
 
+const REASONING_PATTERN =
+  /\bo[134]\b|[-/]o[134][-/]|thinking|reasoner|reasoning/;
+
 export async function getModelCapabilities(
   modelId: string,
 ): Promise<ModelCapabilities> {
@@ -81,12 +93,7 @@ export async function getModelCapabilities(
   const capabilities: ModelCapabilities = {
     vision: true,
     tools: true,
-    reasoning:
-      lower.includes('o1') ||
-      lower.includes('o3') ||
-      lower.includes('o4') ||
-      lower.includes('thinking') ||
-      lower.includes('reason'),
+    reasoning: REASONING_PATTERN.test(lower),
   };
 
   capabilitiesCache.set(modelId, capabilities);
