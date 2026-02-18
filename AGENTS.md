@@ -24,6 +24,16 @@ npm view <package> version
 
 Then install that specific version (e.g. `bun add --cwd apps/cli <package>@<version>`). Never blindly install without verifying the latest version.
 
+## Documentation
+
+When making any user-facing change (new command, new flag, changed behavior, renamed option, etc.), update all relevant documentation in the same PR:
+
+- `apps/cli/README.md` — CLI usage, options, commands
+- `apps/cli/src/utils/index.ts` — `showHelp()` output
+- `apps/cli/src/commands/slash/help.ts` — `/help` listing and detail entries
+
+Keep these three in sync. A user-facing change without a docs update is incomplete.
+
 ## Type Checking
 
 Run the type checker after every agent turn:
