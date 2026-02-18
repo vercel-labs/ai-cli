@@ -173,8 +173,10 @@ export async function getContextWindow(modelId: string): Promise<number> {
   }
 }
 
+const COMPRESSION_THRESHOLD = 0.75;
+
 export function shouldCompress(tokens: number, contextWindow: number): boolean {
-  return tokens > contextWindow * 0.75;
+  return tokens > contextWindow * COMPRESSION_THRESHOLD;
 }
 
 export async function summarizeHistory(

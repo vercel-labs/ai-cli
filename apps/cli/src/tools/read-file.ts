@@ -5,6 +5,9 @@ import { mask } from '../utils/mask.js';
 import { resolveAnyPath, safePath } from '../utils/safe-path.js';
 import { confirm } from './confirm.js';
 
+const LARGE_FILE_THRESHOLD = 500;
+const TRUNCATION_LIMIT = 10000;
+
 export const readFile = tool({
   description:
     'Read the contents of a file. When showing file contents to the user, use plain text with code blocks only for actual code.',
@@ -32,9 +35,9 @@ export const readFile = tool({
 
       const content = mask(fs.readFileSync(fullPath, 'utf-8'));
       const lines = content.split('\n').length;
-      if (lines > 500) {
+      if (lines > LARGE_FILE_THRESHOLD) {
         return {
-          content: content.slice(0, 10000),
+          content: content.slice(0, TRUNCATION_LIMIT),
           truncated: true,
           totalLines: lines,
         };

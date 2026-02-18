@@ -1,0 +1,5 @@
+{
+  "extends": "@ai-cli/typescript-config/base.json",
+  "include": ["src", "tests"],
+  "exclude": ["opensrc"]
+}

@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { stepCountIs, streamText } from 'ai';
-import { gray } from '../utils/color.js';
 import { getTools } from '../tools/index.js';
-import { AI_CLI_HEADERS } from '../utils/constants.js';
+import { gray } from '../utils/color.js';
+import { AI_CLI_HEADERS, DEFAULT_MODEL } from '../utils/constants.js';
 import { formatError } from '../utils/errors.js';
 import { createSpinner } from '../utils/spinner.js';
 
@@ -29,13 +29,7 @@ function getMimeType(filePath: string): string | null {
 }
 
 export async function chatCommand(options: ChatOptions): Promise<void> {
-  const {
-    message,
-    model = 'anthropic/claude-sonnet-4.5',
-    image,
-    isPiped,
-    version,
-  } = options;
+  const { message, model = DEFAULT_MODEL, image, isPiped, version } = options;
 
   if (!isPiped) {
     console.log(gray(`ai ${version} [${model}]`));

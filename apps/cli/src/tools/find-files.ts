@@ -6,6 +6,9 @@ import { z } from 'zod';
 import { resolveAnyPath, safePath } from '../utils/safe-path.js';
 import { confirm } from './confirm.js';
 
+const FIND_TIMEOUT_MS = 10000;
+const FIND_MAX_BUFFER = 1024 * 1024;
+
 /* ── ripgrep --files + grep backend ──────────────────────── */
 
 function rgFilesAvailable(): boolean {
@@ -47,9 +50,9 @@ function findWithRg(
     const out = execFileSync('rg', ['--files'], {
       cwd: baseDir,
       encoding: 'utf-8',
-      timeout: 10000,
+      timeout: FIND_TIMEOUT_MS,
       stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 1024 * 1024,
+      maxBuffer: FIND_MAX_BUFFER,
     });
     const results: string[] = [];
     for (const line of out.split('\n')) {

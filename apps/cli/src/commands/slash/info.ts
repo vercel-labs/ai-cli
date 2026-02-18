@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { listChats } from '../../config/chats.js';
+import { getApiKey } from '../../config/index.js';
 import { CHATS_DIR, CONFIG_FILE } from '../../config/paths.js';
 import { GATEWAY_URL } from '../../utils/models.js';
 import type { CommandHandler } from './types.js';
@@ -37,7 +38,7 @@ export const info: CommandHandler = async (ctx) => {
   try {
     const res = await fetch(`${GATEWAY_URL}/v1/credits`, {
       headers: {
-        Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY}`,
+        Authorization: `Bearer ${getApiKey()}`,
       },
     });
     if (res.ok) {

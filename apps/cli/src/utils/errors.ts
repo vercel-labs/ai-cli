@@ -29,6 +29,10 @@ function collectMessages(err: ApiError): string {
 
 export function formatError(error: unknown): string {
   logError(error);
+  if (!(error instanceof Error)) {
+    const msg = typeof error === 'string' ? error : String(error);
+    return msg ? `error: ${msg.slice(0, 200)}` : 'error. try again';
+  }
   const err = error as ApiError;
   const all = collectMessages(err);
 

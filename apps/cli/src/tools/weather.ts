@@ -1,6 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 
+const WEATHER_TIMEOUT_MS = 10000;
+
 interface WeatherApiResponse {
   current_condition?: Array<{
     weatherDesc?: Array<{ value?: string }>;
@@ -27,7 +29,7 @@ export const weather = tool({
       const res = await fetch(
         `https://wttr.in/${encodeURIComponent(location)}?format=j1`,
         {
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS),
         },
       );
       if (!res.ok) {

@@ -19,6 +19,8 @@ const defaults: Config = {
   search: 'perplexity',
 };
 
+let cachedConfig: Config | null = null;
+
 function migrateOldConfig(): Config | null {
   const home = os.homedir();
   const oldRc = path.join(home, '.airc');
@@ -56,7 +58,9 @@ function migrateOldConfig(): Config | null {
 }
 
 export function getConfig(): Config {
+  if (cachedConfig) return cachedConfig;
   ensureBaseDir();
+  let result: Config;
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
@@ -71,19 +75,24 @@ export function getConfig(): Config {
         }
       }
 
-      return { ...defaults, ...data };
+      result = { ...defaults, ...data };
+      cachedConfig = result;
+      return result;
     }
 
     const migrated = migrateOldConfig();
     if (migrated) {
-      const merged = { ...defaults, ...migrated };
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
-      return merged;
+      result = { ...defaults, ...migrated };
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(result, null, 2), 'utf-8');
+      cachedConfig = result;
+      return result;
     }
   } catch (e) {
     logError(e);
   }
-  return { ...defaults };
+  result = { ...defaults };
+  cachedConfig = result;
+  return result;
 }
 
 export function setConfig(config: Partial<Config>): void {
@@ -91,6 +100,7 @@ export function setConfig(config: Partial<Config>): void {
   const current = getConfig();
   const merged = { ...current, ...config };
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+  cachedConfig = null;
 }
 
 export function getAliases(): Record<string, string> {
