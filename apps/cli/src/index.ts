@@ -20,6 +20,7 @@ interface Args {
   '--image'?: string;
   '--no-color'?: boolean;
   '--resume'?: string;
+  '--plan'?: boolean;
   _: string[];
 }
 
@@ -34,6 +35,7 @@ async function main() {
       '--image': String,
       '--no-color': Boolean,
       '--resume': String,
+      '--plan': Boolean,
       '-m': '--model',
       '-h': '--help',
       '-v': '--version',
@@ -100,6 +102,7 @@ async function main() {
       model,
       version,
       resume: args['--resume'],
+      planMode: args['--plan'],
     });
     return;
   }
@@ -116,6 +119,7 @@ async function main() {
         await inkCommand({
           model,
           version,
+          planMode: args['--plan'],
         });
         return;
       }

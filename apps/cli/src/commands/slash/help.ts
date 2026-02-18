@@ -85,6 +85,12 @@ const details: Record<string, string> = {
   /permissions clear       clear all rules
   use "always" on a confirm prompt to add one`,
 
+  plan: `/plan
+  toggles plan mode on/off
+  when on, the agent outputs a step-by-step plan before executing
+  you can approve or reject the plan before any changes are made
+  also available via --plan flag at startup`,
+
   info: `/info
   shows version, current model, balance, storage, and feedback link`,
 };
@@ -115,6 +121,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /mcp         mcp servers',
     '  /settings    settings',
     '  /permissions permissions rules',
+    '  /plan        plan before executing',
     '  /model       model',
     '  /alias       shortcuts',
     '  /info        info',

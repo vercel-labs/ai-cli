@@ -45,7 +45,7 @@ export interface TokenUsage {
   reasoningTokens: number;
 }
 
-interface StreamCallbacks {
+export interface StreamCallbacks {
   onStatus: (status: string) => void;
   onPending: (text: string) => void;
   onMessage: (
@@ -148,6 +148,7 @@ interface StreamOptions {
   abortSignal?: AbortSignal;
   image?: PendingImage | null;
   hasTools?: boolean;
+  planMode?: boolean;
 }
 
 interface ToolInput {
@@ -358,7 +359,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   callbacks.onStatus('thinking...');
 
-  const sys = buildSystemPrompt(pm, summary, message);
+  const sys = buildSystemPrompt(pm, summary, message, {
+    planMode: options.planMode,
+  });
 
   type UserContentPart =
     | { type: 'text'; text: string }

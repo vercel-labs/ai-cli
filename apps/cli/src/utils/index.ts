@@ -20,6 +20,7 @@ Options:
   -m, --model    Specify AI model (default: ${DEFAULT_MODEL})
   --image        Attach an image file (png, jpg, gif, webp)
   -r, --resume   Resume a previous chat by ID
+  --plan         Start in plan mode (think before acting)
   -l, --list     List available models
   --no-color     Disable color output
   -v, --version  Show version

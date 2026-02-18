@@ -11,6 +11,7 @@ export function buildSystemPrompt(
   pm: { pm: string; run: string },
   summary?: string,
   userMessage?: string,
+  options?: { planMode?: boolean },
 ): string {
   const cwd = process.cwd();
   const platform = os.platform();
@@ -109,6 +110,16 @@ When user asks to switch models, tell them the slash command to type.`;
   }
 
   if (summary) prompt += `\n\nPrevious session context:\n${summary}`;
+
+  if (options?.planMode) {
+    prompt += `\n\nPlan mode is ACTIVE:
+- Analyze the request and output a numbered plan of steps you would take
+- Do NOT execute any actions yet — only describe what you would do
+- Be specific: mention exact files, commands, and changes
+- Keep it concise — one line per step
+- End with "ready to execute" so the user knows the plan is complete`;
+  }
+
   return prompt;
 }
 

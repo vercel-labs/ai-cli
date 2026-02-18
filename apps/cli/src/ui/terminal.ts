@@ -20,7 +20,11 @@ import {
 } from '../config/chats.js';
 import { setModel as saveModel } from '../config/index.js';
 import { getSetting } from '../config/settings.js';
-import { streamChat, type TokenUsage } from '../hooks/chat.js';
+import {
+  streamChat,
+  type StreamCallbacks,
+  type TokenUsage,
+} from '../hooks/chat.js';
 import { setConfirmHandler } from '../tools/confirm.js';
 import { killRunningCommand } from '../tools/run-command.js';
 import { getClipboardImage } from '../utils/clipboard.js';
@@ -62,10 +66,15 @@ interface ReadlineInternal extends readline.Interface {
 
 const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
 
+interface TerminalOptions {
+  planMode?: boolean;
+}
+
 export async function terminal(
   model: string,
   version: string,
   resumeId?: string,
+  options?: TerminalOptions,
 ): Promise<void> {
   const out = new Output();
   const spacing = new SpacingController((text) => out.write(text));
@@ -103,12 +112,17 @@ export async function terminal(
   const modelSelector = new ModelSelector((text) => process.stdout.write(text));
   let editStreamRendered = false;
   let editStreamLineCount = 0;
+  let planMode = options?.planMode ?? false;
   let pendingImage: { data: string; mimeType: string } | null = null;
   let capabilities: ModelCapabilities = {
     vision: true,
     tools: true,
     reasoning: false,
   };
+
+  function promptStr(): string {
+    return planMode ? 'plan › ' : '› ';
+  }
 
   /** Populate the command menu with the current slash-command names. */
   function refreshCmdMenuItems(): void {
@@ -133,8 +147,8 @@ export async function terminal(
     cmdFromHistory = false;
     cmdHistoryIdx = -1;
     cmdMenu.close();
-    rl.setPrompt(dim('› '));
-    process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+    rl.setPrompt(dim(promptStr()));
+    process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}`);
   }
 
   /** Redraw the command-mode prompt line (without touching readline). */
@@ -157,10 +171,10 @@ export async function terminal(
       cmdBuffer = '';
       cmdHistoryIdx = -1;
       cmdMenu.close();
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
       (rl as ReadlineInternal).line = '';
       (rl as ReadlineInternal).cursor = 0;
-      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+      process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}`);
       return;
     }
 
@@ -180,10 +194,10 @@ export async function terminal(
       commandMode = false;
       cmdBuffer = '';
       cmdMenu.close();
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
       (rl as ReadlineInternal).line = entry;
       (rl as ReadlineInternal).cursor = entry.length;
-      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}${entry}`);
+      process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}${entry}`);
     }
   }
 
@@ -193,8 +207,8 @@ export async function terminal(
 
   function exitModelSelectMode(): void {
     modelSelector.exit();
-    rl.setPrompt(dim('› '));
-    process.stdout.write(`${dim('› ')}`);
+    rl.setPrompt(dim(promptStr()));
+    process.stdout.write(`${dim(promptStr())}`);
   }
 
   async function updateCapabilities(modelId: string): Promise<void> {
@@ -234,7 +248,7 @@ export async function terminal(
   const rl = readline.createInterface({
     input: inputStream,
     output: process.stdout,
-    prompt: dim('› '),
+    prompt: dim(promptStr()),
     terminal: true,
     escapeCodeTimeout: 50,
     completer: (line: string) => getCompletions(line),
@@ -328,12 +342,12 @@ export async function terminal(
         process.stdout.write(
           '\r' +
             ansi.eraseLine +
-            dim('› ') +
+            dim(promptStr()) +
             dim('[model does not support images]'),
         );
         setTimeout(() => {
           process.stdout.write(
-            `\r${ansi.eraseLine}${dim('› ')}${(rl as ReadlineInternal).line}`,
+            `\r${ansi.eraseLine}${dim(promptStr())}${(rl as ReadlineInternal).line}`,
           );
         }, 1500);
         return;
@@ -351,7 +365,7 @@ export async function terminal(
         const newLine = line.slice(0, cursor) + marker + line.slice(cursor);
         internal.line = newLine;
         internal.cursor = cursor + marker.length;
-        const prefix = commandMode ? '/ ' : '› ';
+        const prefix = commandMode ? '/ ' : promptStr();
         process.stdout.write(`\r${ansi.eraseLine}${dim(prefix)}${newLine}`);
       }
       return;
@@ -453,8 +467,8 @@ export async function terminal(
         cmdHistoryIdx = -1;
 
         if (!finalCmd) {
-          rl.setPrompt(dim('› '));
-          process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+          rl.setPrompt(dim(promptStr()));
+          process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}`);
           return;
         }
 
@@ -463,7 +477,7 @@ export async function terminal(
         (rl as ReadlineInternal).history.unshift(fullLine);
         (rl as ReadlineInternal).line = '';
         (rl as ReadlineInternal).cursor = 0;
-        rl.setPrompt(dim('› '));
+        rl.setPrompt(dim(promptStr()));
         process.stdout.write(`\r${ansi.eraseLine}${dim('/ ')}${finalCmd}\n`);
         handleInput(fullLine);
         return;
@@ -506,10 +520,10 @@ export async function terminal(
         multilineLines = [];
       }
       pendingImage = null;
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
       (rl as ReadlineInternal).line = '';
       (rl as ReadlineInternal).cursor = 0;
-      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+      process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}`);
       return;
     }
 
@@ -538,10 +552,10 @@ export async function terminal(
         process.stdout.write(ansi.cursorUp(1) + ansi.eraseLine);
       }
       multilineLines = [];
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
       (rl as ReadlineInternal).line = '';
       (rl as ReadlineInternal).cursor = 0;
-      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+      process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}`);
       return;
     }
 
@@ -720,6 +734,29 @@ export async function terminal(
     );
   }
 
+  function waitForPlanConfirm(): Promise<boolean> {
+    return new Promise((resolve) => {
+      spacing.beforeOutput();
+      out.write(`${dim('execute plan? (y/n) ')}`);
+      confirmMode = true;
+      const onData = (chunk: Buffer) => {
+        const ch = chunk.toString().toLowerCase();
+        if (ch === 'y' || ch === '\r' || ch === '\n') {
+          confirmMode = false;
+          process.stdin.removeListener('data', onData);
+          out.write('y\n');
+          resolve(true);
+        } else if (ch === 'n' || ch === '\x1b' || ch === '\x03') {
+          confirmMode = false;
+          process.stdin.removeListener('data', onData);
+          out.write('n\n');
+          resolve(false);
+        }
+      };
+      process.stdin.on('data', onData);
+    });
+  }
+
   async function handleInput(line: string) {
     if (modelSelector.active) return;
 
@@ -731,7 +768,7 @@ export async function terminal(
       cmdBuffer = '';
       cmdFromHistory = false;
       cmdHistoryIdx = -1;
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
       if (msg) {
         msg = `/${msg}`;
         (rl as ReadlineInternal).history.unshift(msg);
@@ -743,7 +780,7 @@ export async function terminal(
     if (wasMultiline) {
       msg = [...multilineLines, line].join('\n').trim();
       multilineLines = [];
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
     }
 
     if (!msg) {
@@ -848,6 +885,10 @@ export async function terminal(
         if (res.model || res.cost !== undefined) updateTitle();
         if (res.clearHistory) history.length = 0;
         if (res.summary) summary = res.summary;
+        if (res.planMode !== undefined) {
+          planMode = !planMode;
+          addAndPrint('info', planMode ? 'plan mode on' : 'plan mode off');
+        }
         if (res.chat && cmd === 'chat' && res.chat) {
           summary = res.chat.summary || '';
           restoreHistory({ chat: res.chat }, history);
@@ -879,6 +920,132 @@ export async function terminal(
     process.stdout.write(ansi.cursorHide);
     rl.pause();
 
+    function makeCallbacks(): StreamCallbacks {
+      return {
+        onStatus: (s) => {
+          if (s) {
+            if (!statusText && streamBuffer) {
+              const remaining = streamWrap.flush();
+              out.write(`${remaining}\n`);
+              streamBuffer = '';
+              spacing.markAfterBareMessage();
+            }
+            showStatus(s);
+          } else {
+            clearStatus();
+          }
+        },
+        onPending: (text) => {
+          const normalized = trimLeadingBlankLines(text);
+          if (normalized.length > streamBuffer.length) {
+            clearStatus();
+            if (!streamBuffer) {
+              spacing.beforeOutput();
+            }
+            const newText = normalized.slice(streamBuffer.length);
+            const wrapped = streamWrap.write(mask(newText));
+            out.write(wrapped);
+            streamBuffer = normalized;
+          }
+        },
+        onMessage: (type, content) => {
+          clearStatus();
+          spacing.beforeOutput();
+          const normalizedContent =
+            type === 'assistant' ? trimLeadingBlankLines(content) : content;
+          if (type === 'assistant') {
+            if (streamBuffer) {
+              const remaining = streamWrap.flush();
+              out.write(`${remaining}\n`);
+            } else {
+              renderMessage({ type, content: normalizedContent }, false);
+            }
+            streamBuffer = '';
+            streamWrap.reset();
+          } else {
+            renderMessage({ type, content: normalizedContent }, false);
+          }
+          addMessage(type, normalizedContent);
+          spacing.markAfterBareMessage();
+        },
+        onRecord: (type, content) => {
+          const normalizedContent =
+            type === 'assistant' ? trimLeadingBlankLines(content) : content;
+          if (type === 'assistant' && streamBuffer) {
+            const remaining = streamWrap.flush();
+            if (remaining) out.write(remaining);
+            out.write('\n');
+            streamBuffer = '';
+            streamWrap.reset();
+            spacing.markAfterBareMessage();
+          }
+          addMessage(type, normalizedContent);
+        },
+        onReasoning: (text, durationMs) => {
+          clearStatus();
+          spacing.beforeOutput();
+          const seconds = Math.round(durationMs / 1000);
+          const label =
+            seconds > 0 ? `thought for ${seconds}s` : 'thought briefly';
+          const truncated = text.replace(/\s+/g, ' ').trim().slice(0, 80);
+          out.write(`${dim(label)}\n`);
+          if (truncated) out.write(`${dim(`  ${truncated}`)}\n`);
+          spacing.markAfterBareMessage();
+          addMessage('info', `${label}${truncated ? `\n  ${truncated}` : ''}`);
+        },
+        onEditStream: (filePath, oldLines, newLines, more) => {
+          clearStatus();
+          spacing.beforeOutput();
+
+          for (let i = 0; i < editStreamLineCount; i++) {
+            out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
+          }
+
+          const basename = filePath.includes('/')
+            ? (filePath.split('/').pop() ?? filePath)
+            : filePath;
+          const lines: string[] = [];
+          lines.push(dim(`Edit ${basename}?`));
+          for (const line of oldLines) {
+            lines.push(`  ${red(`- ${line}`)}`);
+          }
+          for (const line of newLines) {
+            lines.push(`  ${green(`+ ${line}`)}`);
+          }
+          if (more > 0) {
+            lines.push(dim(`    ... ${more} more lines`));
+          }
+
+          for (const line of lines) {
+            out.write(`${line}\n`);
+          }
+
+          editStreamLineCount = lines.length;
+          editStreamRendered = true;
+        },
+        onTokens: (fn) => {
+          tokens = fn(tokens);
+        },
+        onCost: (fn) => {
+          cost = fn(cost);
+          updateTitle();
+        },
+        onUsage: (u) => {
+          tokenUsage.inputTokens += u.inputTokens;
+          tokenUsage.outputTokens += u.outputTokens;
+          tokenUsage.cacheReadTokens += u.cacheReadTokens;
+          tokenUsage.cacheWriteTokens += u.cacheWriteTokens;
+          tokenUsage.reasoningTokens += u.reasoningTokens;
+        },
+        onSummary: (s) => {
+          summary = s;
+        },
+        onBusy: (b) => {
+          busy = b;
+        },
+      };
+    }
+
     try {
       const updatedChat = await streamChat({
         model: currentModel,
@@ -888,148 +1055,68 @@ export async function terminal(
         tokens,
         summary,
         pm,
-        callbacks: {
-          onStatus: (s) => {
-            if (s) {
-              if (!statusText && streamBuffer) {
-                const remaining = streamWrap.flush();
-                out.write(`${remaining}\n`);
-                streamBuffer = '';
-                spacing.markAfterBareMessage();
-              }
-              showStatus(s);
-            } else {
-              clearStatus();
-            }
-          },
-          onPending: (text) => {
-            const normalized = trimLeadingBlankLines(text);
-            if (normalized.length > streamBuffer.length) {
-              clearStatus();
-              if (!streamBuffer) {
-                spacing.beforeOutput();
-              }
-              const newText = normalized.slice(streamBuffer.length);
-              const wrapped = streamWrap.write(mask(newText));
-              out.write(wrapped);
-              streamBuffer = normalized;
-            }
-          },
-          onMessage: (type, content) => {
-            clearStatus();
-            spacing.beforeOutput();
-            const normalizedContent =
-              type === 'assistant' ? trimLeadingBlankLines(content) : content;
-            if (type === 'assistant') {
-              if (streamBuffer) {
-                const remaining = streamWrap.flush();
-                out.write(`${remaining}\n`);
-              } else {
-                renderMessage({ type, content: normalizedContent }, false);
-              }
-              streamBuffer = '';
-              streamWrap.reset();
-            } else {
-              renderMessage({ type, content: normalizedContent }, false);
-            }
-            addMessage(type, normalizedContent);
-            spacing.markAfterBareMessage();
-          },
-          onRecord: (type, content) => {
-            const normalizedContent =
-              type === 'assistant' ? trimLeadingBlankLines(content) : content;
-            // Finalize stream wrap without re-rendering text
-            if (type === 'assistant' && streamBuffer) {
-              const remaining = streamWrap.flush();
-              if (remaining) out.write(remaining);
-              out.write('\n');
-              streamBuffer = '';
-              streamWrap.reset();
-              spacing.markAfterBareMessage();
-            }
-            addMessage(type, normalizedContent);
-          },
-          onReasoning: (text, durationMs) => {
-            clearStatus();
-            spacing.beforeOutput();
-            const seconds = Math.round(durationMs / 1000);
-            const label =
-              seconds > 0 ? `thought for ${seconds}s` : 'thought briefly';
-            const truncated = text.replace(/\s+/g, ' ').trim().slice(0, 80);
-            out.write(`${dim(label)}\n`);
-            if (truncated) out.write(`${dim(`  ${truncated}`)}\n`);
-            spacing.markAfterBareMessage();
-            addMessage(
-              'info',
-              `${label}${truncated ? `\n  ${truncated}` : ''}`,
-            );
-          },
-          onEditStream: (filePath, oldLines, newLines, more) => {
-            clearStatus();
-            spacing.beforeOutput();
-
-            // Clear previously rendered streaming lines
-            for (let i = 0; i < editStreamLineCount; i++) {
-              out.write(ansi.cursorUp(1) + ansi.eraseLine + ansi.cursorLeft);
-            }
-
-            const basename = filePath.includes('/')
-              ? (filePath.split('/').pop() ?? filePath)
-              : filePath;
-            const lines: string[] = [];
-            lines.push(dim(`Edit ${basename}?`));
-            for (const line of oldLines) {
-              lines.push(`  ${red(`- ${line}`)}`);
-            }
-            for (const line of newLines) {
-              lines.push(`  ${green(`+ ${line}`)}`);
-            }
-            if (more > 0) {
-              lines.push(dim(`    ... ${more} more lines`));
-            }
-
-            for (const line of lines) {
-              out.write(`${line}\n`);
-            }
-
-            editStreamLineCount = lines.length;
-            editStreamRendered = true;
-          },
-          onTokens: (fn) => {
-            tokens = fn(tokens);
-          },
-          onCost: (fn) => {
-            cost = fn(cost);
-            updateTitle();
-          },
-          onUsage: (u) => {
-            tokenUsage.inputTokens += u.inputTokens;
-            tokenUsage.outputTokens += u.outputTokens;
-            tokenUsage.cacheReadTokens += u.cacheReadTokens;
-            tokenUsage.cacheWriteTokens += u.cacheWriteTokens;
-            tokenUsage.reasoningTokens += u.reasoningTokens;
-          },
-          onSummary: (s) => {
-            summary = s;
-          },
-          onBusy: (b) => {
-            busy = b;
-          },
-        },
+        callbacks: makeCallbacks(),
         abortSignal: controller.signal,
         image: pendingImage,
-        hasTools: capabilities.tools,
+        hasTools: planMode ? false : capabilities.tools,
+        planMode,
       });
 
-      pendingImage = null;
-      chat = updatedChat;
-      updatedChat.display = messages.map((m) => ({
-        type: m.type,
-        content: m.content,
-      }));
-      updatedChat.tokens = tokens;
-      updatedChat.cost = cost;
-      saveChat(updatedChat);
+      if (planMode && !controller.signal.aborted) {
+        process.stdout.write(ansi.cursorShow);
+        const confirmed = await waitForPlanConfirm();
+        process.stdout.write(ansi.cursorHide);
+
+        if (confirmed) {
+          streamBuffer = '';
+          streamWrap.reset();
+          busy = true;
+
+          const execChat = await streamChat({
+            model: currentModel,
+            message: 'Execute the plan above. Proceed step by step.',
+            history,
+            chat: updatedChat,
+            tokens,
+            summary,
+            pm,
+            callbacks: makeCallbacks(),
+            abortSignal: controller.signal,
+            hasTools: capabilities.tools,
+          });
+
+          pendingImage = null;
+          chat = execChat;
+          execChat.display = messages.map((m) => ({
+            type: m.type,
+            content: m.content,
+          }));
+          execChat.tokens = tokens;
+          execChat.cost = cost;
+          saveChat(execChat);
+        } else {
+          addAndPrint('info', 'plan discarded');
+          pendingImage = null;
+          chat = updatedChat;
+          updatedChat.display = messages.map((m) => ({
+            type: m.type,
+            content: m.content,
+          }));
+          updatedChat.tokens = tokens;
+          updatedChat.cost = cost;
+          saveChat(updatedChat);
+        }
+      } else {
+        pendingImage = null;
+        chat = updatedChat;
+        updatedChat.display = messages.map((m) => ({
+          type: m.type,
+          content: m.content,
+        }));
+        updatedChat.tokens = tokens;
+        updatedChat.cost = cost;
+        saveChat(updatedChat);
+      }
     } catch (e) {
       clearStatus();
       if ((e as Error).name !== 'AbortError') {
@@ -1049,7 +1136,7 @@ export async function terminal(
   function prompt() {
     const promptSpacing = getSetting('spacing') ?? 1;
     process.stdout.write('\n'.repeat(promptSpacing));
-    rl.setPrompt(dim('› '));
+    rl.setPrompt(dim(promptStr()));
     rl.prompt();
   }
 
@@ -1090,9 +1177,9 @@ export async function terminal(
     if (commandMode) return;
 
     if (key?.name === 'escape') {
-      rl.setPrompt(dim('› '));
+      rl.setPrompt(dim(promptStr()));
       rl.write(null, { ctrl: true, name: 'u' });
-      process.stdout.write(`\r${ansi.eraseLine}${dim('› ')}`);
+      process.stdout.write(`\r${ansi.eraseLine}${dim(promptStr())}`);
       return;
     }
 

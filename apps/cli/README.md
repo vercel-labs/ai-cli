@@ -34,6 +34,7 @@ echo "explain this" | ai     # pipe input
 - `-m, --model` - model (default: anthropic/claude-sonnet-4.5)
 - `--image` - attach image file
 - `-r, --resume` - resume a previous chat by ID
+- `--plan` - start in plan mode (think before acting)
 - `-l, --list` - list models
 - `--no-color` - disable color output
 - `-v, --version` - show version
@@ -55,6 +56,7 @@ echo "explain this" | ai     # pipe input
 ### context
 - `/usage` - token usage and cost
 - `/compress` - compress history
+- `/plan` - toggle plan mode (think before acting)
 
 ### model
 - `/model` - select model interactively
