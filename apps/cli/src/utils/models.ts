@@ -73,8 +73,7 @@ export async function resolveModel(query: string): Promise<string> {
     return scored[0].model.id;
   }
 
-  console.error(`no model found for "${query}"`);
-  process.exit(1);
+  throw new Error(`no model found for "${query}"`);
 }
 
 const REASONING_PATTERN = /\bo[134]\b|\bthinking\b|\breason/;

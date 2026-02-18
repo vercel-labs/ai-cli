@@ -8,7 +8,7 @@ export async function readStdin(): Promise<string> {
   return chunks.join('').trim();
 }
 
-export function showHelp(): void {
+export function showHelp(version: string): void {
   console.log(`ai - AI-powered chat interface
 
 Usage:
@@ -17,13 +17,16 @@ Usage:
   ai -m <model> <message>
 
 Options:
-  -m, --model   Specify AI model (default: ${DEFAULT_MODEL})
-  --image       Attach an image file (png, jpg, gif, webp)
-  -l, --list    List available models
-  -h, --help    Show this help message
+  -m, --model    Specify AI model (default: ${DEFAULT_MODEL})
+  --image        Attach an image file (png, jpg, gif, webp)
+  -r, --resume   Resume a previous chat by ID
+  -l, --list     List available models
+  --no-color     Disable color output
+  -v, --version  Show version
+  -h, --help     Show this help message
 
 Commands:
-  init          Setup AI CLI with API key
+  init           Setup AI CLI with API key
 
 Examples:
   ai "whats up bro"

@@ -1,17 +1,22 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { z } from 'zod';
 import { logError } from '../utils/errorlog.js';
 import { CONFIG_FILE, ensureBaseDir } from './paths.js';
 
-export interface Config {
-  apiKey?: string;
-  model?: string;
-  aliases?: Record<string, string>;
-  spacing?: number;
-  markdown?: boolean;
-  search?: 'perplexity' | 'parallel';
-}
+const configSchema = z
+  .object({
+    apiKey: z.string().optional(),
+    model: z.string().optional(),
+    aliases: z.record(z.string(), z.string()).optional(),
+    spacing: z.number().int().min(0).max(4).optional(),
+    markdown: z.boolean().optional(),
+    search: z.enum(['perplexity', 'parallel']).optional(),
+  })
+  .strip();
+
+export type Config = z.infer<typeof configSchema>;
 
 const defaults: Config = {
   spacing: 1,
@@ -76,7 +81,6 @@ export function getConfig(): Config {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
 
-      // Migrate: steps setting has been removed — clean it from persisted config.
       if ('steps' in data) {
         delete data.steps;
         try {
@@ -86,7 +90,8 @@ export function getConfig(): Config {
         }
       }
 
-      result = { ...defaults, ...data };
+      const parsed = configSchema.safeParse(data);
+      result = { ...defaults, ...(parsed.success ? parsed.data : data) };
       cachedConfig = result;
       cachedMtimeMs = check.mtimeMs;
       return result;
@@ -94,7 +99,8 @@ export function getConfig(): Config {
 
     const migrated = migrateOldConfig();
     if (migrated) {
-      result = { ...defaults, ...migrated };
+      const parsed = configSchema.safeParse(migrated);
+      result = { ...defaults, ...(parsed.success ? parsed.data : migrated) };
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(result, null, 2), 'utf-8');
       cachedConfig = result;
       cachedMtimeMs = check.mtimeMs;
