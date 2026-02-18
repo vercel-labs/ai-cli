@@ -8,7 +8,7 @@ import {
   streamText,
 } from 'ai';
 import { type Chat, getOrCreateChat, saveChat } from '../config/chats.js';
-import { getTools, loadMcpTools } from '../tools/index.js';
+import { getReadOnlyTools, getTools, loadMcpTools } from '../tools/index.js';
 import { AI_CLI_HEADERS } from '../utils/constants.js';
 import {
   getContextWindow,
@@ -45,7 +45,7 @@ export interface TokenUsage {
   reasoningTokens: number;
 }
 
-interface StreamCallbacks {
+export interface StreamCallbacks {
   onStatus: (status: string) => void;
   onPending: (text: string) => void;
   onMessage: (
@@ -148,6 +148,7 @@ interface StreamOptions {
   abortSignal?: AbortSignal;
   image?: PendingImage | null;
   hasTools?: boolean;
+  planMode?: boolean;
 }
 
 interface ToolInput {
@@ -358,7 +359,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   callbacks.onStatus('thinking...');
 
-  const sys = buildSystemPrompt(pm, summary, message);
+  const sys = buildSystemPrompt(pm, summary, message, {
+    planMode: options.planMode,
+  });
 
   type UserContentPart =
     | { type: 'text'; text: string }
@@ -403,11 +406,16 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
   const result = await (async () => {
     try {
       const mcpTools = useTools ? await loadMcpTools() : {};
+      const toolSet = useTools
+        ? options.planMode
+          ? getReadOnlyTools(mcpTools)
+          : getTools(mcpTools)
+        : undefined;
       return streamText({
         model,
         system: buildSystemParam(sys, model),
         messages: history,
-        tools: useTools ? getTools(mcpTools) : undefined,
+        tools: toolSet,
         stopWhen: smartStop(),
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },

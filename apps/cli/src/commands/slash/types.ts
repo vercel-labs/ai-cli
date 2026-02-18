@@ -26,6 +26,7 @@ export interface CommandResult {
   clearScreen?: boolean;
   summary?: string;
   output?: string;
+  planMode?: boolean;
 }
 
 export type CommandHandler = (
