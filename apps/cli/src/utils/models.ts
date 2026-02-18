@@ -77,8 +77,7 @@ export async function resolveModel(query: string): Promise<string> {
   process.exit(1);
 }
 
-const REASONING_PATTERN =
-  /\bo[134]\b|[-/]o[134][-/]|thinking|reasoner|reasoning/;
+const REASONING_PATTERN = /\bo[134]\b|thinking|reason/;
 
 export async function getModelCapabilities(
   modelId: string,

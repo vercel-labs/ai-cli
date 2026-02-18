@@ -20,6 +20,24 @@ const defaults: Config = {
 };
 
 let cachedConfig: Config | null = null;
+let cachedMtimeMs: number | null = null;
+
+function configFileChanged(): boolean {
+  try {
+    const stat = fs.statSync(CONFIG_FILE);
+    return stat.mtimeMs !== cachedMtimeMs;
+  } catch {
+    return true;
+  }
+}
+
+function snapshotMtime(): void {
+  try {
+    cachedMtimeMs = fs.statSync(CONFIG_FILE).mtimeMs;
+  } catch {
+    cachedMtimeMs = null;
+  }
+}
 
 function migrateOldConfig(): Config | null {
   const home = os.homedir();
@@ -58,7 +76,7 @@ function migrateOldConfig(): Config | null {
 }
 
 export function getConfig(): Config {
-  if (cachedConfig) return cachedConfig;
+  if (cachedConfig && !configFileChanged()) return cachedConfig;
   ensureBaseDir();
   let result: Config;
   try {
@@ -77,6 +95,7 @@ export function getConfig(): Config {
 
       result = { ...defaults, ...data };
       cachedConfig = result;
+      snapshotMtime();
       return result;
     }
 
@@ -85,6 +104,7 @@ export function getConfig(): Config {
       result = { ...defaults, ...migrated };
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(result, null, 2), 'utf-8');
       cachedConfig = result;
+      snapshotMtime();
       return result;
     }
   } catch (e) {
@@ -92,6 +112,7 @@ export function getConfig(): Config {
   }
   result = { ...defaults };
   cachedConfig = result;
+  cachedMtimeMs = null;
   return result;
 }
 
@@ -101,6 +122,7 @@ export function setConfig(config: Partial<Config>): void {
   const merged = { ...current, ...config };
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
   cachedConfig = null;
+  cachedMtimeMs = null;
 }
 
 export function getAliases(): Record<string, string> {

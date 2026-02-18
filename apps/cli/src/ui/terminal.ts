@@ -100,7 +100,7 @@ export async function terminal(
     maxVisible: 8,
     filter: (item, query) => item.startsWith(query),
   });
-  const modelSelector = new ModelSelector();
+  const modelSelector = new ModelSelector((text) => process.stdout.write(text));
   let editStreamRendered = false;
   let editStreamLineCount = 0;
   let pendingImage: { data: string; mimeType: string } | null = null;

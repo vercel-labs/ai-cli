@@ -6,6 +6,7 @@ import { InlineMenu } from './inline-menu.js';
 export class ModelSelector {
   active = false;
   buffer = '';
+  private write: (text: string) => void;
   private menu = new InlineMenu([], {
     maxVisible: 10,
     filterAndSort: (items, query) =>
@@ -15,6 +16,10 @@ export class ModelSelector {
         .sort((a, b) => b.score - a.score)
         .map((x) => x.id),
   });
+
+  constructor(write?: (text: string) => void) {
+    this.write = write ?? process.stdout.write.bind(process.stdout);
+  }
 
   enter(models: string[], currentModel: string): void {
     this.active = true;
@@ -90,7 +95,7 @@ export class ModelSelector {
   }
 
   private redraw(): void {
-    process.stdout.write(
+    this.write(
       `\r${ansi.eraseLine}${dim('model › ')}${this.buffer || dim('type to filter...')}`,
     );
   }
