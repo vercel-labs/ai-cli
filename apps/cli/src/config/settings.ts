@@ -34,3 +34,19 @@ export function setSetting<K extends keyof Settings>(
 export function invalidateSettingsCache(): void {
   cached = null;
 }
+
+export function getReviewEnabled(): boolean {
+  const config = getConfig();
+  return config.review?.enabled ?? true;
+}
+
+export function setReviewEnabled(enabled: boolean): void {
+  const config = getConfig();
+  setConfig({ review: { ...config.review, enabled } });
+  cached = null;
+}
+
+export function getReviewMaxIterations(): number {
+  const config = getConfig();
+  return config.review?.maxIterations ?? 3;
+}

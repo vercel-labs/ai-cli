@@ -91,6 +91,13 @@ const details: Record<string, string> = {
   you can approve or reject the plan before any changes are made
   also available via --plan flag at startup`,
 
+  review: `/review
+  /review             show review status
+  /review on          enable auto-review after changes
+  /review off         disable auto-review
+  a separate review agent checks all file changes for
+  severe/high-priority bugs and fixes them automatically`,
+
   info: `/info
   shows version, current model, balance, storage, and feedback link`,
 };
@@ -122,6 +129,7 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /settings    settings',
     '  /permissions permissions rules',
     '  /plan        plan before executing',
+    '  /review      review loop',
     '  /model       model',
     '  /alias       shortcuts',
     '  /info        info',

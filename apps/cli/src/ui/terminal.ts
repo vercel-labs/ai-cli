@@ -19,7 +19,11 @@ import {
   saveChat,
 } from '../config/chats.js';
 import { setModel as saveModel } from '../config/index.js';
-import { getSetting } from '../config/settings.js';
+import {
+  getSetting,
+  getReviewEnabled,
+  getReviewMaxIterations,
+} from '../config/settings.js';
 import {
   streamChat,
   type StreamCallbacks,
@@ -37,6 +41,11 @@ import {
   type ModelCapabilities,
 } from '../utils/models.js';
 import { detectPackageManager } from '../utils/package-manager.js';
+import { reviewLoop } from '../utils/review.js';
+import {
+  getChangedFilesWithOriginals,
+  hasChangedFiles,
+} from '../utils/undo.js';
 import { killAllProcesses } from '../utils/processes.js';
 import {
   nextShimmerPos,
@@ -757,6 +766,34 @@ export async function terminal(
     });
   }
 
+  async function runReview(
+    msg: string,
+    cbs: StreamCallbacks,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if (!getReviewEnabled()) return;
+    if (!hasChangedFiles()) return;
+
+    const changed = getChangedFilesWithOriginals();
+    if (changed.length === 0) return;
+
+    try {
+      await reviewLoop({
+        model: currentModel,
+        originalTask: msg,
+        changedFiles: changed,
+        maxIterations: getReviewMaxIterations(),
+        callbacks: cbs,
+        abortSignal: signal,
+        pm,
+      });
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        addAndPrint('error', formatError(e));
+      }
+    }
+  }
+
   async function handleInput(line: string) {
     if (modelSelector.active) return;
 
@@ -1094,6 +1131,10 @@ export async function terminal(
           execChat.tokens = tokens;
           execChat.cost = cost;
           saveChat(execChat);
+
+          if (!controller.signal.aborted) {
+            await runReview(msg, makeCallbacks(), controller.signal);
+          }
         } else {
           addAndPrint('info', 'plan discarded');
           pendingImage = null;
@@ -1116,6 +1157,10 @@ export async function terminal(
         updatedChat.tokens = tokens;
         updatedChat.cost = cost;
         saveChat(updatedChat);
+
+        if (!controller.signal.aborted) {
+          await runReview(msg, makeCallbacks(), controller.signal);
+        }
       }
     } catch (e) {
       clearStatus();

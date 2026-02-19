@@ -12,6 +12,7 @@ import { memory } from './memory.js';
 import { model } from './model.js';
 import { plan } from './plan.js';
 import { permissions } from './permissions.js';
+import { review } from './review.js';
 import { processes } from './processes.js';
 import { rollback } from './rollback.js';
 import { rules } from './rules.js';
@@ -44,6 +45,7 @@ export const commands: Record<string, CommandHandler> = {
   settings,
   permissions,
   plan,
+  review,
   rules,
   skills,
   mcp,
