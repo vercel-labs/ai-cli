@@ -5,6 +5,13 @@ import { z } from 'zod';
 import { logError } from '../utils/errorlog.js';
 import { CONFIG_FILE, ensureBaseDir } from './paths.js';
 
+const reviewSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    maxIterations: z.number().int().min(1).max(10).optional(),
+  })
+  .optional();
+
 const configSchema = z
   .object({
     apiKey: z.string().optional(),
@@ -13,6 +20,7 @@ const configSchema = z
     spacing: z.number().int().min(0).max(4).optional(),
     markdown: z.boolean().optional(),
     search: z.enum(['perplexity', 'parallel']).optional(),
+    review: reviewSchema,
   })
   .strip();
 
