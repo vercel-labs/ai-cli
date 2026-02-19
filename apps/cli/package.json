@@ -1,6 +1,6 @@
 {
   "name": "ai-cli",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "main": "dist/ai.mjs",
   "bin": {
     "ai": "dist/ai.mjs"
