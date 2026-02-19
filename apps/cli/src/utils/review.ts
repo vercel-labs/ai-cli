@@ -4,9 +4,13 @@ import * as path from 'node:path';
 import { type ModelMessage, streamText } from 'ai';
 import { SKILLS_DIR } from '../config/paths.js';
 import { editFile } from '../tools/edit-file.js';
+import { fetchUrl } from '../tools/fetch.js';
+import { killProcess } from '../tools/kill-process.js';
 import { readFile } from '../tools/read-file.js';
+import { readProcessLogs } from '../tools/read-process-logs.js';
 import { runCommand } from '../tools/run-command.js';
 import { searchInFiles } from '../tools/search-in-files.js';
+import { startProcess } from '../tools/start-process.js';
 import { writeFile } from '../tools/write-file.js';
 import type { StreamCallbacks } from '../hooks/chat.js';
 import { AI_CLI_HEADERS } from './constants.js';
@@ -80,7 +84,20 @@ Environment:
 
   const browserSkill = loadAgentBrowserSkill();
   if (browserSkill) {
-    prompt += `\n\nBrowser verification is available via runCommand using the agent-browser CLI. Use it to verify UI changes when relevant.\n\n<skill name="agent-browser">\n${browserSkill}\n</skill>`;
+    prompt += `
+
+MANUAL VERIFICATION:
+When changes are user-facing (UI components, pages, styles, routes, layouts, API endpoints), manually verify them:
+1. Use startProcess to start the dev server (e.g. "${pm.run} dev")
+2. Use agent-browser via runCommand to navigate to the app, interact with it, and visually verify the changes work correctly
+3. If something is broken, fix it with editFile and re-verify
+4. ALWAYS use killProcess to stop the dev server when verification is complete
+
+Skip verification for non-user-facing changes (config files, type definitions, internal logic, test files, build scripts).
+
+<skill name="agent-browser">
+${browserSkill}
+</skill>`;
   }
 
   return prompt;
@@ -183,6 +200,10 @@ export async function reviewLoop(
     writeFile,
     searchInFiles,
     runCommand,
+    startProcess,
+    readProcessLogs,
+    killProcess,
+    fetchUrl,
   };
 
   for (let i = 0; i < maxIterations; i++) {
@@ -395,6 +416,19 @@ export async function reviewLoop(
               const label = d ? `"${q}" in ${d}` : `"${q}"`;
               status = `Searching: ${label}`;
               currentToolLabel = `Searched: ${label}`;
+            } else if (tc.toolName === 'startProcess') {
+              const cmd = input?.command || 'server';
+              status = `Starting ${cmd.slice(0, 60)}`;
+              currentToolLabel = '';
+            } else if (tc.toolName === 'readProcessLogs') {
+              status = 'Reading logs...';
+              currentToolLabel = '';
+            } else if (tc.toolName === 'killProcess') {
+              status = 'Stopping server...';
+              currentToolLabel = '';
+            } else if (tc.toolName === 'fetchUrl') {
+              status = 'Fetching URL...';
+              currentToolLabel = '';
             } else {
               status = toolActions[tc.toolName] ?? 'Working';
               currentToolLabel = '';
