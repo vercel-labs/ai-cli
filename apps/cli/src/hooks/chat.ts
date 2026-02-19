@@ -411,6 +411,8 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         partType !== 'tool-call' &&
         partType !== 'tool-result' &&
         partType !== 'tool-error' &&
+        partType !== 'tool-input-start' &&
+        partType !== 'tool-input-delta' &&
         partType !== 'step-finish'
       ) {
         continue;

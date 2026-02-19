@@ -258,6 +258,8 @@ export async function reviewLoop(
           partType !== 'tool-call' &&
           partType !== 'tool-result' &&
           partType !== 'tool-error' &&
+          partType !== 'tool-input-start' &&
+          partType !== 'tool-input-delta' &&
           partType !== 'step-finish'
         ) {
           continue;
