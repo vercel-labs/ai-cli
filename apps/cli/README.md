@@ -57,6 +57,7 @@ echo "explain this" | ai     # pipe input
 - `/usage` - token usage and cost
 - `/compress` - compress history
 - `/plan` - toggle plan mode (think before acting)
+- `/review` - review loop (auto-reviews changes for bugs)
 
 ### model
 - `/model` - select model interactively
@@ -132,6 +133,31 @@ manage with `/rules`:
 /rules edit    # open in editor
 /rules clear   # remove rules
 /rules path    # show path
+```
+
+## review loop
+
+after the coding agent finishes making file changes, a separate review agent automatically inspects all modifications for severe and high-priority bugs. if it finds issues, it fixes them and re-reviews, up to a configurable number of passes.
+
+the review agent runs in its own isolated context with a strict system prompt -- it has no attachment to the code it's reviewing and is intentionally more critical than the coding agent.
+
+enabled by default. toggle with:
+
+```bash
+/review on     # enable
+/review off    # disable
+/review        # show status
+```
+
+configure max iterations in `~/.ai-cli/config.json`:
+
+```json
+{
+  "review": {
+    "enabled": true,
+    "maxIterations": 3
+  }
+}
 ```
 
 ## tools

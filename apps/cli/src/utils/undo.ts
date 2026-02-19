@@ -176,6 +176,25 @@ export function rollbackTo(index: number): {
   return { success: true, message: `rolled back ${count} change(s)`, count };
 }
 
+export function hasChangedFiles(): boolean {
+  return stack.some((op) => op.type === 'write' || op.type === 'delete');
+}
+
+export function getChangedFilesWithOriginals(): {
+  path: string;
+  original: string | null;
+}[] {
+  const seen = new Map<string, string | null>();
+  for (const op of stack) {
+    if (op.type === 'write' && !seen.has(op.path)) {
+      seen.set(op.path, op.previous);
+    } else if (op.type === 'delete' && !seen.has(op.path)) {
+      seen.set(op.path, op.content);
+    }
+  }
+  return [...seen.entries()].map(([p, original]) => ({ path: p, original }));
+}
+
 function formatTime(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 60) return `${diff}s ago`;
