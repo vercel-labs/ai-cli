@@ -17,6 +17,7 @@ import {
 } from '../utils/context.js';
 import { log as debug } from '../utils/debug.js';
 import { logError } from '../utils/errorlog.js';
+import { extractJsonStringValue } from '../utils/json-parse.js';
 import { buildSystemPrompt, toolActions } from '../utils/prompt.js';
 import { smartStop } from '../utils/stop-condition.js';
 
@@ -70,65 +71,6 @@ export interface StreamCallbacks {
   onUsage?: (usage: TokenUsage) => void;
   onSummary: (summary: string) => void;
   onBusy: (busy: boolean) => void;
-}
-
-function extractJsonStringValue(
-  text: string,
-  key: string,
-): { value: string; complete: boolean } | null {
-  const marker = `"${key}":"`;
-  const idx = text.indexOf(marker);
-  if (idx < 0) return null;
-
-  const start = idx + marker.length;
-  let value = '';
-  let escaped = false;
-  let complete = false;
-
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (escaped) {
-      switch (ch) {
-        case 'n':
-          value += '\n';
-          break;
-        case 't':
-          value += '\t';
-          break;
-        case '"':
-          value += '"';
-          break;
-        case '\\':
-          value += '\\';
-          break;
-        case 'r':
-          value += '\r';
-          break;
-        case 'u': {
-          const hex = text.slice(i + 1, i + 5);
-          if (hex.length === 4 && /^[0-9a-fA-F]{4}$/.test(hex)) {
-            value += String.fromCharCode(parseInt(hex, 16));
-            i += 4;
-          } else {
-            value += 'u'; // incomplete, keep raw
-          }
-          break;
-        }
-        default:
-          value += ch;
-      }
-      escaped = false;
-    } else if (ch === '\\') {
-      escaped = true;
-    } else if (ch === '"') {
-      complete = true;
-      break;
-    } else {
-      value += ch;
-    }
-  }
-
-  return { value, complete };
 }
 
 interface PendingImage {
@@ -516,6 +458,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             callbacks.onStatus('Editing...');
           } else {
             editStreamActive = false;
+            if (
+              typeof tcs.toolName === 'string' &&
+              tcs.toolName === 'writeFile'
+            ) {
+              flushReasoning();
+              callbacks.onStatus('Writing...');
+            }
           }
           break;
         }

@@ -777,10 +777,8 @@ export async function terminal(
     const changed = getChangedFilesWithOriginals();
     if (changed.length === 0) return;
 
-    cbs.onStatus('reviewing...');
-
     try {
-      const reviewResult = await reviewLoop({
+      await reviewLoop({
         model: currentModel,
         originalTask: msg,
         changedFiles: changed,
@@ -789,17 +787,9 @@ export async function terminal(
         abortSignal: signal,
         pm,
       });
-
-      if (reviewResult.issuesFixed > 0) {
-        spacing.beforeOutput();
-        addAndPrint(
-          'info',
-          `review: fixed ${reviewResult.issuesFixed} issue(s) in ${reviewResult.iterations} pass(es)`,
-        );
-      }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        addAndPrint('error', `review error: ${formatError(e)}`);
+        addAndPrint('error', formatError(e));
       }
     }
   }
