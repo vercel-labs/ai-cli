@@ -107,6 +107,9 @@ const details: Record<string, string> = {
   ai -p --force "message"      auto-approve all tool actions
   ai -p --system "..." "msg"   append custom system prompt
   ai -p --no-save "message"    don't save chat history
+  ai -p --plan "message"       plan mode (read-only tools)
+  ai -p -r <id> "message"     resume a previous session
+  ai -p --timeout 60 "msg"    abort after N seconds
   git diff | ai -p "review"    pipe input + headless`,
 };
 

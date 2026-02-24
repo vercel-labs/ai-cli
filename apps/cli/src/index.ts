@@ -27,6 +27,7 @@ interface Args {
   '--system'?: string;
   '--force'?: boolean;
   '--no-save'?: boolean;
+  '--timeout'?: number;
   _: string[];
 }
 
@@ -47,6 +48,7 @@ async function main() {
       '--system': String,
       '--force': Boolean,
       '--no-save': Boolean,
+      '--timeout': Number,
       '-m': '--model',
       '-h': '--help',
       '-v': '--version',
@@ -109,7 +111,9 @@ async function main() {
   const modelArg = args['--model'];
   const model = modelArg ? await resolveModel(modelArg) : savedModel;
 
-  if (args['--resume'] && process.stdin.isTTY) {
+  const headless = args['--print'] || args['--json'];
+
+  if (args['--resume'] && !headless && process.stdin.isTTY) {
     await inkCommand({
       model,
       version,
@@ -118,8 +122,6 @@ async function main() {
     });
     return;
   }
-
-  const headless = args['--print'] || args['--json'];
 
   let message = args._.join(' ');
 
@@ -151,6 +153,9 @@ async function main() {
       force: args['--force'],
       save: !args['--no-save'],
       system: args['--system'],
+      plan: args['--plan'],
+      resume: args['--resume'],
+      timeout: args['--timeout'],
       version,
     });
     return;

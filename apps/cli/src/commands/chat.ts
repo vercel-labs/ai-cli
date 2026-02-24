@@ -1,10 +1,9 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { stepCountIs, streamText } from 'ai';
 import { getTools } from '../tools/index.js';
 import { gray } from '../utils/color.js';
 import { AI_CLI_HEADERS, DEFAULT_MODEL } from '../utils/constants.js';
 import { formatError } from '../utils/errors.js';
+import { loadImage } from '../utils/image.js';
 import { createSpinner } from '../utils/spinner.js';
 
 interface ChatOptions {
@@ -13,19 +12,6 @@ interface ChatOptions {
   image?: string;
   isPiped: boolean;
   version: string;
-}
-
-const imageTypes: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-};
-
-function getMimeType(filePath: string): string | null {
-  const ext = path.extname(filePath).toLowerCase();
-  return imageTypes[ext] || null;
 }
 
 export async function chatCommand(options: ChatOptions): Promise<void> {
@@ -38,22 +24,13 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
   let imageData: { type: 'image'; image: string; mimeType: string } | null =
     null;
   if (image) {
-    const resolved = path.resolve(image);
-    if (!fs.existsSync(resolved)) {
-      console.error(`image not found: ${image}`);
+    try {
+      const img = loadImage(image);
+      imageData = { type: 'image', image: img.data, mimeType: img.mimeType };
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e));
       process.exit(1);
     }
-    const mimeType = getMimeType(resolved);
-    if (!mimeType) {
-      console.error('unsupported format. use: png, jpg, gif, webp');
-      process.exit(1);
-    }
-    const buffer = fs.readFileSync(resolved);
-    imageData = {
-      type: 'image',
-      image: buffer.toString('base64'),
-      mimeType,
-    };
   }
 
   const spinner = !isPiped ? createSpinner() : null;

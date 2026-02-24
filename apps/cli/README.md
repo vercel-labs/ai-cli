@@ -41,6 +41,9 @@ ai -p --system "You are a security auditor" "audit src/"   # custom instructions
 ai -p --no-save "what dependencies are outdated?"      # ephemeral (no history)
 git diff | ai -p "review this for bugs"                # pipe + headless
 ai -p -m gpt-5 --force "refactor the database layer"  # combine flags
+ai -p --plan "how should I refactor auth?"             # plan mode (read-only)
+ai -p -r <chatId> "continue"                           # resume a session
+ai -p --timeout 60 "fix type errors"                   # abort after 60s
 ```
 
 exit codes: `0` success, `1` error, `2` agent stuck.
@@ -54,9 +57,18 @@ json output format:
   "tokens": 1234,
   "cost": 0.05,
   "exitCode": 0,
-  "chatId": "abc123"
+  "chatId": "abc123",
+  "usage": {
+    "inputTokens": 800,
+    "outputTokens": 434,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "reasoningTokens": 0
+  }
 }
 ```
+
+on error, includes an `error` field with the message.
 
 ## options
 
@@ -69,6 +81,7 @@ json output format:
 - `--system` - append custom text to the system prompt
 - `--force` - auto-approve all tool actions (no confirmations)
 - `--no-save` - don't persist the chat to history
+- `--timeout` - abort after N seconds (headless only)
 - `-l, --list` - list models
 - `--no-color` - disable color output
 - `-v, --version` - show version
