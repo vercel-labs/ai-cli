@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { isAllowed } from '../utils/permissions.js';
 
 export interface ConfirmOpts {
@@ -10,10 +11,11 @@ export interface ConfirmOpts {
 let handler: ((action: string, opts?: ConfirmOpts) => Promise<boolean>) | null =
   null;
 
-let forceMode = false;
+const forceStorage = new AsyncLocalStorage<boolean>();
 
-export function setForceMode(on: boolean): void {
-  forceMode = on;
+/** Run `fn` with all confirm() calls auto-approved. Scoped to the async context — no global state to clean up. */
+export function withForceMode<T>(fn: () => T): T {
+  return forceStorage.run(true, fn);
 }
 
 // Queue to serialize concurrent confirm() calls so only one prompt
@@ -24,7 +26,7 @@ export async function confirm(
   action: string,
   opts?: ConfirmOpts,
 ): Promise<boolean> {
-  if (forceMode) return true;
+  if (forceStorage.getStore()) return true;
 
   // Check persistent permissions first
   if (opts?.tool) {

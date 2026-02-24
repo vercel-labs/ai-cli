@@ -2,7 +2,7 @@ import type { ModelMessage } from 'ai';
 import { type Chat, saveChat } from '../config/chats.js';
 import { streamChat } from '../hooks/chat.js';
 import type { StreamCallbacks, TokenUsage } from '../hooks/chat.js';
-import { setForceMode } from '../tools/confirm.js';
+import { withForceMode } from '../tools/confirm.js';
 import { gray } from '../utils/color.js';
 import { formatError } from '../utils/errors.js';
 import { loadImage, type PendingImage } from '../utils/image.js';
@@ -67,12 +67,17 @@ function exit(code: number): void {
 const MAX_TIMEOUT = 86400;
 
 export async function printCommand(options: PrintOptions): Promise<void> {
+  const { force = false } = options;
+  const run = () => printCommandInner(options);
+  return force ? withForceMode(run) : run();
+}
+
+async function printCommandInner(options: PrintOptions): Promise<void> {
   const {
     message,
     model,
     image,
     json = false,
-    force = false,
     save = true,
     quiet = false,
     system,
@@ -86,8 +91,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
   let exitCode = 0;
 
   try {
-    if (force) setForceMode(true);
-
     function emitErrorAndExit(
       msg: string,
       opts?: {
@@ -288,7 +291,8 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       const isTimeout = error instanceof Error && error.name === 'TimeoutError';
       if (isTimeout) {
         process.stderr.write(
-          'warning: workspace may contain partial changes from interrupted tool execution\n',
+          'warning: timed out during tool execution; workspace may contain partial changes\n' +
+            'hint: run `git diff` to inspect changes, `git checkout .` to revert\n',
         );
       }
       const errorMsg = isTimeout
@@ -322,8 +326,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     } else {
       throw error;
     }
-  } finally {
-    setForceMode(false);
   }
 
   exit(exitCode);
