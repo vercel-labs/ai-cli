@@ -28,6 +28,7 @@ interface Args {
   '--force'?: boolean;
   '--no-save'?: boolean;
   '--timeout'?: number;
+  '--quiet'?: boolean;
   _: string[];
 }
 
@@ -49,12 +50,14 @@ async function main() {
       '--force': Boolean,
       '--no-save': Boolean,
       '--timeout': Number,
+      '--quiet': Boolean,
       '-m': '--model',
       '-h': '--help',
       '-v': '--version',
       '-l': '--list',
       '-r': '--resume',
       '-p': '--print',
+      '-q': '--quiet',
     }) as Args;
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -116,16 +119,16 @@ async function main() {
   const model = modelArg ? await resolveModel(modelArg) : savedModel;
 
   const headless = args['--print'] || args['--json'];
-  if (args['--json'] && !args['--print']) {
-    process.stderr.write('note: --json implies --print\n');
-  }
 
   if (
     !headless &&
-    (args['--force'] || args['--timeout'] || args['--no-save'])
+    (args['--force'] ||
+      args['--timeout'] ||
+      args['--no-save'] ||
+      args['--quiet'])
   ) {
     console.error(
-      '--force, --timeout, and --no-save require --print or --json',
+      '--force, --timeout, --no-save, and --quiet require --print or --json',
     );
     process.exit(1);
   }
@@ -171,6 +174,7 @@ async function main() {
       json: args['--json'],
       force: args['--force'],
       save: !args['--no-save'],
+      quiet: args['--quiet'],
       system: args['--system'],
       plan: args['--plan'],
       resume: args['--resume'],

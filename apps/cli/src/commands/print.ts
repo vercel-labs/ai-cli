@@ -17,6 +17,7 @@ interface PrintOptions {
   json?: boolean;
   force?: boolean;
   save?: boolean;
+  quiet?: boolean;
   system?: string;
   plan?: boolean;
   resume?: string;
@@ -33,6 +34,12 @@ interface HeadlessResult {
   chatId?: string;
   error?: string;
   usage?: TokenUsage;
+}
+
+class ExitError extends Error {
+  constructor(public readonly code: number) {
+    super(`exit ${code}`);
+  }
 }
 
 function exit(code: number): void {
@@ -57,6 +64,8 @@ function exit(code: number): void {
   }
 }
 
+const MAX_TIMEOUT = 86400;
+
 export async function printCommand(options: PrintOptions): Promise<void> {
   const {
     message,
@@ -65,6 +74,7 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     json = false,
     force = false,
     save = true,
+    quiet = false,
     system,
     plan = false,
     resume,
@@ -72,226 +82,249 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     version,
   } = options;
 
-  if (force) setForceMode(true);
-
-  function emitErrorAndExit(
-    msg: string,
-    opts?: {
-      tokens?: number;
-      cost?: number;
-      usage?: TokenUsage;
-      chatId?: string;
-    },
-  ): never {
-    if (json) {
-      const result: HeadlessResult = {
-        output: '',
-        model,
-        tokens: opts?.tokens ?? 0,
-        cost: opts?.cost ?? 0,
-        exitCode: 1,
-        error: msg,
-        chatId: opts?.chatId,
-        usage: opts?.usage,
-      };
-      process.stdout.write(`${JSON.stringify(result)}\n`);
-    } else {
-      process.stderr.write(`error: ${msg}\n`);
-    }
-    exit(1);
-    throw new Error('unreachable');
-  }
-
-  const timeoutSec = timeout !== undefined ? Math.floor(timeout) : undefined;
-
-  if (
-    timeoutSec !== undefined &&
-    (Number.isNaN(timeoutSec) || timeoutSec <= 0)
-  ) {
-    emitErrorAndExit('timeout must be a positive number of seconds');
-  }
-
-  if (!message && !resume) {
-    emitErrorAndExit('no message provided');
-  }
-
-  if (!json) {
-    process.stderr.write(gray(`ai ${version} [${model}]\n`));
-  }
-
-  let pendingImage: PendingImage | null = null;
-  if (image) {
-    try {
-      pendingImage = loadImage(image);
-    } catch (e) {
-      emitErrorAndExit(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  const pm = detectPackageManager();
-  const capabilities = await getModelCapabilities(model);
-  const spinner = !json ? createSpinner(process.stderr) : null;
-
-  let tokens = 0;
-  let cost = 0;
-  let output = '';
-  let outputEndsWithNewline = false;
-  let stuck = false;
-  let usage: TokenUsage | null = null;
-
-  const history: ModelMessage[] = [];
-  let existingChat: Chat | null = null;
-  let initialTokens = 0;
-  let summary = '';
-
-  if (resume) {
-    const { loadChat } = await import('../config/chats.js');
-    const loaded = loadChat(resume);
-    if (!loaded) {
-      emitErrorAndExit(`session ${resume} not found`);
-    }
-    existingChat = loaded;
-    summary = loaded.summary || '';
-    initialTokens = loaded.tokens || 0;
-    const { restoreHistory } = await import('./slash/chat.js');
-    restoreHistory({ chat: loaded }, history);
-  }
-
-  const abortSignal = timeoutSec
-    ? AbortSignal.timeout(timeoutSec * 1000)
-    : undefined;
-
-  const trackOutput = (content: string) => {
-    if (!content) return;
-    if (json) {
-      output = content;
-    } else if (content !== output) {
-      if (output && content.startsWith(output)) {
-        const chunk = content.slice(output.length);
-        process.stdout.write(chunk);
-        outputEndsWithNewline = chunk.endsWith('\n');
-      } else if (output && !outputEndsWithNewline) {
-        process.stdout.write(`\n${content}`);
-        outputEndsWithNewline = content.endsWith('\n');
-      } else {
-        process.stdout.write(content);
-        outputEndsWithNewline = content.endsWith('\n');
-      }
-      output = content;
-    }
-  };
-
-  const callbacks: StreamCallbacks = {
-    onStatus: (status) => {
-      if (!json && status) spinner?.update(status);
-      if (!json && !status) spinner?.stop();
-    },
-    onPending: (text) => {
-      if (!text) {
-        output = '';
-        outputEndsWithNewline = false;
-        return;
-      }
-      trackOutput(text);
-    },
-    onMessage: (type, content) => {
-      if (type === 'assistant') {
-        trackOutput(content);
-      } else if (type === 'info' && content.startsWith('Stopped:')) {
-        stuck = true;
-        if (!json) process.stderr.write(`${content}\n`);
-      } else if (type === 'error') {
-        if (!json) process.stderr.write(`${content}\n`);
-      } else if (type === 'tool') {
-        if (!json) process.stderr.write(`${content}\n`);
-      }
-    },
-    onRecord: (type, content) => {
-      if (type === 'assistant') {
-        trackOutput(content);
-      }
-    },
-    onReasoning: (text, _durationMs) => {
-      if (!json) {
-        const short = text.replace(/\s+/g, ' ').trim().slice(-80);
-        spinner?.update(short);
-      }
-    },
-    onTokens: (fn) => {
-      tokens = fn(tokens);
-    },
-    onCost: (fn) => {
-      cost = fn(cost);
-    },
-    onUsage: (u: TokenUsage) => {
-      usage = u;
-    },
-    onSummary: () => {},
-    onBusy: () => {},
-  };
-
-  let chat: Chat | null = null;
+  const verbose = !json && !quiet;
+  let exitCode = 0;
 
   try {
-    spinner?.start('thinking...');
+    if (force) setForceMode(true);
 
-    chat = await streamChat({
-      model,
-      message,
-      history,
-      chat: existingChat,
-      tokens: initialTokens,
-      summary,
-      pm,
-      callbacks,
-      image: pendingImage,
-      hasTools: capabilities.tools,
-      planMode: plan,
-      appendSystem: system,
-      abortSignal,
-      save,
-    });
-
-    spinner?.stop();
-
-    if (!json && output) {
-      process.stdout.write('\n');
+    function emitErrorAndExit(
+      msg: string,
+      opts?: {
+        tokens?: number;
+        cost?: number;
+        usage?: TokenUsage;
+        chatId?: string;
+      },
+    ): never {
+      if (json) {
+        const result: HeadlessResult = {
+          output: '',
+          model,
+          tokens: opts?.tokens ?? 0,
+          cost: opts?.cost ?? 0,
+          exitCode: 1,
+          error: msg,
+          chatId: opts?.chatId,
+          usage: opts?.usage,
+        };
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+      } else {
+        process.stderr.write(`error: ${msg}\n`);
+      }
+      throw new ExitError(1);
     }
 
-    if (save && chat) {
-      saveChat(chat);
-    }
-  } catch (error) {
-    spinner?.stop();
-    const isTimeout = error instanceof Error && error.name === 'TimeoutError';
-    if (isTimeout) {
-      process.stderr.write(
-        'warning: workspace may contain partial changes from interrupted tool execution\n',
-      );
-    }
-    const errorMsg = isTimeout
-      ? `timed out after ${timeoutSec}s`
-      : formatError(error);
-    emitErrorAndExit(errorMsg, {
-      tokens,
-      cost,
-      usage: usage ?? undefined,
-      chatId: existingChat?.id,
-    });
-  }
+    const timeoutSec = timeout !== undefined ? Math.floor(timeout) : undefined;
 
-  if (json) {
-    const result: HeadlessResult = {
-      output,
-      model,
-      tokens,
-      cost,
-      exitCode: stuck ? 2 : 0,
-      chatId: save && chat ? chat.id : undefined,
-      usage: usage ?? undefined,
+    if (
+      timeoutSec !== undefined &&
+      (Number.isNaN(timeoutSec) || timeoutSec <= 0 || timeoutSec > MAX_TIMEOUT)
+    ) {
+      emitErrorAndExit(`timeout must be between 1 and ${MAX_TIMEOUT} seconds`);
+    }
+
+    if (!message && !resume) {
+      emitErrorAndExit('no message provided');
+    }
+
+    if (verbose) {
+      process.stderr.write(gray(`ai ${version} [${model}]\n`));
+    }
+
+    let pendingImage: PendingImage | null = null;
+    if (image) {
+      try {
+        pendingImage = loadImage(image);
+      } catch (e) {
+        emitErrorAndExit(e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    const pm = detectPackageManager();
+    const capabilities = await getModelCapabilities(model);
+    const spinner = verbose ? createSpinner(process.stderr) : null;
+
+    let tokens = 0;
+    let cost = 0;
+    let output = '';
+    let outputEndsWithNewline = false;
+    let stuck = false;
+    let usage: TokenUsage | null = null;
+
+    const history: ModelMessage[] = [];
+    let existingChat: Chat | null = null;
+    let initialTokens = 0;
+    let summary = '';
+
+    if (resume) {
+      const { loadChat } = await import('../config/chats.js');
+      const loaded = loadChat(resume);
+      if (!loaded) {
+        emitErrorAndExit(`session ${resume} not found`);
+      }
+      existingChat = loaded;
+      summary = loaded.summary || '';
+      initialTokens = loaded.tokens || 0;
+      const { restoreHistory } = await import('./slash/chat.js');
+      restoreHistory({ chat: loaded }, history);
+    }
+
+    const abortSignal = timeoutSec
+      ? AbortSignal.timeout(timeoutSec * 1000)
+      : undefined;
+
+    // Incrementally write assistant output to stdout. The AI SDK reports
+    // the full accumulated text on each callback, so we diff against what
+    // we've already written. Three cases:
+    //   1. Content grew from the previous value -- write only the new suffix.
+    //   2. Content changed entirely -- write on a new line (or same line if
+    //      the previous output already ended with a newline).
+    //   3. Content is identical -- skip (no duplicate writes).
+    // In JSON mode we just capture the final value without writing.
+    const trackOutput = (content: string) => {
+      if (!content) return;
+      if (json) {
+        output = content;
+      } else if (content !== output) {
+        if (output && content.startsWith(output)) {
+          const chunk = content.slice(output.length);
+          process.stdout.write(chunk);
+          outputEndsWithNewline = chunk.endsWith('\n');
+        } else if (output && !outputEndsWithNewline) {
+          process.stdout.write(`\n${content}`);
+          outputEndsWithNewline = content.endsWith('\n');
+        } else {
+          process.stdout.write(content);
+          outputEndsWithNewline = content.endsWith('\n');
+        }
+        output = content;
+      }
     };
-    process.stdout.write(`${JSON.stringify(result)}\n`);
+
+    const callbacks: StreamCallbacks = {
+      onStatus: (status) => {
+        if (verbose && status) spinner?.update(status);
+        if (verbose && !status) spinner?.stop();
+      },
+      onPending: (text) => {
+        if (!text) {
+          output = '';
+          outputEndsWithNewline = false;
+          return;
+        }
+        trackOutput(text);
+      },
+      onMessage: (type, content) => {
+        if (type === 'assistant') {
+          trackOutput(content);
+        } else if (type === 'info' && content.startsWith('Stopped:')) {
+          stuck = true;
+          if (verbose) process.stderr.write(`${content}\n`);
+        } else if (type === 'error') {
+          if (verbose) process.stderr.write(`${content}\n`);
+        } else if (type === 'tool') {
+          if (verbose) process.stderr.write(`${content}\n`);
+        }
+      },
+      onRecord: (type, content) => {
+        if (type === 'assistant') {
+          trackOutput(content);
+        }
+      },
+      onReasoning: (text, _durationMs) => {
+        if (verbose) {
+          const short = text.replace(/\s+/g, ' ').trim().slice(-80);
+          spinner?.update(short);
+        }
+      },
+      onTokens: (fn) => {
+        tokens = fn(tokens);
+      },
+      onCost: (fn) => {
+        cost = fn(cost);
+      },
+      onUsage: (u: TokenUsage) => {
+        usage = u;
+      },
+      onSummary: () => {},
+      onBusy: () => {},
+    };
+
+    let chat: Chat | null = null;
+
+    try {
+      spinner?.start('thinking...');
+
+      chat = await streamChat({
+        model,
+        message,
+        history,
+        chat: existingChat,
+        tokens: initialTokens,
+        summary,
+        pm,
+        callbacks,
+        image: pendingImage,
+        hasTools: capabilities.tools,
+        planMode: plan,
+        appendSystem: system,
+        abortSignal,
+        save,
+      });
+
+      spinner?.stop();
+
+      if (!json && output) {
+        process.stdout.write('\n');
+      }
+
+      if (save && chat) {
+        saveChat(chat);
+      }
+    } catch (error) {
+      if (error instanceof ExitError) throw error;
+      spinner?.stop();
+      const isTimeout = error instanceof Error && error.name === 'TimeoutError';
+      if (isTimeout) {
+        process.stderr.write(
+          'warning: workspace may contain partial changes from interrupted tool execution\n',
+        );
+      }
+      const errorMsg = isTimeout
+        ? `timed out after ${timeoutSec}s`
+        : formatError(error);
+      emitErrorAndExit(errorMsg, {
+        tokens,
+        cost,
+        usage: usage ?? undefined,
+        chatId: existingChat?.id,
+      });
+    }
+
+    if (json) {
+      const result: HeadlessResult = {
+        output,
+        model,
+        tokens,
+        cost,
+        exitCode: stuck ? 2 : 0,
+        chatId: save && chat ? chat.id : undefined,
+        usage: usage ?? undefined,
+      };
+      process.stdout.write(`${JSON.stringify(result)}\n`);
+    }
+
+    exitCode = stuck ? 2 : 0;
+  } catch (error) {
+    if (error instanceof ExitError) {
+      exitCode = error.code;
+    } else {
+      throw error;
+    }
+  } finally {
+    setForceMode(false);
   }
 
-  exit(stuck ? 2 : 0);
+  exit(exitCode);
 }

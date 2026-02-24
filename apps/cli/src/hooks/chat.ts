@@ -7,7 +7,12 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
-import { type Chat, generateId, getOrCreateChat } from '../config/chats.js';
+import {
+  type Chat,
+  generateId,
+  getOrCreateChat,
+  saveChat,
+} from '../config/chats.js';
 import { getReadOnlyTools, getTools, loadMcpTools } from '../tools/index.js';
 import { AI_CLI_HEADERS } from '../utils/constants.js';
 import {
@@ -306,6 +311,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       chat.summary = s;
       chat.messages = [];
       chat.tokens = Math.round(s.length / 4);
+      if (options.save !== false) saveChat(chat);
       callbacks.onMessage('info', 'context compressed');
     }
   }

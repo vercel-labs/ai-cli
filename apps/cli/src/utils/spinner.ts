@@ -19,7 +19,7 @@ export function createSpinner(
   let startTime = 0;
 
   const getColumns = (): number =>
-    stream.columns ?? (process.stdout as typeof stream).columns ?? 80;
+    stream.columns ?? process.stderr.columns ?? process.stdout.columns ?? 80;
 
   const render = () => {
     if (!running) return;

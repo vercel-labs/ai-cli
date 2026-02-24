@@ -44,6 +44,7 @@ ai -p -m gpt-5 --force "refactor the database layer"  # combine flags
 ai -p --plan "how should I refactor auth?"             # plan mode (read-only)
 ai -p -r <chatId> "continue"                           # resume a session
 ai -p --timeout 60 "fix type errors"                   # abort after 60s
+ai -p -q "explain this codebase"                       # suppress stderr status
 ```
 
 Exit codes: `0` success, `1` error, `2` agent stuck.
@@ -84,6 +85,7 @@ On error, includes an `error` field with the message.
 - `--force` - auto-approve all tool actions (--print only)
 - `--no-save` - don't persist the chat to history (--print only)
 - `--timeout` - abort after N seconds (--print only)
+- `-q, --quiet` - suppress stderr status output (--print only)
 - `-l, --list` - list models
 - `--no-color` - disable color output
 - `-v, --version` - show version

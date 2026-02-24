@@ -28,6 +28,7 @@ Options:
   --force        Auto-approve all tool actions (--print only)
   --no-save      Don't persist the chat to history (--print only)
   --timeout <s>  Abort after N seconds (--print only)
+  -q, --quiet    Suppress stderr status output (--print only)
   -l, --list     List available models
   --no-color     Disable color output
   -v, --version  Show version
