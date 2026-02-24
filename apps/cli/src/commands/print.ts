@@ -46,6 +46,7 @@ function exit(code: number): void {
   const done = () => {
     if (--remaining === 0) process.exit(code);
   };
+  setTimeout(() => process.exit(code), 5000).unref();
   if (process.stdout.writableNeedDrain) {
     remaining++;
     process.stdout.once('drain', done);
@@ -53,6 +54,12 @@ function exit(code: number): void {
   if (process.stderr.writableNeedDrain) {
     remaining++;
     process.stderr.once('drain', done);
+  }
+}
+
+class ExitError extends Error {
+  constructor(public readonly code: number) {
+    super(`exit ${code}`);
   }
 }
 
@@ -79,7 +86,7 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       usage?: TokenUsage;
       chatId?: string;
     },
-  ): void => {
+  ): never => {
     if (json) {
       const result: HeadlessResult = {
         output: '',
@@ -96,12 +103,15 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     } else {
       process.stderr.write(`${msg}\n`);
     }
-    exit(1);
+    throw new ExitError(1);
   };
 
   if (timeout !== undefined && timeout <= 0) {
     emitErrorAndExit('timeout must be a positive number of seconds');
-    return;
+  }
+
+  if (!message && !resume) {
+    emitErrorAndExit('no message provided');
   }
 
   const run = async () => {
@@ -115,7 +125,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
         pendingImage = loadImage(image);
       } catch (e) {
         emitErrorAndExit(e instanceof Error ? e.message : String(e));
-        return;
       }
     }
 
@@ -138,8 +147,7 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       const { loadChat } = await import('../config/chats.js');
       const loaded = loadChat(resume);
       if (!loaded) {
-        emitErrorAndExit(`session ${resume} not found`);
-        return;
+        return emitErrorAndExit(`session ${resume} not found`);
       }
       existingChat = loaded;
       summary = loaded.summary || '';
@@ -169,6 +177,8 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       } else if (content !== output) {
         if (content.startsWith(output)) {
           process.stdout.write(content.slice(output.length));
+        } else {
+          process.stdout.write(`\n${content}`);
         }
         output = content;
       }
@@ -180,12 +190,7 @@ export async function printCommand(options: PrintOptions): Promise<void> {
         if (!json && !status) spinner?.stop();
       },
       onPending: (text) => {
-        if (!json && text !== output) {
-          if (text.startsWith(output)) {
-            process.stdout.write(text.slice(output.length));
-          }
-          output = text;
-        }
+        trackOutput(text);
       },
       onMessage: (type, content) => {
         if (type === 'assistant') {
@@ -266,7 +271,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
         usage: usage ?? undefined,
         chatId: existingChat?.id,
       });
-      return;
     }
 
     if (json) {
@@ -285,9 +289,17 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     exit(stuck ? 2 : 0);
   };
 
-  if (force) {
-    await withForceMode(run);
-  } else {
-    await run();
+  try {
+    if (force) {
+      await withForceMode(run);
+    } else {
+      await run();
+    }
+  } catch (e) {
+    if (e instanceof ExitError) {
+      exit(e.code);
+      return;
+    }
+    throw e;
   }
 }
