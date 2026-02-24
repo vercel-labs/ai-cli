@@ -101,12 +101,12 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       process.stderr.write(`error: ${msg}\n`);
       process.stdout.write(`${JSON.stringify(result)}\n`);
     } else {
-      process.stderr.write(`${msg}\n`);
+      process.stderr.write(`error: ${msg}\n`);
     }
     throw new ExitError(1);
   };
 
-  if (timeout !== undefined && timeout <= 0) {
+  if (timeout !== undefined && (Number.isNaN(timeout) || timeout <= 0)) {
     emitErrorAndExit('timeout must be a positive number of seconds');
   }
 
