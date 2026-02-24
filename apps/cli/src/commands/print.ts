@@ -1,5 +1,3 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import type { ModelMessage } from 'ai';
 import type { Chat } from '../config/chats.js';
 import { streamChat } from '../hooks/chat.js';
@@ -7,6 +5,7 @@ import type { StreamCallbacks, TokenUsage } from '../hooks/chat.js';
 import { setForceMode } from '../tools/confirm.js';
 import { gray } from '../utils/color.js';
 import { formatError } from '../utils/errors.js';
+import { loadImage, type PendingImage } from '../utils/image.js';
 import { getModelCapabilities } from '../utils/models.js';
 import { detectPackageManager } from '../utils/package-manager.js';
 import { createSpinner } from '../utils/spinner.js';
@@ -19,6 +18,9 @@ interface PrintOptions {
   force?: boolean;
   save?: boolean;
   system?: string;
+  plan?: boolean;
+  resume?: string;
+  timeout?: number;
   version: string;
 }
 
@@ -29,15 +31,17 @@ interface HeadlessResult {
   cost: number;
   exitCode: number;
   chatId?: string;
+  error?: string;
+  usage?: TokenUsage;
 }
 
-const imageTypes: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-};
+function exit(code: number): void {
+  if (process.stdout.writableNeedDrain) {
+    process.stdout.once('drain', () => process.exit(code));
+  } else {
+    process.exit(code);
+  }
+}
 
 export async function printCommand(options: PrintOptions): Promise<void> {
   const {
@@ -48,6 +52,9 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     force = false,
     save = true,
     system,
+    plan = false,
+    resume,
+    timeout,
     version,
   } = options;
 
@@ -57,21 +64,28 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     process.stderr.write(gray(`ai ${version} [${model}]\n`));
   }
 
-  let pendingImage: { data: string; mimeType: string } | null = null;
+  let pendingImage: PendingImage | null = null;
   if (image) {
-    const resolved = path.resolve(image);
-    if (!fs.existsSync(resolved)) {
-      process.stderr.write(`image not found: ${image}\n`);
-      process.exit(1);
+    try {
+      pendingImage = loadImage(image);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (json) {
+        const result: HeadlessResult = {
+          output: '',
+          model,
+          tokens: 0,
+          cost: 0,
+          exitCode: 1,
+          error: msg,
+        };
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+      } else {
+        process.stderr.write(`${msg}\n`);
+      }
+      exit(1);
+      return;
     }
-    const ext = path.extname(resolved).toLowerCase();
-    const mimeType = imageTypes[ext];
-    if (!mimeType) {
-      process.stderr.write('unsupported format. use: png, jpg, gif, webp\n');
-      process.exit(1);
-    }
-    const buffer = fs.readFileSync(resolved);
-    pendingImage = { data: buffer.toString('base64'), mimeType };
   }
 
   const pm = detectPackageManager();
@@ -82,8 +96,45 @@ export async function printCommand(options: PrintOptions): Promise<void> {
   let cost = 0;
   let output = '';
   let stuck = false;
+  let usage: TokenUsage | null = null;
 
   const history: ModelMessage[] = [];
+  let existingChat: Chat | null = null;
+  let initialTokens = 0;
+  let summary = '';
+
+  if (resume) {
+    const { loadChat } = await import('../config/chats.js');
+    const loaded = loadChat(resume);
+    if (!loaded) {
+      const msg = `session ${resume} not found`;
+      if (json) {
+        const result: HeadlessResult = {
+          output: '',
+          model,
+          tokens: 0,
+          cost: 0,
+          exitCode: 1,
+          error: msg,
+        };
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+      } else {
+        process.stderr.write(`${msg}\n`);
+      }
+      exit(1);
+      return;
+    }
+    existingChat = loaded;
+    summary = loaded.summary || '';
+    initialTokens = loaded.tokens || 0;
+    const { restoreHistory } = await import('./slash/chat.js');
+    restoreHistory(
+      { chat: loaded },
+      history as { role: string; content: unknown }[],
+    );
+  }
+
+  const abortSignal = timeout ? AbortSignal.timeout(timeout * 1000) : undefined;
 
   const callbacks: StreamCallbacks = {
     onStatus: (status) => {
@@ -91,8 +142,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       if (!json && !status) spinner?.stop();
     },
     onPending: (text) => {
-      // In text mode, stream assistant text to stdout as it arrives.
-      // We track what we've already written to avoid duplicates.
       if (!json && text.length > output.length) {
         process.stdout.write(text.slice(output.length));
         output = text;
@@ -103,7 +152,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
         if (json) {
           output = content;
         } else if (content.length > output.length) {
-          // Flush any remaining text not yet written by onPending
           process.stdout.write(content.slice(output.length));
           output = content;
         }
@@ -138,7 +186,9 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     onCost: (fn) => {
       cost = fn(cost);
     },
-    onUsage: (_usage: TokenUsage) => {},
+    onUsage: (u: TokenUsage) => {
+      usage = u;
+    },
     onSummary: () => {},
     onBusy: () => {},
   };
@@ -152,15 +202,16 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       model,
       message,
       history,
-      chat: null,
-      tokens: 0,
-      summary: '',
+      chat: existingChat,
+      tokens: initialTokens,
+      summary,
       pm,
       callbacks,
       image: pendingImage,
       hasTools: capabilities.tools,
-      planMode: false,
+      planMode: plan,
       appendSystem: system,
+      abortSignal,
     });
 
     spinner?.stop();
@@ -175,6 +226,10 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     }
   } catch (error) {
     spinner?.stop();
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError';
+    const errorMsg = isTimeout
+      ? `timed out after ${timeout}s`
+      : formatError(error);
     if (json) {
       const result: HeadlessResult = {
         output: '',
@@ -182,12 +237,15 @@ export async function printCommand(options: PrintOptions): Promise<void> {
         tokens,
         cost,
         exitCode: 1,
+        error: errorMsg,
+        usage: usage ?? undefined,
       };
       process.stdout.write(`${JSON.stringify(result)}\n`);
     } else {
-      process.stderr.write(`${formatError(error)}\n`);
+      process.stderr.write(`${errorMsg}\n`);
     }
-    process.exit(1);
+    exit(1);
+    return;
   } finally {
     if (force) setForceMode(false);
   }
@@ -200,9 +258,10 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       cost,
       exitCode: stuck ? 2 : 0,
       chatId: save && chat ? chat.id : undefined,
+      usage: usage ?? undefined,
     };
     process.stdout.write(`${JSON.stringify(result)}\n`);
   }
 
-  process.exit(stuck ? 2 : 0);
+  exit(stuck ? 2 : 0);
 }

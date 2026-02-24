@@ -27,6 +27,7 @@ Options:
   --system       Append custom text to the system prompt
   --force        Auto-approve all tool actions (no confirmations)
   --no-save      Don't persist the chat to history
+  --timeout <s>  Abort after N seconds (headless only)
   -l, --list     List available models
   --no-color     Disable color output
   -v, --version  Show version
@@ -42,5 +43,7 @@ Examples:
   ai -p "explain this codebase"
   ai -p --json --force "fix all type errors" > result.json
   git diff | ai -p "review this for bugs"
+  ai -p --timeout 60 "fix type errors"
+  ai -p -r <chatId> "continue"
   ai -l`);
 }
