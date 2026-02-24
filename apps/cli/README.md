@@ -48,6 +48,8 @@ ai -p --timeout 60 "fix type errors"                   # abort after 60s
 
 Exit codes: `0` success, `1` error, `2` agent stuck.
 
+**Note:** When `--timeout` fires during a tool execution (e.g., mid-file-write), the agent is interrupted immediately. The workspace may contain partial changes. Combine with version control or review the working tree after a timeout.
+
 JSON output format:
 
 ```json

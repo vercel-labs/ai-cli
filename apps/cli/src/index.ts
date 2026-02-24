@@ -116,6 +116,19 @@ async function main() {
     process.stderr.write('note: --json implies --print\n');
   }
 
+  if (
+    !headless &&
+    (args['--force'] ||
+      args['--timeout'] ||
+      args['--no-save'] ||
+      args['--system'])
+  ) {
+    console.error(
+      '--force, --timeout, --no-save, and --system require --print or --json',
+    );
+    process.exit(1);
+  }
+
   if (args['--resume'] && !headless && process.stdin.isTTY) {
     await inkCommand({
       model,
