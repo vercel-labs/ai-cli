@@ -112,6 +112,9 @@ async function main() {
   const model = modelArg ? await resolveModel(modelArg) : savedModel;
 
   const headless = args['--print'] || args['--json'];
+  if (args['--json'] && !args['--print']) {
+    process.stderr.write('note: --json implies --print\n');
+  }
 
   if (args['--resume'] && !headless && process.stdin.isTTY) {
     await inkCommand({

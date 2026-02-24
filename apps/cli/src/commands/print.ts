@@ -1,5 +1,5 @@
 import type { ModelMessage } from 'ai';
-import { type Chat, generateId, saveChat } from '../config/chats.js';
+import { type Chat, saveChat } from '../config/chats.js';
 import { streamChat } from '../hooks/chat.js';
 import type { StreamCallbacks, TokenUsage } from '../hooks/chat.js';
 import { withForceMode } from '../tools/confirm.js';
@@ -46,7 +46,7 @@ function exit(code: number): void {
   const done = () => {
     if (--remaining === 0) process.exit(code);
   };
-  setTimeout(() => process.exit(code), 5000).unref();
+  setTimeout(() => process.exit(code), 1000).unref();
   if (process.stdout.writableNeedDrain) {
     remaining++;
     process.stdout.once('drain', done);
@@ -154,17 +154,6 @@ export async function printCommand(options: PrintOptions): Promise<void> {
       initialTokens = loaded.tokens || 0;
       const { restoreHistory } = await import('./slash/chat.js');
       restoreHistory({ chat: loaded }, history);
-    } else if (!save) {
-      existingChat = {
-        id: generateId(),
-        title: 'New chat',
-        messages: [],
-        model,
-        tokens: 0,
-        cost: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
     }
 
     const abortSignal = timeout
@@ -262,6 +251,11 @@ export async function printCommand(options: PrintOptions): Promise<void> {
     } catch (error) {
       spinner?.stop();
       const isTimeout = error instanceof Error && error.name === 'TimeoutError';
+      if (isTimeout) {
+        process.stderr.write(
+          'warning: workspace may contain partial changes from interrupted tool execution\n',
+        );
+      }
       const errorMsg = isTimeout
         ? `timed out after ${timeout}s`
         : formatError(error);
