@@ -10,6 +10,12 @@ export interface ConfirmOpts {
 let handler: ((action: string, opts?: ConfirmOpts) => Promise<boolean>) | null =
   null;
 
+let forceMode = false;
+
+export function setForceMode(enabled: boolean): void {
+  forceMode = enabled;
+}
+
 // Queue to serialize concurrent confirm() calls so only one prompt
 // is visible at a time (the AI SDK fires tool executions in parallel).
 let queue: Promise<boolean> = Promise.resolve(true);
@@ -18,6 +24,8 @@ export async function confirm(
   action: string,
   opts?: ConfirmOpts,
 ): Promise<boolean> {
+  if (forceMode) return true;
+
   // Check persistent permissions first
   if (opts?.tool) {
     const cwd = process.cwd();

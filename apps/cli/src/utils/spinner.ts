@@ -9,26 +9,31 @@ function formatElapsed(ms: number): string {
   return `${mins}m ${remainSecs}s`;
 }
 
-export function createSpinner() {
+export function createSpinner(
+  stream: { write(s: string): boolean; columns?: number } = process.stdout,
+) {
   let pos = -SHIMMER_PADDING;
   let text = '';
   let interval: ReturnType<typeof setInterval> | null = null;
   let running = false;
   let startTime = 0;
 
+  const getColumns = (): number =>
+    stream.columns ?? (process.stdout as typeof stream).columns ?? 80;
+
   const render = () => {
     if (!running) return;
     const elapsed = formatElapsed(Date.now() - startTime);
-    const termWidth = process.stdout.columns || 80;
+    const termWidth = getColumns();
     const suffix = ` ${elapsed}`;
     const maxWidth = termWidth - 1 - suffix.length;
     const display = text.length > maxWidth ? text.slice(-maxWidth) : text;
     const fullText = `${display}${suffix}`;
 
     if (isColorEnabled()) {
-      process.stdout.write(`\r${shimmerText(fullText, pos)}\x1b[K`);
+      stream.write(`\r${shimmerText(fullText, pos)}\x1b[K`);
     } else {
-      process.stdout.write(`\r${fullText}\x1b[K`);
+      stream.write(`\r${fullText}\x1b[K`);
     }
 
     pos = nextShimmerPos(pos, fullText.length);
@@ -54,7 +59,7 @@ export function createSpinner() {
         clearInterval(interval);
         interval = null;
       }
-      process.stdout.write('\r\x1b[K');
+      stream.write('\r\x1b[K');
     },
   };
 }

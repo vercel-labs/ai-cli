@@ -3,6 +3,7 @@ import { chatCommand } from './commands/chat.js';
 import { initCommand } from './commands/init.js';
 import { inkCommand } from './commands/ink.js';
 import { listModels } from './commands/models.js';
+import { printCommand } from './commands/print.js';
 import { getApiKey, getModel } from './config/index.js';
 import { getSetting } from './config/settings.js';
 import { DEFAULT_MODEL } from './utils/constants.js';
@@ -21,6 +22,11 @@ interface Args {
   '--no-color'?: boolean;
   '--resume'?: string;
   '--plan'?: boolean;
+  '--print'?: boolean;
+  '--json'?: boolean;
+  '--system'?: string;
+  '--force'?: boolean;
+  '--no-save'?: boolean;
   _: string[];
 }
 
@@ -36,11 +42,17 @@ async function main() {
       '--no-color': Boolean,
       '--resume': String,
       '--plan': Boolean,
+      '--print': Boolean,
+      '--json': Boolean,
+      '--system': String,
+      '--force': Boolean,
+      '--no-save': Boolean,
       '-m': '--model',
       '-h': '--help',
       '-v': '--version',
       '-l': '--list',
       '-r': '--resume',
+      '-p': '--print',
     }) as Args;
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -107,6 +119,8 @@ async function main() {
     return;
   }
 
+  const headless = args['--print'] || args['--json'];
+
   let message = args._.join(' ');
 
   if (!message) {
@@ -115,7 +129,7 @@ async function main() {
     }
 
     if (!message) {
-      if (process.stdin.isTTY) {
+      if (!headless && process.stdin.isTTY) {
         await inkCommand({
           model,
           version,
@@ -126,6 +140,20 @@ async function main() {
       console.error('no message');
       process.exit(1);
     }
+  }
+
+  if (headless) {
+    await printCommand({
+      message,
+      model,
+      image: args['--image'],
+      json: args['--json'],
+      force: args['--force'],
+      save: !args['--no-save'],
+      system: args['--system'],
+      version,
+    });
+    return;
   }
 
   await chatCommand({

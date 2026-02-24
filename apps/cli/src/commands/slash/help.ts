@@ -100,6 +100,14 @@ const details: Record<string, string> = {
 
   info: `/info
   shows version, current model, balance, storage, and feedback link`,
+
+  print: `headless mode (ai -p)
+  ai -p "message"              full agent, output to stdout
+  ai -p --json "message"       structured JSON output
+  ai -p --force "message"      auto-approve all tool actions
+  ai -p --system "..." "msg"   append custom system prompt
+  ai -p --no-save "message"    don't save chat history
+  git diff | ai -p "review"    pipe input + headless`,
 };
 
 export const help: CommandHandler = (_ctx, args) => {
@@ -133,6 +141,9 @@ export const help: CommandHandler = (_ctx, args) => {
     '  /model       model',
     '  /alias       shortcuts',
     '  /info        info',
+    '',
+    'headless mode:',
+    '  ai -p        run with full agent, output to stdout',
     '  exit         quit',
     '',
     'ctrl+v to paste images',

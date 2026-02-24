@@ -29,12 +29,46 @@ echo "explain this" | ai     # pipe input
 # in interactive mode, ctrl+v to paste image from clipboard
 ```
 
+## headless mode
+
+run the full agent non-interactively. useful for CI pipelines, scripts, and automation.
+
+```bash
+ai -p "explain this codebase"                          # output to stdout
+ai -p --json "write tests for src/auth.ts" > result.json  # structured JSON
+ai -p --force "fix all type errors"                    # skip confirmations
+ai -p --system "You are a security auditor" "audit src/"   # custom instructions
+ai -p --no-save "what dependencies are outdated?"      # ephemeral (no history)
+git diff | ai -p "review this for bugs"                # pipe + headless
+ai -p -m gpt-5 --force "refactor the database layer"  # combine flags
+```
+
+exit codes: `0` success, `1` error, `2` agent stuck.
+
+json output format:
+
+```json
+{
+  "output": "...",
+  "model": "anthropic/claude-sonnet-4.5",
+  "tokens": 1234,
+  "cost": 0.05,
+  "exitCode": 0,
+  "chatId": "abc123"
+}
+```
+
 ## options
 
 - `-m, --model` - model (default: anthropic/claude-sonnet-4.5)
 - `--image` - attach image file
 - `-r, --resume` - resume a previous chat by ID
 - `--plan` - start in plan mode (think before acting)
+- `-p, --print` - headless mode: full agent, output to stdout, then exit
+- `--json` - structured JSON output (implies --print)
+- `--system` - append custom text to the system prompt
+- `--force` - auto-approve all tool actions (no confirmations)
+- `--no-save` - don't persist the chat to history
 - `-l, --list` - list models
 - `--no-color` - disable color output
 - `-v, --version` - show version

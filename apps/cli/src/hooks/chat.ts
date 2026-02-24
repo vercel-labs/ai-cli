@@ -91,6 +91,7 @@ interface StreamOptions {
   image?: PendingImage | null;
   hasTools?: boolean;
   planMode?: boolean;
+  appendSystem?: string;
 }
 
 interface ToolInput {
@@ -303,6 +304,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
 
   const sys = buildSystemPrompt(pm, summary, message, {
     planMode: options.planMode,
+    appendSystem: options.appendSystem,
   });
 
   type UserContentPart =

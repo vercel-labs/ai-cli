@@ -11,7 +11,7 @@ export function buildSystemPrompt(
   pm: { pm: string; run: string },
   summary?: string,
   userMessage?: string,
-  options?: { planMode?: boolean },
+  options?: { planMode?: boolean; appendSystem?: string },
 ): string {
   const cwd = process.cwd();
   const platform = os.platform();
@@ -120,6 +120,10 @@ When user asks to switch models, tell them the slash command to type.`;
 - Be specific: mention exact files, functions, and changes
 - Keep it concise — one line per step
 - End with "ready to execute" so the user knows the plan is complete`;
+  }
+
+  if (options?.appendSystem) {
+    prompt += `\n\n${options.appendSystem}`;
   }
 
   return prompt;
