@@ -1,5 +1,9 @@
 import type { ModelMessage } from 'ai';
 import { type Chat, saveChat } from '../config/chats.js';
+import {
+  getReviewEnabled,
+  getReviewMaxIterations,
+} from '../config/settings.js';
 import { streamChat } from '../hooks/chat.js';
 import type { StreamCallbacks, TokenUsage } from '../hooks/chat.js';
 import { withForceMode } from '../tools/confirm.js';
@@ -8,7 +12,12 @@ import { formatError } from '../utils/errors.js';
 import { loadImage, type PendingImage } from '../utils/image.js';
 import { getModelCapabilities } from '../utils/models.js';
 import { detectPackageManager } from '../utils/package-manager.js';
+import { reviewLoop } from '../utils/review.js';
 import { createSpinner } from '../utils/spinner.js';
+import {
+  getChangedFilesWithOriginals,
+  hasChangedFiles,
+} from '../utils/undo.js';
 
 interface PrintOptions {
   message: string;
@@ -279,6 +288,31 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       });
 
       spinner?.stop();
+
+      if (hasChangedFiles() && getReviewEnabled()) {
+        const changed = getChangedFilesWithOriginals();
+        if (changed.length > 0) {
+          spinner?.start('reviewing...');
+          try {
+            await reviewLoop({
+              model,
+              originalTask: message,
+              changedFiles: changed,
+              maxIterations: getReviewMaxIterations(),
+              callbacks,
+              abortSignal,
+              pm,
+            });
+          } catch (e) {
+            if ((e as Error).name !== 'AbortError') {
+              if (verbose) {
+                process.stderr.write(`review error: ${formatError(e)}\n`);
+              }
+            }
+          }
+          spinner?.stop();
+        }
+      }
 
       if (!json && output) {
         process.stdout.write('\n');
