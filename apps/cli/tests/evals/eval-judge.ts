@@ -11,8 +11,8 @@
 import { expect } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { generateObject } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
+import { generateObject } from 'ai';
 import { z } from 'zod';
 import { EVAL_MODEL } from './eval-helpers';
 
@@ -99,7 +99,7 @@ function collectFiles(dir: string, base?: string): CollectedFile[] {
     if (SKIP_DIRS.has(entry)) continue;
     const full = join(dir, entry);
 
-    let stat;
+    let stat: ReturnType<typeof statSync> | undefined;
     try {
       stat = statSync(full);
     } catch {

@@ -1,5 +1,5 @@
 import { isColorEnabled } from './color.js';
-import { shimmerText, nextShimmerPos, SHIMMER_PADDING } from './shimmer.js';
+import { nextShimmerPos, SHIMMER_PADDING, shimmerText } from './shimmer.js';
 
 function formatElapsed(ms: number): string {
   const secs = Math.floor(ms / 1000);

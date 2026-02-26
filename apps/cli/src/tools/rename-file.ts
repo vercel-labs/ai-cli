@@ -3,8 +3,8 @@ import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { resolveAnyPath, safePath } from '../utils/safe-path.js';
-import { confirm } from './confirm.js';
 import { saveRename } from '../utils/undo.js';
+import { confirm } from './confirm.js';
 
 export const renameFile = tool({
   description: 'Rename or move a file.',

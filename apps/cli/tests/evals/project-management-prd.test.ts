@@ -13,11 +13,9 @@
  *   AI_GATEWAY_API_KEY=<key> bun test tests/evals/project-management-prd.test.ts
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  type EvalResult,
   assertAnyFileContains,
   assertCommandSucceeds,
   assertFileContains,
@@ -25,6 +23,7 @@ import {
   assertStepCount,
   cleanupWorkDir,
   createWorkDir,
+  type EvalResult,
   runEval,
 } from './eval-helpers';
 import { assertSpecAdherence } from './eval-judge';
@@ -191,15 +190,15 @@ function findFilesRecursive(
   skip = new Set(['node_modules', '.git', 'dist']),
 ): string[] {
   const results: string[] = [];
-  let entries: string[];
+  let dirents: import('node:fs').Dirent[];
   try {
-    entries = readdirSync(dir, { withFileTypes: true }) as any;
+    dirents = readdirSync(dir, { withFileTypes: true });
   } catch {
     return results;
   }
-  for (const entry of entries) {
-    const name = typeof entry === 'string' ? entry : entry.name;
-    const isDir = typeof entry === 'string' ? false : entry.isDirectory();
+  for (const entry of dirents) {
+    const name = entry.name;
+    const isDir = entry.isDirectory();
     if (skip.has(name)) continue;
     const full = join(dir, name);
     if (isDir) {

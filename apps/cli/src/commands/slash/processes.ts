@@ -1,7 +1,7 @@
 import {
   clearExitedProcesses,
-  getProcessLogs,
   getProcesses,
+  getProcessLogs,
   getRunningProcesses,
   isRunning,
   killManagedProcess,

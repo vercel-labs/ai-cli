@@ -14,10 +14,10 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  type EvalResult,
   assertCommandSucceeds,
   cleanupWorkDir,
   createWorkDir,
+  type EvalResult,
   runEval,
 } from './eval-helpers';
 

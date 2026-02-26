@@ -11,9 +11,9 @@
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import {
-  type EvalResult,
   cleanupWorkDir,
   createWorkDir,
+  type EvalResult,
   runEval,
 } from './eval-helpers';
 

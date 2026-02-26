@@ -1,5 +1,5 @@
-import { dim } from '../utils/color.js';
 import { setApiKey } from '../config/index.js';
+import { dim } from '../utils/color.js';
 import { GATEWAY_URL } from '../utils/models.js';
 
 const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];

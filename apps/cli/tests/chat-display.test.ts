@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  trimLeadingBlankLines,
   formatToolOutput,
   getChatDisplay,
   printMessage,
   renderChatDisplay,
-  type MessageType,
+  trimLeadingBlankLines,
 } from '../src/ui/chat-display.js';
 
 describe('trimLeadingBlankLines', () => {

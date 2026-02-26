@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { getProcessLogs, getProcesses } from '../utils/processes.js';
+import { getProcesses, getProcessLogs } from '../utils/processes.js';
 
 export const readProcessLogs = tool({
   description:

@@ -16,13 +16,13 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  type EvalResult,
   assertAnyFileContains,
   assertFileContains,
   assertFileExists,
   assertNoFile,
   cleanupWorkDir,
   createWorkDir,
+  type EvalResult,
   runEval,
 } from './eval-helpers';
 

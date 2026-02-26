@@ -4,8 +4,8 @@ import {
   getReviewEnabled,
   getReviewMaxIterations,
 } from '../config/settings.js';
-import { streamChat } from '../hooks/chat.js';
 import type { StreamCallbacks, TokenUsage } from '../hooks/chat.js';
+import { streamChat } from '../hooks/chat.js';
 import { withForceMode } from '../tools/confirm.js';
 import { gray } from '../utils/color.js';
 import { formatError } from '../utils/errors.js';
