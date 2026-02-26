@@ -281,7 +281,7 @@ export async function reviewLoop(
           partType !== 'tool-error' &&
           partType !== 'tool-input-start' &&
           partType !== 'tool-input-delta' &&
-          partType !== 'step-finish'
+          partType !== 'finish-step'
         ) {
           continue;
         }
@@ -506,10 +506,10 @@ export async function reviewLoop(
             break;
           }
 
-          case 'step-finish': {
+          case 'finish-step': {
             flushReasoning();
             const sf = part as { finishReason?: string };
-            debug(`review step-finish: ${sf.finishReason}`);
+            debug(`review finish-step: ${sf.finishReason}`);
             break;
           }
         }
