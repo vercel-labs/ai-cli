@@ -12,12 +12,9 @@
  *   AI_GATEWAY_API_KEY=<key> bun test tests/evals/component-library-prd.test.ts
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { execSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  type EvalResult,
   assertAnyFileContains,
   assertCommandSucceeds,
   assertFileContains,
@@ -25,6 +22,7 @@ import {
   assertStepCount,
   cleanupWorkDir,
   createWorkDir,
+  type EvalResult,
   runEval,
 } from './eval-helpers';
 import { assertSpecAdherence } from './eval-judge';
@@ -262,9 +260,8 @@ describe('eval: large PRD — component library', () => {
 
       // -- Barrel export ------------------------------------------
       const barrelCandidates = ['src/index.ts', 'src/index.tsx'];
-      const hasBarrel = barrelCandidates.some((p) =>
-        existsSync(join(workDir!, p)),
-      );
+      const dir = workDir as string;
+      const hasBarrel = barrelCandidates.some((p) => existsSync(join(dir, p)));
       expect(hasBarrel).toBe(true);
 
       // -- TypeScript config --------------------------------------

@@ -8,7 +8,7 @@ export async function readStdin(): Promise<string> {
   return chunks.join('').trim();
 }
 
-export function showHelp(version: string): void {
+export function showHelp(_version: string): void {
   console.log(`ai - AI-powered chat interface
 
 Usage:

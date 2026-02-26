@@ -6,8 +6,6 @@ import {
   expect,
   test,
 } from 'bun:test';
-import { cleanupTestDir, resetTestDir } from './helpers/mock-paths.js';
-
 import {
   addRule,
   clearRules,
@@ -16,6 +14,7 @@ import {
   listRules,
   removeRule,
 } from '../src/utils/permissions.js';
+import { cleanupTestDir, resetTestDir } from './helpers/mock-paths.js';
 
 describe('permissions', () => {
   beforeEach(() => {

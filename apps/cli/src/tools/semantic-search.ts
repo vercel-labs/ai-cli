@@ -7,11 +7,11 @@ import { log as debug } from '../utils/debug.js';
 import { cosineSimilarity, embed } from '../utils/embeddings.js';
 import {
   type Chunk,
-  type ProjectIndex,
   chunkFile,
   getProjectHash,
   getStaleFiles,
   loadIndex,
+  type ProjectIndex,
   saveIndex,
 } from '../utils/index-store.js';
 

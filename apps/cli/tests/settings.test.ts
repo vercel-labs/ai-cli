@@ -1,11 +1,10 @@
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test';
-import { cleanupTestDir, resetTestDir } from './helpers/mock-paths.js';
-
 import {
   getSetting,
   invalidateSettingsCache,
   loadSettings,
 } from '../src/config/settings.js';
+import { cleanupTestDir, resetTestDir } from './helpers/mock-paths.js';
 
 describe('settings', () => {
   beforeEach(() => {

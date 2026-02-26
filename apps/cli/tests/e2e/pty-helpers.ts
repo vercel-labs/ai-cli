@@ -3,8 +3,9 @@
  * and pipe output into a headless xterm emulator for accurate
  * screen-buffer assertions.
  */
-import { Terminal } from '@xterm/headless';
+
 import * as path from 'node:path';
+import { Terminal } from '@xterm/headless';
 
 const CLI = path.resolve(import.meta.dirname, '../../dist/ai.mjs');
 

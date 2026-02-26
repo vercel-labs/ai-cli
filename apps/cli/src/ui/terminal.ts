@@ -20,13 +20,13 @@ import {
 } from '../config/chats.js';
 import { setModel as saveModel } from '../config/index.js';
 import {
-  getSetting,
   getReviewEnabled,
   getReviewMaxIterations,
+  getSetting,
 } from '../config/settings.js';
 import {
-  streamChat,
   type StreamCallbacks,
+  streamChat,
   type TokenUsage,
 } from '../hooks/chat.js';
 import { setConfirmHandler } from '../tools/confirm.js';
@@ -41,17 +41,17 @@ import {
   type ModelCapabilities,
 } from '../utils/models.js';
 import { detectPackageManager } from '../utils/package-manager.js';
-import { reviewLoop } from '../utils/review.js';
-import {
-  getChangedFilesWithOriginals,
-  hasChangedFiles,
-} from '../utils/undo.js';
 import { killAllProcesses } from '../utils/processes.js';
+import { reviewLoop } from '../utils/review.js';
 import {
   nextShimmerPos,
   SHIMMER_PADDING,
   shimmerText,
 } from '../utils/shimmer.js';
+import {
+  getChangedFilesWithOriginals,
+  hasChangedFiles,
+} from '../utils/undo.js';
 import { createStreamWrap } from '../utils/wrap.js';
 import {
   getChatDisplay,
