@@ -66,6 +66,14 @@ const SKIP_DIRS = new Set([
   '.cache',
 ]);
 
+const SKIP_FILES = new Set([
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lockb',
+  'bun.lock',
+]);
+
 const INCLUDE_EXTENSIONS = new Set([
   '.ts',
   '.tsx',
@@ -77,7 +85,9 @@ const INCLUDE_EXTENSIONS = new Set([
   '.html',
 ]);
 
-const MAX_TOTAL_CHARS = 100_000;
+const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
+
+const MAX_TOTAL_CHARS = 150_000;
 
 interface CollectedFile {
   path: string;
@@ -97,6 +107,7 @@ function collectFiles(dir: string, base?: string): CollectedFile[] {
 
   for (const entry of entries) {
     if (SKIP_DIRS.has(entry)) continue;
+    if (SKIP_FILES.has(entry)) continue;
     const full = join(dir, entry);
 
     let stat: ReturnType<typeof statSync> | undefined;
@@ -125,6 +136,15 @@ function collectFiles(dir: string, base?: string): CollectedFile[] {
 
 function buildFileContext(workDir: string): string {
   const files = collectFiles(workDir);
+
+  files.sort((a, b) => {
+    const aExt = a.path.slice(a.path.lastIndexOf('.'));
+    const bExt = b.path.slice(b.path.lastIndexOf('.'));
+    const aSource = SOURCE_EXTENSIONS.has(aExt) ? 0 : 1;
+    const bSource = SOURCE_EXTENSIONS.has(bExt) ? 0 : 1;
+    if (aSource !== bSource) return aSource - bSource;
+    return a.path.localeCompare(b.path);
+  });
 
   let totalChars = 0;
   const parts: string[] = [];
