@@ -110,6 +110,7 @@ const details: Record<string, string> = {
   ai -p -r <id> "message"     resume a previous session
   ai -p --timeout 60 "msg"    abort after N seconds
   ai -p -q "message"           suppress stderr status output
+  ai --fast "message"           Anthropic fast mode (speed=fast)
   git diff | ai -p "review"    pipe input + headless
 
   --system works in both headless and interactive mode:

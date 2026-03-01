@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { eq } from 'drizzle-orm';
@@ -10,6 +10,13 @@ import { getEvalBySlug } from './registry';
 import { judgeSpecAdherence, judgeComparison } from './judge';
 
 const CLI_PATH = resolve(process.cwd(), '../cli/dist/ai.mjs');
+
+function rlog(msg: string) {
+  const line = `[${new Date().toISOString()}] [runner] ${msg}\n`;
+  try {
+    appendFileSync('/tmp/evals-server.log', line);
+  } catch {}
+}
 
 interface TaskResult {
   output: string;
@@ -55,6 +62,7 @@ async function runSingleEval(
     evalDef.prompt,
   ];
 
+  rlog(`spawn: model=${model} workDir=${workDir} execPath=${process.execPath}`);
   const result = await new Promise<{ stdout: string; stderr: string }>(
     (resolvePromise, rejectPromise) => {
       const child = spawn(process.execPath, args, {
@@ -63,6 +71,7 @@ async function runSingleEval(
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: true,
       });
+      rlog(`spawned pid=${child.pid}`);
 
       const stdoutBufs: Buffer[] = [];
       let stderrText = '';
@@ -90,9 +99,22 @@ async function runSingleEval(
         (evalDef.timeoutSec + 60) * 1000,
       );
 
-      child.on('close', () => {
+      child.on('close', (code) => {
+        rlog(`child closed pid=${child.pid} code=${code}`);
         clearTimeout(killTimeout);
         clearInterval(flushInterval);
+
+        // Kill the entire process group to clean up grandchild processes
+        // (e.g. `next dev` started by the CLI inside the eval workdir).
+        try {
+          process.kill(-child.pid!, 'SIGTERM');
+        } catch {}
+        setTimeout(() => {
+          try {
+            process.kill(-child.pid!, 'SIGKILL');
+          } catch {}
+        }, 3000).unref();
+
         if (stderrText && onLogs) {
           onLogs(stderrText);
         }
@@ -110,6 +132,9 @@ async function runSingleEval(
     },
   );
 
+  rlog(
+    `child done: stdoutLen=${result.stdout.length} stderrLen=${result.stderr.length}`,
+  );
   let parsed: TaskResult;
   try {
     parsed = JSON.parse(result.stdout.trim()) as TaskResult;
@@ -158,7 +183,7 @@ export async function executeRun(
   runId: string,
   evalDefs: EvalDefinition[],
   models: string[],
-  concurrency = 4,
+  concurrency = 1,
 ): Promise<void> {
   await db
     .update(evalRuns)
@@ -236,6 +261,7 @@ export async function executeRun(
 
       const spec = evalDef.judgeSpec;
       if (spec && !result.error) {
+        rlog(`starting judge for ${model}`);
         const judgeSpecText = spec === 'USE_PROMPT' ? evalDef.prompt : spec;
         logs += '\n[phase] judge agent\n';
         logs += '  calling judge model...\n';
@@ -267,6 +293,7 @@ export async function executeRun(
           }
           logs += `  reasoning: ${judgeResult.reasoning}\n`;
           logs += '[phase] judge complete\n';
+          rlog(`judge done for ${model}: score=${judgeResult.adherenceScore}`);
         } catch (judgeErr) {
           logs += `  judge error: ${judgeErr instanceof Error ? judgeErr.message : String(judgeErr)}\n`;
           logs += '[phase] judge failed\n';
@@ -277,6 +304,9 @@ export async function executeRun(
       const completedAt = new Date();
       const durationMs = completedAt.getTime() - startedAt.getTime();
 
+      rlog(
+        `updating task status for ${model}: ${result.error ? 'failed' : 'completed'}`,
+      );
       await db
         .update(evalTasks)
         .set({
@@ -321,7 +351,7 @@ export async function executeRun(
       .from(evalTasks)
       .where(eq(evalTasks.runId, runId));
 
-    // --- Comparative judge phase ---
+    rlog('all tasks done, starting comparison phase');
     if (models.length >= 2) {
       const evalGroups = new Map<string, typeof allTasks>();
       for (const task of allTasks) {
@@ -366,6 +396,7 @@ export async function executeRun(
     }
 
     const hasFailed = allTasks.some((t) => t.status === 'failed');
+    rlog(`run complete: hasFailed=${hasFailed}`);
 
     await db
       .update(evalRuns)
@@ -374,6 +405,7 @@ export async function executeRun(
         completedAt: new Date(),
       })
       .where(eq(evalRuns.id, runId));
+    rlog('run status updated in db');
   } catch {
     await db
       .update(evalRuns)

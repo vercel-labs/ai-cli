@@ -96,6 +96,7 @@ interface StreamOptions {
   planMode?: boolean;
   appendSystem?: string;
   save?: boolean;
+  fast?: boolean;
 }
 
 interface ToolInput {
@@ -379,12 +380,10 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         stopWhen: smartStop(),
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+          ...(options.fast && { anthropic: { speed: 'fast' } }),
         },
         headers: AI_CLI_HEADERS,
         abortSignal: options.abortSignal,
-        // Suppress the SDK's default onError which console.error's the
-        // full error object.  We handle errors in our own stream loop
-        // and format them with formatError() for a clean user message.
         onError: () => {},
       });
     } catch (e) {
@@ -791,6 +790,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       stopWhen: stepCountIs(1),
       providerOptions: {
         openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+        ...(options.fast && { anthropic: { speed: 'fast' } }),
       },
       headers: AI_CLI_HEADERS,
       abortSignal: options.abortSignal,

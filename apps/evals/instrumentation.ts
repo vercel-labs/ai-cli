@@ -1,25 +1,40 @@
 export async function register() {
   const p = globalThis.process;
+
+  const fs = (() => {
+    try {
+      return require('fs');
+    } catch {
+      return null;
+    }
+  })();
+
+  const earlyLog = (msg: string) => {
+    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    try {
+      p?.stderr?.write?.(`[instrumentation] ${msg}\n`);
+    } catch {}
+    try {
+      fs?.appendFileSync?.('/tmp/evals-server.log', line);
+    } catch {}
+  };
+
+  earlyLog(`register called: runtime=${p?.env?.NEXT_RUNTIME} pid=${p?.pid}`);
+
   if (!p?.env || p.env.NEXT_RUNTIME !== 'nodejs') return;
 
-  const fs = require('fs');
   const { eq } = require('drizzle-orm');
   const { db } = await import('@/lib/db');
   const { evalRuns, evalTasks } = await import('@/lib/db/schema');
 
-  const log = (msg: string) => {
-    const line = `[${new Date().toISOString()}] ${msg}\n`;
-    try {
-      p.stderr.write(`[instrumentation] ${msg}\n`);
-    } catch {}
-    try {
-      fs.appendFileSync('/tmp/evals-server.log', line);
-    } catch {}
-  };
+  const log = earlyLog;
 
-  for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGQUIT']) {
+  for (const sig of ['SIGTERM', 'SIGHUP', 'SIGQUIT']) {
     p.on(sig, () => log(`received ${sig}`));
   }
+  p.on('SIGINT', () => {
+    log('received SIGINT (ignored)');
+  });
   p.on('beforeExit', (code: number) => log(`beforeExit code=${code}`));
   p.on('exit', (code: number) => log(`exit code=${code}`));
   p.on('uncaughtException', (err: Error) => {

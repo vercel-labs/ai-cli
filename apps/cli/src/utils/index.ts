@@ -25,6 +25,7 @@ Options:
   -p, --print    Headless mode: full agent, output to stdout, then exit
   --json         Structured JSON output (implies --print)
   --system       Append custom text to the system prompt
+  --fast         Enable fast mode (Anthropic speed=fast)
   --force        Auto-approve all tool actions (--print only)
   --no-save      Don't persist the chat to history (--print only)
   --timeout <s>  Abort after N seconds (--print only)

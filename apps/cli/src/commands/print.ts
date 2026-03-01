@@ -32,6 +32,7 @@ interface PrintOptions {
   plan?: boolean;
   resume?: string;
   timeout?: number;
+  fast?: boolean;
   version: string;
 }
 
@@ -62,23 +63,23 @@ class ExitError extends Error {
 }
 
 function exit(code: number): void {
-  const waitDrain = (stream: NodeJS.WriteStream): Promise<void> =>
-    new Promise((resolve) => {
-      if (!stream.writableNeedDrain) {
-        resolve();
-        return;
+  const finish = () => {
+    setTimeout(() => process.exit(code), 200).unref();
+  };
+
+  try {
+    process.stdout.end(() => {
+      try {
+        process.stderr.end(finish);
+      } catch {
+        finish();
       }
-      stream.once('drain', resolve);
     });
+  } catch {
+    finish();
+  }
 
-  Promise.all([waitDrain(process.stdout), waitDrain(process.stderr)])
-    .then(() => {
-      // Give the kernel a tick to flush pipe buffers
-      setTimeout(() => process.exit(code), 50).unref();
-    })
-    .catch(() => process.exit(code));
-
-  setTimeout(() => process.exit(code), 2000).unref();
+  setTimeout(() => process.exit(code), 5000).unref();
 }
 
 const MAX_TIMEOUT = 86400;
@@ -102,6 +103,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     plan = false,
     resume,
     timeout,
+    fast,
     version,
   } = options;
 
@@ -324,6 +326,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
         appendSystem: system,
         abortSignal,
         save,
+        fast,
       });
 
       spinner?.stop();

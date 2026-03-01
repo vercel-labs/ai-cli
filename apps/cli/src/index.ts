@@ -30,6 +30,7 @@ interface Args {
   '--timeout'?: number;
   '--quiet'?: boolean;
   '--verbose'?: boolean;
+  '--fast'?: boolean;
   _: string[];
 }
 
@@ -53,6 +54,7 @@ async function main() {
       '--timeout': Number,
       '--quiet': Boolean,
       '--verbose': Boolean,
+      '--fast': Boolean,
       '-m': '--model',
       '-h': '--help',
       '-v': '--version',
@@ -103,6 +105,7 @@ async function main() {
         model: savedModel,
         version,
         system: args['--system'],
+        fast: args['--fast'],
       });
     }
     return;
@@ -142,6 +145,7 @@ async function main() {
       resume: args['--resume'],
       planMode: args['--plan'],
       system: args['--system'],
+      fast: args['--fast'],
     });
     return;
   }
@@ -160,6 +164,7 @@ async function main() {
           version,
           planMode: args['--plan'],
           system: args['--system'],
+          fast: args['--fast'],
         });
         return;
       }
@@ -182,6 +187,7 @@ async function main() {
       plan: args['--plan'],
       resume: args['--resume'],
       timeout: args['--timeout'],
+      fast: args['--fast'],
       version,
     });
     return;
@@ -192,6 +198,7 @@ async function main() {
     model,
     image: args['--image'],
     isPiped: !process.stdout.isTTY,
+    fast: args['--fast'],
     version,
   });
 }

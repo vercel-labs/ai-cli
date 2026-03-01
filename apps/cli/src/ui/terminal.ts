@@ -78,6 +78,7 @@ const setTitle = (s: string) => process.stdout.write(`\x1b]0;${s}\x07`);
 interface TerminalOptions {
   planMode?: boolean;
   system?: string;
+  fast?: boolean;
 }
 
 export async function terminal(
@@ -1099,6 +1100,7 @@ export async function terminal(
         hasTools: capabilities.tools,
         planMode,
         appendSystem: options?.system,
+        fast: options?.fast,
       });
 
       if (planMode && !controller.signal.aborted) {
@@ -1123,6 +1125,7 @@ export async function terminal(
             abortSignal: controller.signal,
             hasTools: capabilities.tools,
             appendSystem: options?.system,
+            fast: options?.fast,
           });
 
           pendingImage = null;
