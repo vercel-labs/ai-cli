@@ -18,6 +18,7 @@
     "test:coverage": "bun test --coverage tests/*.test.ts",
     "test:e2e": "bun test tests/e2e/",
     "test:evals": "bun test tests/evals/",
+    "test:evals:matrix": "bun run tests/evals/run-matrix.ts",
     "lint": "biome lint .",
     "format": "biome format . --write",
     "typecheck": "tsc --noEmit",
