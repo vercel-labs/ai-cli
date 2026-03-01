@@ -18,6 +18,7 @@ interface TaskResult {
   toolCalls: number;
   exitCode: number;
   error?: string;
+  logs: string;
 }
 
 function createTempDir(): string {
@@ -33,6 +34,7 @@ function cleanupDir(dir: string): void {
 async function runSingleEval(
   evalDef: EvalDefinition,
   model: string,
+  onLogs?: (logs: string) => void,
 ): Promise<TaskResult> {
   const workDir = createTempDir();
   const args = [
@@ -58,10 +60,18 @@ async function runSingleEval(
         });
 
         const stdoutBufs: Buffer[] = [];
-        const stderrBufs: Buffer[] = [];
+        let stderrText = '';
         child.stdout.on('data', (d: Buffer) => stdoutBufs.push(d));
-        child.stderr.on('data', (d: Buffer) => stderrBufs.push(d));
+        child.stderr.on('data', (d: Buffer) => {
+          stderrText += d.toString();
+        });
         child.stdin.end();
+
+        const flushInterval = setInterval(() => {
+          if (stderrText && onLogs) {
+            onLogs(stderrText);
+          }
+        }, 3000);
 
         const killTimeout = setTimeout(
           () => {
@@ -73,20 +83,26 @@ async function runSingleEval(
 
         child.on('close', () => {
           clearTimeout(killTimeout);
+          clearInterval(flushInterval);
+          if (stderrText && onLogs) {
+            onLogs(stderrText);
+          }
           resolvePromise({
             stdout: Buffer.concat(stdoutBufs).toString(),
-            stderr: Buffer.concat(stderrBufs).toString(),
+            stderr: stderrText,
           });
         });
 
         child.on('error', (err: Error) => {
           clearTimeout(killTimeout);
+          clearInterval(flushInterval);
           rejectPromise(err);
         });
       },
     );
 
     const parsed = JSON.parse(result.stdout.trim()) as TaskResult;
+    parsed.logs = result.stderr;
     return parsed;
   } finally {
     cleanupDir(workDir);
@@ -155,8 +171,19 @@ export async function executeRun(
       .set({ status: 'running', startedAt })
       .where(eq(evalTasks.id, taskId));
 
+    const flushLogs = async (logs: string) => {
+      try {
+        await db
+          .update(evalTasks)
+          .set({ logs: logs.slice(-50000) })
+          .where(eq(evalTasks.id, taskId));
+      } catch {}
+    };
+
     try {
-      const result = await runSingleEval(evalDef, model);
+      const result = await runSingleEval(evalDef, model, (logs) => {
+        flushLogs(logs);
+      });
       const completedAt = new Date();
       const durationMs = completedAt.getTime() - startedAt.getTime();
 
@@ -172,6 +199,7 @@ export async function executeRun(
           output: result.output?.slice(0, 10000),
           error: result.error ?? null,
           exitCode: result.exitCode,
+          logs: result.logs?.slice(-50000) ?? null,
           completedAt,
         })
         .where(eq(evalTasks.id, taskId));

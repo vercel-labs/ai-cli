@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { AppHeader } from '@/components/app-header';
 import './globals.css';
 
 const geistSans = Geist({
@@ -27,7 +29,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <TooltipProvider>
+          <div className="sticky top-0 z-50 bg-background">
+            <AppHeader />
+          </div>
+          <main className="h-[calc(100vh-3rem)]">{children}</main>
+        </TooltipProvider>
       </body>
     </html>
   );

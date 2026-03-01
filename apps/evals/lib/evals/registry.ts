@@ -20,6 +20,8 @@ export interface EvalDefinition {
   prompt: string;
   /** For multi-turn evals, additional prompts after the first */
   followUpPrompts?: string[];
+  /** What this eval checks — displayed in the detail view */
+  criteria: string[];
 }
 
 export const EVAL_REGISTRY: EvalDefinition[] = [
@@ -30,6 +32,10 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     category: 'defaults',
     timeoutSec: 60,
     prompt: "What is today's date? Respond with just the date.",
+    criteria: [
+      'Response contains the current year (2026)',
+      'Agent completes without error',
+    ],
   },
   {
     slug: 'package-manager',
@@ -39,6 +45,12 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     category: 'defaults',
     timeoutSec: 300,
     prompt: 'Add the lodash package to this project.',
+    criteria: [
+      'Detects existing yarn.lock and uses yarn (not npm/pnpm/bun)',
+      'yarn.lock still exists after install',
+      'No wrong lockfiles created (package-lock.json, pnpm-lock.yaml, bun.lockb)',
+      'lodash added to package.json dependencies',
+    ],
   },
   {
     slug: 'latest-versions',
@@ -47,6 +59,12 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     category: 'defaults',
     timeoutSec: 300,
     prompt: 'Add zod to this project. Install it properly.',
+    criteria: [
+      'zod added to package.json dependencies',
+      'Installed version is current major (v4+), not outdated (v3)',
+      'A lockfile is created',
+      'Agent completes without error',
+    ],
   },
   {
     slug: 'create-nextjs',
@@ -57,6 +75,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       'Create a new Next.js website with a landing page. Install all dependencies and make sure the project builds.',
+    criteria: [
+      'next.config.ts/mjs/js exists',
+      'package.json contains "next" dependency',
+      'TypeScript is configured (tsconfig.json exists)',
+      'App Router structure (app/ directory with layout and page)',
+      'Project builds successfully (next build exits 0)',
+    ],
   },
   {
     slug: 'clone-blog-confetti',
@@ -66,6 +91,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       'Clone the repo rauchg/blog and add confetti that triggers on page load. Make sure to install dependencies and verify the changes work.',
+    criteria: [
+      'Repo cloned into a blog/ subdirectory',
+      'pnpm detected and used (pnpm-lock.yaml exists)',
+      'canvas-confetti or similar confetti package added to dependencies',
+      'Source code modified to trigger confetti on page load',
+      'No wrong lockfiles created',
+    ],
   },
   {
     slug: 'fix-known-bug',
@@ -75,6 +107,12 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       "There's a bug in this project. The divide function returns wrong results. Find and fix it. Make sure the tests pass.",
+    criteria: [
+      'Identifies the buggy divide function',
+      'Fixes the bug (correct division logic)',
+      'All tests pass after the fix',
+      'No unrelated changes introduced',
+    ],
   },
   {
     slug: 'cli-with-tests',
@@ -84,6 +122,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       'Create a Node.js CLI calculator that supports add, subtract, multiply, and divide operations via command-line arguments (e.g. node src/index.ts add 2 3). Use TypeScript. Write tests for all operations. Make sure all tests pass.',
+    criteria: [
+      'TypeScript source file exists (src/index.ts or similar)',
+      'Supports add, subtract, multiply, divide operations',
+      'Test file exists with tests for all 4 operations',
+      'All tests pass',
+      'package.json has a test script',
+    ],
   },
   {
     slug: 'react-component',
@@ -93,6 +138,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       'Create a React component library with a Button component and a Modal component. Each component should have its own file, props interface, and test file. Use TypeScript and Vitest for testing. Make sure all tests pass.',
+    criteria: [
+      'Button component in its own file with typed props',
+      'Modal component in its own file with typed props',
+      'Separate test file for each component',
+      'TypeScript and Vitest configured',
+      'All tests pass',
+    ],
   },
   {
     slug: 'crud-api',
@@ -102,6 +154,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       'Create a REST API using Hono that manages a list of todos. It should support GET /todos, POST /todos, PUT /todos/:id, and DELETE /todos/:id. Store data in memory. Use TypeScript. Write tests for all endpoints. Make sure all tests pass.',
+    criteria: [
+      'Hono app with GET, POST, PUT, DELETE /todos routes',
+      'In-memory storage for todo items',
+      'TypeScript configured',
+      'Test file covering all 4 endpoints',
+      'All tests pass',
+    ],
   },
   {
     slug: 'refactor-safe',
@@ -111,6 +170,12 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     timeoutSec: 300,
     prompt:
       'Refactor the utils module. Split the single utils.ts file into separate files (one per function: capitalize.ts, slugify.ts, truncate.ts). Update all imports in index.ts and the test file. Make sure the tests still pass.',
+    criteria: [
+      'capitalize.ts, slugify.ts, truncate.ts each exist as separate files',
+      'Original utils.ts removed or converted to barrel export',
+      'Imports in index.ts and test files updated correctly',
+      'All tests still pass after refactoring',
+    ],
   },
   {
     slug: 'build-then-fix',
@@ -122,6 +187,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
       'Create a TypeScript string utility module with capitalize, reverse, and isPalindrome functions. Write tests using Vitest. Make sure all tests pass.',
     followUpPrompts: [
       'Users are reporting that isPalindrome("racecar") works but isPalindrome("Racecar") fails — it should be case-insensitive. Can you investigate and fix it? Add a test for the case-insensitive case. Make sure all tests still pass.',
+    ],
+    criteria: [
+      'Turn 1: capitalize, reverse, isPalindrome functions created',
+      'Turn 1: Tests pass for all 3 functions',
+      'Turn 2: isPalindrome made case-insensitive',
+      'Turn 2: New test for case-insensitive palindrome added',
+      'Turn 2: All tests still pass',
     ],
   },
   {
@@ -135,6 +207,12 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     followUpPrompts: [
       'Add a reset button that sets the count back to zero. Also add dark mode styles — dark background with light text.',
     ],
+    criteria: [
+      'Turn 1: index.html with click counter and count display',
+      'Turn 1: Vanilla JS, no frameworks',
+      'Turn 2: Reset button that clears count to zero',
+      'Turn 2: Dark mode styles applied',
+    ],
   },
   {
     slug: 'progressive-enhancement',
@@ -146,6 +224,13 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
       'Create an Express REST API with GET /items and POST /items endpoints. Store items in memory as an array. Each item should have an id (auto-generated) and a name. Use TypeScript. Write tests using Vitest and supertest. Make sure all tests pass.',
     followUpPrompts: [
       'Add input validation to POST /items: the name field is required and must be a non-empty string. Return 400 with a JSON error message when validation fails. Add tests for the validation cases. Make sure all tests pass.',
+    ],
+    criteria: [
+      'Turn 1: Express API with GET and POST /items',
+      'Turn 1: In-memory storage with auto-generated IDs',
+      'Turn 1: Tests pass with Vitest + supertest',
+      'Turn 2: POST validation — rejects empty/missing name with 400',
+      'Turn 2: Validation test cases added and passing',
     ],
   },
   {
@@ -242,6 +327,16 @@ Each component test file must:
 - Have at least 3 test cases per component
 
 After creating all files, run the tests and make sure they ALL pass. Fix any failures.`,
+    criteria: [
+      'All 12 components created in src/components/',
+      'Each component has typed Props interface',
+      'Each component has a corresponding test file',
+      'Proper accessibility (aria-*) attributes',
+      'Barrel export in src/index.ts',
+      'At least 3 test cases per component (36+ total)',
+      'All tests pass',
+      'LLM judge score ≥ 7/10 for spec adherence',
+    ],
   },
   {
     slug: 'project-management-prd',
@@ -368,6 +463,17 @@ Required test files:
 Each test file should have at least 8 test cases.
 
 After creating all files, run the tests and make sure they ALL pass. Fix any failures.`,
+    criteria: [
+      'All 6 data models defined in types file',
+      'In-memory store with resetStore() and seed data',
+      '28 API endpoints implemented across 5 route groups + search',
+      'Validation errors return 400, not-found returns 404, conflicts return 409',
+      'Test files for each route group (6 files, 8+ tests each)',
+      'Query parameter filtering works (status, priority, assigneeId)',
+      'Status transition rules enforced (PATCH /tasks/:id/status)',
+      'All tests pass',
+      'LLM judge score ≥ 7/10 for spec adherence',
+    ],
   },
 ];
 

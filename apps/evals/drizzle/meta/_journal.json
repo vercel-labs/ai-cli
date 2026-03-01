@@ -8,6 +8,13 @@
       "when": 1772341001398,
       "tag": "0000_clever_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772342319920,
+      "tag": "0001_shallow_ser_duncan",
+      "breakpoints": true
     }
   ]
 }

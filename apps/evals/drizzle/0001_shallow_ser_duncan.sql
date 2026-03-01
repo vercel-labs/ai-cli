@@ -1,0 +1,1 @@
+ALTER TABLE "eval_tasks" ADD COLUMN "logs" text;

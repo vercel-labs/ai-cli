@@ -40,6 +40,7 @@ export const evalTasks = pgTable('eval_tasks', {
   output: text('output'),
   error: text('error'),
   exitCode: integer('exit_code'),
+  logs: text('logs'),
   judgeScore: doublePrecision('judge_score'),
   judgeVerdict: text('judge_verdict'),
   startedAt: timestamp('started_at', { withTimezone: true }),
