@@ -153,6 +153,7 @@ export async function runEval(
     '-p',
     '--force',
     '--json',
+    '--verbose',
     ...(save ? [] : ['--no-save']),
     '--timeout',
     String(timeoutSec),

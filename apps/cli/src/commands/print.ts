@@ -27,6 +27,7 @@ interface PrintOptions {
   force?: boolean;
   save?: boolean;
   quiet?: boolean;
+  verbose?: boolean;
   system?: string;
   plan?: boolean;
   resume?: string;
@@ -91,6 +92,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     json = false,
     save = true,
     quiet = false,
+    verbose: explicitVerbose,
     system,
     plan = false,
     resume,
@@ -98,7 +100,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     version,
   } = options;
 
-  const verbose = !json && !quiet;
+  const verbose = explicitVerbose ?? (!json && !quiet);
   let exitCode = 0;
 
   try {
@@ -159,7 +161,8 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
 
     const pm = detectPackageManager();
     const capabilities = await getModelCapabilities(model);
-    const spinner = verbose ? createSpinner(process.stderr) : null;
+    const useSpinner = verbose && !json;
+    const spinner = useSpinner ? createSpinner(process.stderr) : null;
 
     let tokens = 0;
     let cost = 0;
@@ -220,10 +223,15 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       }
     };
 
+    const logLine = (msg: string) => {
+      if (verbose) process.stderr.write(`${msg}\n`);
+    };
+
     const callbacks: StreamCallbacks = {
       onStatus: (status) => {
-        if (verbose && status) spinner?.update(status);
-        if (verbose && !status) spinner?.stop();
+        if (spinner && status) spinner.update(status);
+        if (spinner && !status) spinner.stop();
+        if (!spinner && verbose && status) logLine(`[status] ${status}`);
       },
       onPending: (text) => {
         if (!text) {
@@ -240,12 +248,12 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
           trackOutput(content);
         } else if (type === 'info' && content.startsWith('Stopped:')) {
           stuck = true;
-          if (verbose) process.stderr.write(`${content}\n`);
+          logLine(content);
         } else if (type === 'error') {
-          if (verbose) process.stderr.write(`${content}\n`);
+          logLine(content);
         } else if (type === 'tool') {
           toolCalls++;
-          if (verbose) process.stderr.write(`${content}\n`);
+          logLine(content);
         }
       },
       onRecord: (type, content) => {
@@ -253,10 +261,10 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
           trackOutput(content);
         }
       },
-      onReasoning: (text, _durationMs) => {
-        if (verbose) {
-          const short = text.replace(/\s+/g, ' ').trim().slice(-80);
-          spinner?.update(short);
+      onReasoning: (_text, _durationMs) => {
+        if (spinner) {
+          const short = _text.replace(/\s+/g, ' ').trim().slice(-80);
+          spinner.update(short);
         }
       },
       onTokens: (fn) => {
@@ -278,7 +286,9 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     let chat: Chat | null = null;
 
     try {
-      spinner?.start('thinking...');
+      if (verbose) logLine('[phase] coding agent');
+      if (spinner) spinner.start('thinking...');
+      else if (verbose) logLine('[status] thinking...');
 
       chat = await streamChat({
         model,
@@ -302,6 +312,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       if (hasChangedFiles() && getReviewEnabled()) {
         const changed = getChangedFilesWithOriginals();
         if (changed.length > 0) {
+          if (verbose) logLine('[phase] review agent');
           spinner?.start('reviewing...');
           try {
             await reviewLoop({
@@ -312,6 +323,9 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
               callbacks,
               abortSignal,
               pm,
+              onPhase: verbose
+                ? (label) => logLine(`[phase] ${label}`)
+                : undefined,
             });
           } catch (e) {
             if ((e as Error).name !== 'AbortError') {
@@ -323,6 +337,8 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
           spinner?.stop();
         }
       }
+
+      if (verbose) logLine('[phase] done');
 
       if (!json && output) {
         process.stdout.write('\n');

@@ -94,30 +94,16 @@ export function RunDetail({
   useEffect(() => {
     setRun(null);
     fetchRun();
+    const interval = setInterval(fetchRun, 5000);
+    return () => clearInterval(interval);
   }, [fetchRun]);
 
-  useEffect(() => {
-    if (!runId) return;
-    if (run?.status === 'completed' || run?.status === 'failed') return;
-
-    const evtSource = new EventSource(`/api/runs/${runId}/stream`);
-
-    evtSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as RunData;
-        setRun(data);
-        if (data.status === 'completed' || data.status === 'failed') {
-          evtSource.close();
-        }
-      } catch {}
-    };
-
-    evtSource.onerror = () => {
-      evtSource.close();
-    };
-
-    return () => evtSource.close();
-  }, [runId, run?.status]);
+  const handleSelectTask = useCallback(
+    (taskId: string) => {
+      router.push(`/runs/${runId}/evals/${taskId}`, { scroll: false });
+    },
+    [router, runId],
+  );
 
   if (!run) {
     return (
@@ -130,13 +116,6 @@ export function RunDetail({
   const selectedTask = evalId
     ? (run.tasks.find((t) => t.id === evalId) ?? null)
     : null;
-
-  const handleSelectTask = useCallback(
-    (taskId: string) => {
-      router.push(`/runs/${runId}/evals/${taskId}`, { scroll: false });
-    },
-    [router, runId],
-  );
 
   const passed = run.tasks.filter((t) => t.status === 'completed').length;
   const failed = run.tasks.filter((t) => t.status === 'failed').length;
@@ -359,7 +338,7 @@ function Stat({
 }
 
 function LogViewer({ logs, isLive }: { logs: string; isLive: boolean }) {
-  const containerRef = useRef<HTMLPreElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const wasAtBottomRef = useRef(true);
 
   useEffect(() => {
@@ -377,14 +356,33 @@ function LogViewer({ logs, isLive }: { logs: string; isLive: boolean }) {
     wasAtBottomRef.current = atBottom;
   };
 
+  const lines = logs.split('\n');
+
   return (
-    <pre
+    <div
       ref={containerRef}
       onScroll={handleScroll}
       className="rounded bg-muted p-3 text-xs whitespace-pre-wrap max-h-[500px] overflow-y-auto font-mono"
     >
-      {logs}
-    </pre>
+      {lines.map((line, i) => {
+        if (line.startsWith('[phase]')) {
+          const label = line.slice('[phase] '.length);
+          return (
+            <div
+              key={i}
+              className="mt-3 mb-1 border-t border-border pt-2 text-[11px] font-semibold uppercase tracking-wider text-blue-400 first:mt-0 first:border-t-0 first:pt-0"
+            >
+              {label}
+            </div>
+          );
+        }
+        return (
+          <div key={i} className="text-muted-foreground">
+            {line}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

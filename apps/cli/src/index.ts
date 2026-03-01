@@ -29,6 +29,7 @@ interface Args {
   '--no-save'?: boolean;
   '--timeout'?: number;
   '--quiet'?: boolean;
+  '--verbose'?: boolean;
   _: string[];
 }
 
@@ -51,6 +52,7 @@ async function main() {
       '--no-save': Boolean,
       '--timeout': Number,
       '--quiet': Boolean,
+      '--verbose': Boolean,
       '-m': '--model',
       '-h': '--help',
       '-v': '--version',
@@ -175,6 +177,7 @@ async function main() {
       force: args['--force'],
       save: !args['--no-save'],
       quiet: args['--quiet'],
+      verbose: args['--verbose'],
       system: args['--system'],
       plan: args['--plan'],
       resume: args['--resume'],

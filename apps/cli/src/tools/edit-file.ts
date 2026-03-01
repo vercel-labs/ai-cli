@@ -53,7 +53,13 @@ export const editFile = tool({
       const content = fs.readFileSync(fullPath, 'utf-8');
 
       if (!content.includes(oldText)) {
-        return { error: 'text not found' };
+        const lines = content.split('\n');
+        const preview = lines.slice(0, 40).join('\n');
+        const truncated =
+          lines.length > 40 ? `\n... (${lines.length - 40} more lines)` : '';
+        return {
+          error: `text not found in ${filePath}. Read the file first to see the exact content. Here are the first 40 lines:\n${preview}${truncated}`,
+        };
       }
 
       const diff = shortDiff(oldText, newText);

@@ -63,6 +63,12 @@ Environment:
 - Platform: ${platform}
 - Date: ${date}
 - Package manager: ${pm.pm} (ALWAYS use "${pm.pm}" for install/add/remove, "${pm.run}" to run scripts — NEVER use npm unless it is the detected package manager)
+- If you clone a repo or cd into a subdirectory, CHECK its lock file (pnpm-lock.yaml, yarn.lock, bun.lockb, package-lock.json) and use THAT package manager for commands inside it, even if the parent directory uses something different.
+
+Editing files (IMPORTANT):
+- If editFile returns "text not found", do NOT retry with the same oldText. Read the file first to see the actual content.
+- Include 2-3 lines of surrounding context in oldText to ensure a unique match.
+- NEVER output HTML entities in tool arguments — use raw characters: & not &amp;, < not &lt;, > not &gt;
 
 Preferences:
 - Always use TypeScript unless told otherwise

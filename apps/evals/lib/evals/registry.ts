@@ -22,6 +22,9 @@ export interface EvalDefinition {
   followUpPrompts?: string[];
   /** What this eval checks — displayed in the detail view */
   criteria: string[];
+  /** When set, the runner will invoke an LLM judge after the agent finishes.
+   *  The value is the spec/PRD text the judge uses as ground truth. */
+  judgeSpec?: string;
 }
 
 export const EVAL_REGISTRY: EvalDefinition[] = [
@@ -337,6 +340,7 @@ After creating all files, run the tests and make sure they ALL pass. Fix any fai
       'All tests pass',
       'LLM judge score ≥ 7/10 for spec adherence',
     ],
+    judgeSpec: 'USE_PROMPT',
   },
   {
     slug: 'project-management-prd',
@@ -474,6 +478,7 @@ After creating all files, run the tests and make sure they ALL pass. Fix any fai
       'All tests pass',
       'LLM judge score ≥ 7/10 for spec adherence',
     ],
+    judgeSpec: 'USE_PROMPT',
   },
 ];
 

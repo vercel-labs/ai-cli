@@ -43,7 +43,13 @@ export const runCommand = tool({
   inputSchema: z.object({
     command: z.string().describe('The shell command to execute'),
   }),
-  execute: async ({ command }) => {
+  execute: async ({ command: rawCommand }) => {
+    const command = rawCommand
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
     const lower = command.toLowerCase();
     const blocked = ['dev', 'start', 'serve', 'watch', 'preview'];
     if (blocked.some((b) => new RegExp(`\\b${b}\\b`).test(lower))) {

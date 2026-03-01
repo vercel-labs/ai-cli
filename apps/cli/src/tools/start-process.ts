@@ -54,7 +54,13 @@ export const startProcess = tool({
   inputSchema: z.object({
     command: z.string().describe('Command to run'),
   }),
-  execute: async ({ command }) => {
+  execute: async ({ command: rawCommand }) => {
+    const command = rawCommand
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
     debug(`startProcess: ${command}`);
     const proc = startManagedProcess(command);
 
