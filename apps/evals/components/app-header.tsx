@@ -55,19 +55,22 @@ function HeaderInner() {
   const selectedRunId = pathMatch?.[1] ?? '';
   const [runs, setRuns] = useState<RunSummary[]>([]);
 
-  const fetchRuns = useCallback(async () => {
-    const res = await fetch('/api/runs');
-    if (res.ok) {
-      const data = await res.json();
-      setRuns(data);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchRuns();
-    const interval = setInterval(fetchRuns, 5000);
-    return () => clearInterval(interval);
-  }, [fetchRuns]);
+    let cancelled = false;
+    const load = async () => {
+      const res = await fetch('/api/runs');
+      if (res.ok && !cancelled) {
+        const data = await res.json();
+        setRuns(data);
+      }
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleRunChange = useCallback(
     (id: string) => {
