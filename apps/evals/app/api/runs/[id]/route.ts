@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { evalRuns, evalTasks } from '@/lib/db/schema';
+import { evalRuns, evalTasks, evalComparisons } from '@/lib/db/schema';
 
 export async function GET(
   _request: Request,
@@ -24,5 +24,23 @@ export async function GET(
     .from(evalTasks)
     .where(eq(evalTasks.runId, id));
 
-  return NextResponse.json({ ...run[0], tasks });
+  const comparisons = await db
+    .select()
+    .from(evalComparisons)
+    .where(eq(evalComparisons.runId, id));
+
+  return NextResponse.json({ ...run[0], tasks, comparisons });
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  await db.delete(evalComparisons).where(eq(evalComparisons.runId, id));
+  await db.delete(evalTasks).where(eq(evalTasks.runId, id));
+  await db.delete(evalRuns).where(eq(evalRuns.id, id));
+
+  return NextResponse.json({ ok: true });
 }

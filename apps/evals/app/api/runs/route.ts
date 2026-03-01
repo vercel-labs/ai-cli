@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { evalRuns, evalTasks } from '@/lib/db/schema';
+import { evalRuns, evalTasks, evalComparisons } from '@/lib/db/schema';
 import { EVAL_REGISTRY, getEvalBySlug } from '@/lib/evals/registry';
 import { executeRun } from '@/lib/evals/runner';
 
@@ -70,4 +70,12 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ id: run.id }, { status: 201 });
+}
+
+export async function DELETE() {
+  await db.delete(evalComparisons);
+  await db.delete(evalTasks);
+  await db.delete(evalRuns);
+
+  return NextResponse.json({ ok: true });
 }

@@ -96,6 +96,7 @@ interface StreamOptions {
   planMode?: boolean;
   appendSystem?: string;
   save?: boolean;
+  fast?: boolean;
 }
 
 interface ToolInput {
@@ -315,9 +316,8 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       if (options.save !== false) saveChat(chat);
       callbacks.onMessage('info', 'context compressed');
     }
+    callbacks.onStatus('thinking...');
   }
-
-  callbacks.onStatus('thinking...');
 
   const sys = buildSystemPrompt(pm, summary, message, {
     planMode: options.planMode,
@@ -380,12 +380,10 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         stopWhen: smartStop(),
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+          ...(options.fast && { anthropic: { speed: 'fast' } }),
         },
         headers: AI_CLI_HEADERS,
         abortSignal: options.abortSignal,
-        // Suppress the SDK's default onError which console.error's the
-        // full error object.  We handle errors in our own stream loop
-        // and format them with formatError() for a clean user message.
         onError: () => {},
       });
     } catch (e) {
@@ -545,7 +543,13 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
             status = `Reading ${f}`;
             currentToolLabel = `Read ${f}`;
           } else if (tc.toolName === 'runCommand' && input?.command) {
-            status = `Running ${input.command.slice(0, 70)}`;
+            const cmd = (input.command as string)
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'");
+            status = `Running ${cmd.slice(0, 70)}`;
             currentToolLabel = '';
           } else if (tc.toolName === 'writeFile') {
             const f = input?.filePath || 'file';
@@ -786,6 +790,7 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       stopWhen: stepCountIs(1),
       providerOptions: {
         openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+        ...(options.fast && { anthropic: { speed: 'fast' } }),
       },
       headers: AI_CLI_HEADERS,
       abortSignal: options.abortSignal,

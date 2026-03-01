@@ -11,11 +11,19 @@ interface ChatOptions {
   model?: string;
   image?: string;
   isPiped: boolean;
+  fast?: boolean;
   version: string;
 }
 
 export async function chatCommand(options: ChatOptions): Promise<void> {
-  const { message, model = DEFAULT_MODEL, image, isPiped, version } = options;
+  const {
+    message,
+    model = DEFAULT_MODEL,
+    image,
+    isPiped,
+    fast,
+    version,
+  } = options;
 
   if (!isPiped) {
     console.log(gray(`ai ${version} [${model}]`));
@@ -54,10 +62,8 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
       tools: getTools(),
       stopWhen: stepCountIs(5),
       providerOptions: {
-        openai: {
-          reasoningEffort: 'high',
-          reasoningSummary: 'detailed',
-        },
+        openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
+        ...(fast && { anthropic: { speed: 'fast' } }),
       },
       headers: AI_CLI_HEADERS,
       onError: () => {},

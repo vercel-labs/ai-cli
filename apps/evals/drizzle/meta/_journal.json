@@ -15,6 +15,13 @@
       "when": 1772342319920,
       "tag": "0001_shallow_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772386001279,
+      "tag": "0002_worthless_victor_mancha",
+      "breakpoints": true
     }
   ]
 }

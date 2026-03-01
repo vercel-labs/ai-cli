@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppHeader } from '@/components/app-header';
+import { AppShell } from '@/components/app-shell';
 import './globals.css';
 
 const geistSans = Geist({
@@ -33,7 +34,9 @@ export default function RootLayout({
           <div className="sticky top-0 z-50 bg-background">
             <AppHeader />
           </div>
-          <main className="h-[calc(100vh-3rem)]">{children}</main>
+          <main className="h-[calc(100vh-3rem)]">
+            <AppShell>{children}</AppShell>
+          </main>
         </TooltipProvider>
       </body>
     </html>

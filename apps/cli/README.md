@@ -82,6 +82,7 @@ On error, includes an `error` field with the message.
 - `-p, --print` - headless mode: full agent, output to stdout, then exit
 - `--json` - structured JSON output (implies --print)
 - `--system` - append custom text to the system prompt
+- `--fast` - enable Anthropic fast mode (speed=fast)
 - `--force` - auto-approve all tool actions (--print only)
 - `--no-save` - don't persist the chat to history (--print only)
 - `--timeout` - abort after N seconds (--print only)

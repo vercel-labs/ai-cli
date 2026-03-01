@@ -32,8 +32,15 @@ interface PrintOptions {
   plan?: boolean;
   resume?: string;
   timeout?: number;
+  fast?: boolean;
   version: string;
 }
+
+type ChatMessage =
+  | { role: 'assistant'; content: string }
+  | { role: 'tool'; content: string }
+  | { role: 'reasoning'; content: string }
+  | { role: 'error'; content: string };
 
 interface HeadlessResult {
   output: string;
@@ -46,6 +53,7 @@ interface HeadlessResult {
   chatId?: string;
   error?: string;
   usage?: TokenUsage;
+  messages?: ChatMessage[];
 }
 
 class ExitError extends Error {
@@ -55,25 +63,23 @@ class ExitError extends Error {
 }
 
 function exit(code: number): void {
-  const needsDrain =
-    process.stdout.writableNeedDrain || process.stderr.writableNeedDrain;
-  if (!needsDrain) {
-    process.exit(code);
-    return;
-  }
-  let remaining = 0;
-  const done = () => {
-    if (--remaining === 0) process.exit(code);
+  const finish = () => {
+    setTimeout(() => process.exit(code), 200).unref();
   };
-  setTimeout(() => process.exit(code), 1000).unref();
-  if (process.stdout.writableNeedDrain) {
-    remaining++;
-    process.stdout.once('drain', done);
+
+  try {
+    process.stdout.end(() => {
+      try {
+        process.stderr.end(finish);
+      } catch {
+        finish();
+      }
+    });
+  } catch {
+    finish();
   }
-  if (process.stderr.writableNeedDrain) {
-    remaining++;
-    process.stderr.once('drain', done);
-  }
+
+  setTimeout(() => process.exit(code), 5000).unref();
 }
 
 const MAX_TIMEOUT = 86400;
@@ -97,6 +103,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     plan = false,
     resume,
     timeout,
+    fast,
     version,
   } = options;
 
@@ -172,6 +179,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     let outputEndsWithNewline = false;
     let stuck = false;
     let usage: TokenUsage | null = null;
+    const messages: ChatMessage[] = [];
 
     const history: ModelMessage[] = [];
     let existingChat: Chat | null = null;
@@ -227,6 +235,13 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       if (verbose) process.stderr.write(`${msg}\n`);
     };
 
+    const emitMsg = (role: ChatMessage['role'], content: string) => {
+      messages.push({ role, content } as ChatMessage);
+      if (json) {
+        process.stderr.write(`[msg] ${JSON.stringify({ role, content })}\n`);
+      }
+    };
+
     const callbacks: StreamCallbacks = {
       onStatus: (status) => {
         if (spinner && status) spinner.update(status);
@@ -246,26 +261,33 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       onMessage: (type, content) => {
         if (type === 'assistant') {
           trackOutput(content);
+          if (json) emitMsg('assistant', content);
         } else if (type === 'info' && content.startsWith('Stopped:')) {
           stuck = true;
           logLine(content);
         } else if (type === 'error') {
           logLine(content);
+          if (json) emitMsg('error', content);
         } else if (type === 'tool') {
           toolCalls++;
           logLine(content);
+          if (json) emitMsg('tool', content);
         }
       },
       onRecord: (type, content) => {
         if (type === 'assistant') {
           trackOutput(content);
+          if (json) emitMsg('assistant', content);
         }
       },
       onReasoning: (_text, _durationMs) => {
         if (spinner) {
           const short = _text.replace(/\s+/g, ' ').trim().slice(-80);
           spinner.update(short);
+        } else if (verbose) {
+          logLine(`[reasoning] ${_text}`);
         }
+        if (json) emitMsg('reasoning', _text);
       },
       onTokens: (fn) => {
         tokens = fn(tokens);
@@ -288,7 +310,6 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
     try {
       if (verbose) logLine('[phase] coding agent');
       if (spinner) spinner.start('thinking...');
-      else if (verbose) logLine('[status] thinking...');
 
       chat = await streamChat({
         model,
@@ -305,6 +326,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
         appendSystem: system,
         abortSignal,
         save,
+        fast,
       });
 
       spinner?.stop();
@@ -379,6 +401,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
         exitCode: stuck ? 2 : 0,
         chatId: save && chat ? chat.id : undefined,
         usage: usage ?? undefined,
+        messages,
       };
       process.stdout.write(`${JSON.stringify(result)}\n`);
     }

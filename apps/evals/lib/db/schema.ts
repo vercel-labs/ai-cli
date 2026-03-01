@@ -43,9 +43,25 @@ export const evalTasks = pgTable('eval_tasks', {
   logs: text('logs'),
   judgeScore: doublePrecision('judge_score'),
   judgeVerdict: text('judge_verdict'),
+  messages: text('messages'),
   startedAt: timestamp('started_at', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),
 });
 
+export const evalComparisons = pgTable('eval_comparisons', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  runId: uuid('run_id')
+    .notNull()
+    .references(() => evalRuns.id, { onDelete: 'cascade' }),
+  evalName: text('eval_name').notNull(),
+  winnerModel: text('winner_model').notNull(),
+  rankings: text('rankings').notNull(),
+  reasoning: text('reasoning').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type EvalRun = typeof evalRuns.$inferSelect;
 export type EvalTask = typeof evalTasks.$inferSelect;
+export type EvalComparison = typeof evalComparisons.$inferSelect;
