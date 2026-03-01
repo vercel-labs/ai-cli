@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { Terminal, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -49,9 +49,10 @@ function relativeTime(date: string): string {
 }
 
 function HeaderInner() {
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
-  const selectedRunId = searchParams.get('run') ?? '';
+  const pathMatch = pathname.match(/^\/runs\/([^/]+)/);
+  const selectedRunId = pathMatch?.[1] ?? '';
   const [runs, setRuns] = useState<RunSummary[]>([]);
 
   const fetchRuns = useCallback(async () => {
@@ -70,7 +71,7 @@ function HeaderInner() {
 
   const handleRunChange = useCallback(
     (id: string) => {
-      router.push(`/?run=${id}`, { scroll: false });
+      router.push(`/runs/${id}`, { scroll: false });
     },
     [router],
   );

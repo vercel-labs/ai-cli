@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { RunDetail } from '@/components/run-detail';
 
 export default async function RunPage({
   params,
@@ -6,5 +6,5 @@ export default async function RunPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/?run=${id}`);
+  return <RunDetail runId={id} />;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import {
   ResizablePanelGroup,
@@ -72,9 +73,15 @@ function formatCost(cost: number | null): string {
   return `$${cost.toFixed(4)}`;
 }
 
-export function RunDetail({ runId }: { runId: string }) {
+export function RunDetail({
+  runId,
+  evalId,
+}: {
+  runId: string;
+  evalId?: string;
+}) {
+  const router = useRouter();
   const [run, setRun] = useState<RunData | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const fetchRun = useCallback(async () => {
     const res = await fetch(`/api/runs/${runId}`);
@@ -86,7 +93,6 @@ export function RunDetail({ runId }: { runId: string }) {
 
   useEffect(() => {
     setRun(null);
-    setSelectedTaskId(null);
     fetchRun();
   }, [fetchRun]);
 
@@ -121,9 +127,16 @@ export function RunDetail({ runId }: { runId: string }) {
     );
   }
 
-  const selectedTask = selectedTaskId
-    ? (run.tasks.find((t) => t.id === selectedTaskId) ?? null)
+  const selectedTask = evalId
+    ? (run.tasks.find((t) => t.id === evalId) ?? null)
     : null;
+
+  const handleSelectTask = useCallback(
+    (taskId: string) => {
+      router.push(`/runs/${runId}/evals/${taskId}`, { scroll: false });
+    },
+    [router, runId],
+  );
 
   const passed = run.tasks.filter((t) => t.status === 'completed').length;
   const failed = run.tasks.filter((t) => t.status === 'failed').length;
@@ -160,8 +173,8 @@ export function RunDetail({ runId }: { runId: string }) {
           >
             <TaskList
               tasks={run.tasks}
-              selectedId={selectedTaskId}
-              onSelect={setSelectedTaskId}
+              selectedId={evalId ?? null}
+              onSelect={handleSelectTask}
             />
           </ResizablePanel>
           <ResizableHandle />
