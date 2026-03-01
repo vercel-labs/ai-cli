@@ -61,6 +61,7 @@ async function runSingleEval(
         env: { ...process.env, NO_COLOR: '1' },
         cwd: workDir,
         stdio: ['pipe', 'pipe', 'pipe'],
+        detached: true,
       });
 
       const stdoutBufs: Buffer[] = [];
@@ -79,7 +80,11 @@ async function runSingleEval(
 
       const killTimeout = setTimeout(
         () => {
-          child.kill('SIGTERM');
+          try {
+            process.kill(-child.pid!, 'SIGTERM');
+          } catch {
+            child.kill('SIGTERM');
+          }
           rejectPromise(new Error('Eval process timed out'));
         },
         (evalDef.timeoutSec + 60) * 1000,
@@ -105,7 +110,23 @@ async function runSingleEval(
     },
   );
 
-  const parsed = JSON.parse(result.stdout.trim()) as TaskResult;
+  let parsed: TaskResult;
+  try {
+    parsed = JSON.parse(result.stdout.trim()) as TaskResult;
+  } catch (parseErr) {
+    return {
+      output: '',
+      model,
+      tokens: 0,
+      cost: 0,
+      steps: 0,
+      toolCalls: 0,
+      exitCode: 1,
+      error: `Failed to parse CLI JSON output: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+      logs: result.stderr,
+      workDir,
+    };
+  }
   parsed.logs = result.stderr;
   parsed.workDir = workDir;
   return parsed;
@@ -175,12 +196,30 @@ export async function executeRun(
 
     let logs = '';
 
+    const extractMessages = (
+      text: string,
+    ): { role: string; content: string }[] => {
+      const msgs: { role: string; content: string }[] = [];
+      for (const line of text.split('\n')) {
+        if (line.startsWith('[msg] ')) {
+          try {
+            msgs.push(JSON.parse(line.slice(6)));
+          } catch {}
+        }
+      }
+      return msgs;
+    };
+
     const flushLogs = async (newLogs: string) => {
       logs = newLogs;
       try {
+        const msgs = extractMessages(logs);
         await db
           .update(evalTasks)
-          .set({ logs: logs.slice(-50000) })
+          .set({
+            logs: logs.slice(-50000),
+            messages: msgs.length > 0 ? JSON.stringify(msgs) : null,
+          })
           .where(eq(evalTasks.id, taskId));
       } catch {}
     };
@@ -265,6 +304,7 @@ export async function executeRun(
           status: 'failed',
           error: err instanceof Error ? err.message : String(err),
           durationMs: completedAt.getTime() - startedAt.getTime(),
+          logs: logs ? logs.slice(-50000) : null,
           completedAt,
         })
         .where(eq(evalTasks.id, taskId));

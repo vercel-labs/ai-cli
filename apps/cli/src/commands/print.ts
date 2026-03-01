@@ -62,25 +62,23 @@ class ExitError extends Error {
 }
 
 function exit(code: number): void {
-  const needsDrain =
-    process.stdout.writableNeedDrain || process.stderr.writableNeedDrain;
-  if (!needsDrain) {
-    process.exit(code);
-    return;
-  }
-  let remaining = 0;
-  const done = () => {
-    if (--remaining === 0) process.exit(code);
-  };
-  setTimeout(() => process.exit(code), 1000).unref();
-  if (process.stdout.writableNeedDrain) {
-    remaining++;
-    process.stdout.once('drain', done);
-  }
-  if (process.stderr.writableNeedDrain) {
-    remaining++;
-    process.stderr.once('drain', done);
-  }
+  const waitDrain = (stream: NodeJS.WriteStream): Promise<void> =>
+    new Promise((resolve) => {
+      if (!stream.writableNeedDrain) {
+        resolve();
+        return;
+      }
+      stream.once('drain', resolve);
+    });
+
+  Promise.all([waitDrain(process.stdout), waitDrain(process.stderr)])
+    .then(() => {
+      // Give the kernel a tick to flush pipe buffers
+      setTimeout(() => process.exit(code), 50).unref();
+    })
+    .catch(() => process.exit(code));
+
+  setTimeout(() => process.exit(code), 2000).unref();
 }
 
 const MAX_TIMEOUT = 86400;
@@ -235,6 +233,13 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       if (verbose) process.stderr.write(`${msg}\n`);
     };
 
+    const emitMsg = (role: ChatMessage['role'], content: string) => {
+      messages.push({ role, content } as ChatMessage);
+      if (json) {
+        process.stderr.write(`[msg] ${JSON.stringify({ role, content })}\n`);
+      }
+    };
+
     const callbacks: StreamCallbacks = {
       onStatus: (status) => {
         if (spinner && status) spinner.update(status);
@@ -254,23 +259,23 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
       onMessage: (type, content) => {
         if (type === 'assistant') {
           trackOutput(content);
-          if (json) messages.push({ role: 'assistant', content });
+          if (json) emitMsg('assistant', content);
         } else if (type === 'info' && content.startsWith('Stopped:')) {
           stuck = true;
           logLine(content);
         } else if (type === 'error') {
           logLine(content);
-          if (json) messages.push({ role: 'error', content });
+          if (json) emitMsg('error', content);
         } else if (type === 'tool') {
           toolCalls++;
           logLine(content);
-          if (json) messages.push({ role: 'tool', content });
+          if (json) emitMsg('tool', content);
         }
       },
       onRecord: (type, content) => {
         if (type === 'assistant') {
           trackOutput(content);
-          if (json) messages.push({ role: 'assistant', content });
+          if (json) emitMsg('assistant', content);
         }
       },
       onReasoning: (_text, _durationMs) => {
@@ -280,7 +285,7 @@ async function printCommandInner(options: PrintOptions): Promise<void> {
         } else if (verbose) {
           logLine(`[reasoning] ${_text}`);
         }
-        if (json) messages.push({ role: 'reasoning', content: _text });
+        if (json) emitMsg('reasoning', _text);
       },
       onTokens: (fn) => {
         tokens = fn(tokens);

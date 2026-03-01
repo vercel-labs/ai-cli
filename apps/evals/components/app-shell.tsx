@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Trash2, RotateCw } from 'lucide-react';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -218,6 +218,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setDeleteRunId(null);
   }, [deleteRunId, selectedRunId, router]);
 
+  const [rerunRunId, setRerunRunId] = useState<string | null>(null);
+
+  const handleRerunRun = useCallback(async () => {
+    if (!rerunRunId) return;
+    const data = runDataMap[rerunRunId];
+    if (!data) return;
+
+    const models = [...new Set(data.tasks.map((t) => t.model))];
+    const evals = [...new Set(data.tasks.map((t) => t.evalName))];
+
+    const res = await fetch('/api/runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ models, evals }),
+    });
+
+    if (res.ok) {
+      const { id } = await res.json();
+      setRerunRunId(null);
+      router.push(`/runs/${id}`, { scroll: false });
+      const runsRes = await fetch('/api/runs');
+      if (runsRes.ok) setRuns(await runsRes.json());
+    }
+  }, [rerunRunId, runDataMap, router]);
+
   return (
     <>
       <ResizablePanelGroup orientation="horizontal" id="app-layout">
@@ -239,6 +264,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onSelect={handleSelectTask}
             onSelectComparison={handleSelectComparison}
             onDeleteRun={setDeleteRunId}
+            onRerunRun={setRerunRunId}
           />
         </ResizablePanel>
         <ResizableHandle />
@@ -271,6 +297,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={rerunRunId !== null}
+        onOpenChange={(open) => {
+          if (!open) setRerunRunId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rerun</DialogTitle>
+            <DialogDescription>
+              This will create a new run with the same models and evals.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRerunRunId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRerunRun}>Rerun</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -287,6 +335,7 @@ function TaskTree({
   onSelect,
   onSelectComparison,
   onDeleteRun,
+  onRerunRun,
 }: {
   runs: RunSummary[];
   runDataMap: Record<string, RunData>;
@@ -299,6 +348,7 @@ function TaskTree({
   onSelect: (runId: string, taskId: string) => void;
   onSelectComparison: (runId: string, comparisonId: string) => void;
   onDeleteRun: (runId: string) => void;
+  onRerunRun: (runId: string) => void;
 }) {
   return (
     <div className="flex h-full flex-col overflow-y-auto text-sm">
@@ -339,6 +389,16 @@ function TaskTree({
                 >
                   {formatRunDate(run.createdAt)}
                 </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRerunRun(run.id);
+                }}
+                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <RotateCw className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
