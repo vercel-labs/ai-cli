@@ -82,21 +82,27 @@ export function RunDetail({
 }) {
   const router = useRouter();
   const [run, setRun] = useState<RunData | null>(null);
-
-  const fetchRun = useCallback(async () => {
-    const res = await fetch(`/api/runs/${runId}`);
-    if (res.ok) {
-      const data = await res.json();
-      setRun(data);
-    }
-  }, [runId]);
+  const [prevRunId, setPrevRunId] = useState(runId);
+  if (prevRunId !== runId) {
+    setPrevRunId(runId);
+    setRun(null);
+  }
 
   useEffect(() => {
-    setRun(null);
-    fetchRun();
-    const interval = setInterval(fetchRun, 5000);
-    return () => clearInterval(interval);
-  }, [fetchRun]);
+    let cancelled = false;
+    const load = async () => {
+      const res = await fetch(`/api/runs/${runId}`);
+      if (res.ok && !cancelled) {
+        setRun(await res.json());
+      }
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [runId]);
 
   const handleSelectTask = useCallback(
     (taskId: string) => {
@@ -104,6 +110,13 @@ export function RunDetail({
     },
     [router, runId],
   );
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (run?.completedAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [run?.completedAt]);
 
   if (!run) {
     return (
@@ -120,11 +133,12 @@ export function RunDetail({
   const passed = run.tasks.filter((t) => t.status === 'completed').length;
   const failed = run.tasks.filter((t) => t.status === 'failed').length;
   const running = run.tasks.filter((t) => t.status === 'running').length;
+
   const duration =
     run.completedAt && run.createdAt
       ? new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()
       : run.createdAt
-        ? Date.now() - new Date(run.createdAt).getTime()
+        ? now - new Date(run.createdAt).getTime()
         : null;
 
   return (
