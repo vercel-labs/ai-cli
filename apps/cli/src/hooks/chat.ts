@@ -140,6 +140,10 @@ function isAnthropicModel(model: string): boolean {
   return model.startsWith('anthropic/');
 }
 
+function isGrokModel(model: string): boolean {
+  return model.startsWith('xai/') || model.includes('grok');
+}
+
 function buildSystemParam(
   sys: string,
   model: string,
@@ -319,10 +323,18 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
     callbacks.onStatus('thinking...');
   }
 
-  const sys = buildSystemPrompt(pm, summary, message, {
+  let sys = buildSystemPrompt(pm, summary, message, {
     planMode: options.planMode,
     appendSystem: options.appendSystem,
   });
+
+  if (isGrokModel(model)) {
+    sys += `\n\nIMPORTANT — tool-calling rules:
+- Call ONE tool at a time. Wait for its result before calling the next tool.
+- NEVER call the same tool with the same arguments twice. If a command succeeded, move on.
+- After installing a package, immediately proceed to reading and editing source files.
+- Do NOT try to open a browser or verify visually. Verify by reading files instead.`;
+  }
 
   type UserContentPart =
     | { type: 'text'; text: string }
@@ -381,6 +393,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
         providerOptions: {
           openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
           ...(options.fast && { anthropic: { speed: 'fast' } }),
+          ...(isGrokModel(model) && {
+            xai: { parallel_function_calling: false },
+          }),
         },
         headers: AI_CLI_HEADERS,
         abortSignal: options.abortSignal,
@@ -791,6 +806,9 @@ export async function streamChat(options: StreamOptions): Promise<Chat> {
       providerOptions: {
         openai: { reasoningEffort: 'high', reasoningSummary: 'detailed' },
         ...(options.fast && { anthropic: { speed: 'fast' } }),
+        ...(isGrokModel(model) && {
+          xai: { parallel_function_calling: false },
+        }),
       },
       headers: AI_CLI_HEADERS,
       abortSignal: options.abortSignal,
