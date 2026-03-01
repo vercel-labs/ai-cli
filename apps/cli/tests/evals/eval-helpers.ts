@@ -21,7 +21,12 @@ import { join, resolve } from 'node:path';
 const CLI = resolve(import.meta.dirname, '../../dist/ai.mjs');
 const CLI_ROOT = resolve(import.meta.dirname, '../..');
 
-export const EVAL_MODEL = 'anthropic/claude-sonnet-4.6';
+export const EVAL_MODELS = [
+  'anthropic/claude-sonnet-4.6',
+  'xai/grok-4.1-fast-reasoning',
+] as const;
+
+export const EVAL_MODEL: string = process.env.EVAL_MODEL ?? EVAL_MODELS[0];
 
 // ---------------------------------------------------------------------------
 // .env loading
