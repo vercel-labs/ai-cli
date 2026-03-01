@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   ResizablePanelGroup,
@@ -34,6 +35,16 @@ export interface RunData {
   createdAt: string;
   completedAt: string | null;
   tasks: Task[];
+}
+
+interface RunSummary {
+  id: string;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+  taskCount: number;
+  passedCount: number;
+  failedCount: number;
 }
 
 function taskStatusLabel(status: string) {
@@ -73,6 +84,25 @@ function formatCost(cost: number | null): string {
   return `$${cost.toFixed(4)}`;
 }
 
+function formatRunDate(date: string): string {
+  const d = new Date(date);
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function aggregateStatus(tasks: Task[]): string {
+  if (tasks.some((t) => t.status === 'running')) return 'running';
+  if (tasks.some((t) => t.status === 'pending')) return 'pending';
+  if (tasks.every((t) => t.status === 'completed')) return 'completed';
+  if (tasks.some((t) => t.status === 'failed')) return 'failed';
+  return 'completed';
+}
+
 export function RunDetail({
   runId,
   evalId,
@@ -81,19 +111,32 @@ export function RunDetail({
   evalId?: string;
 }) {
   const router = useRouter();
-  const [run, setRun] = useState<RunData | null>(null);
-  const [prevRunId, setPrevRunId] = useState(runId);
-  if (prevRunId !== runId) {
-    setPrevRunId(runId);
-    setRun(null);
-  }
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [runDataMap, setRunDataMap] = useState<Record<string, RunData>>({});
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const lastAutoExpandedRunId = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const res = await fetch('/api/runs');
+      if (res.ok && !cancelled) setRuns(await res.json());
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       const res = await fetch(`/api/runs/${runId}`);
       if (res.ok && !cancelled) {
-        setRun(await res.json());
+        const data: RunData = await res.json();
+        setRunDataMap((prev) => ({ ...prev, [runId]: data }));
       }
     };
     load();
@@ -104,21 +147,69 @@ export function RunDetail({
     };
   }, [runId]);
 
-  const handleSelectTask = useCallback(
-    (taskId: string) => {
-      router.push(`/runs/${runId}/evals/${taskId}`, { scroll: false });
+  useEffect(() => {
+    const runData = runDataMap[runId];
+    if (!runData || lastAutoExpandedRunId.current === runId) return;
+    lastAutoExpandedRunId.current = runId;
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(`run-${runId}`);
+      if (evalId) {
+        const task = runData.tasks.find((t) => t.id === evalId);
+        if (task) next.add(`model-${runId}-${task.model}`);
+      }
+      return next;
+    });
+  }, [runId, evalId, runDataMap]);
+
+  const fetchRunData = useCallback(async (id: string) => {
+    const res = await fetch(`/api/runs/${id}`);
+    if (res.ok) {
+      const data: RunData = await res.json();
+      setRunDataMap((prev) => ({ ...prev, [id]: data }));
+    }
+  }, []);
+
+  const handleToggle = useCallback(
+    (key: string) => {
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) {
+          next.delete(key);
+        } else {
+          next.add(key);
+          if (key.startsWith('run-')) {
+            const expandedRunId = key.slice(4);
+            if (!runDataMap[expandedRunId]) fetchRunData(expandedRunId);
+          }
+        }
+        return next;
+      });
     },
-    [router, runId],
+    [runDataMap, fetchRunData],
   );
+
+  const handleSelectTask = useCallback(
+    (taskRunId: string, taskId: string) => {
+      router.push(`/runs/${taskRunId}/evals/${taskId}`, { scroll: false });
+    },
+    [router],
+  );
+
+  const currentRun = runDataMap[runId] ?? null;
+  const selectedTask =
+    evalId && currentRun
+      ? (currentRun.tasks.find((t) => t.id === evalId) ?? null)
+      : null;
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (run?.completedAt) return;
+    if (currentRun?.completedAt) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [run?.completedAt]);
+  }, [currentRun?.completedAt]);
 
-  if (!run) {
+  if (runs.length === 0 && !currentRun) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-muted-foreground text-sm">Loading...</p>
@@ -126,35 +217,41 @@ export function RunDetail({
     );
   }
 
-  const selectedTask = evalId
-    ? (run.tasks.find((t) => t.id === evalId) ?? null)
-    : null;
-
-  const passed = run.tasks.filter((t) => t.status === 'completed').length;
-  const failed = run.tasks.filter((t) => t.status === 'failed').length;
-  const running = run.tasks.filter((t) => t.status === 'running').length;
+  const passed =
+    currentRun?.tasks.filter((t) => t.status === 'completed').length ?? 0;
+  const failed =
+    currentRun?.tasks.filter((t) => t.status === 'failed').length ?? 0;
+  const running =
+    currentRun?.tasks.filter((t) => t.status === 'running').length ?? 0;
 
   const duration =
-    run.completedAt && run.createdAt
-      ? new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()
-      : run.createdAt
-        ? now - new Date(run.createdAt).getTime()
+    currentRun?.completedAt && currentRun.createdAt
+      ? new Date(currentRun.completedAt).getTime() -
+        new Date(currentRun.createdAt).getTime()
+      : currentRun?.createdAt
+        ? now - new Date(currentRun.createdAt).getTime()
         : null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="shrink-0 border-b px-4 py-2">
-        <div className="flex items-center gap-3">
-          <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
-            <span>{run.tasks.length} tasks</span>
-            <span className="text-green-500">{passed}P</span>
-            {failed > 0 && <span className="text-red-500">{failed}F</span>}
-            {running > 0 && <span className="text-yellow-500">{running}R</span>}
-            <span>{formatDuration(duration)}</span>
+      {currentRun && (
+        <div className="shrink-0 border-b px-4 py-2">
+          <div className="flex items-center gap-3">
+            <Badge variant={statusVariant(currentRun.status)}>
+              {currentRun.status}
+            </Badge>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+              <span>{currentRun.tasks.length} tasks</span>
+              <span className="text-green-500">{passed}P</span>
+              {failed > 0 && <span className="text-red-500">{failed}F</span>}
+              {running > 0 && (
+                <span className="text-yellow-500">{running}R</span>
+              )}
+              <span>{formatDuration(duration)}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup orientation="horizontal" id="eval-detail-layout">
@@ -164,9 +261,13 @@ export function RunDetail({
             minSize="20%"
             maxSize="50%"
           >
-            <TaskList
-              tasks={run.tasks}
-              selectedId={evalId ?? null}
+            <TaskTree
+              runs={runs}
+              runDataMap={runDataMap}
+              selectedRunId={runId}
+              selectedTaskId={evalId ?? null}
+              expanded={expanded}
+              onToggle={handleToggle}
               onSelect={handleSelectTask}
             />
           </ResizablePanel>
@@ -186,54 +287,169 @@ export function RunDetail({
   );
 }
 
-function TaskList({
-  tasks,
-  selectedId,
+function TaskTree({
+  runs,
+  runDataMap,
+  selectedRunId,
+  selectedTaskId,
+  expanded,
+  onToggle,
   onSelect,
 }: {
-  tasks: Task[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  runs: RunSummary[];
+  runDataMap: Record<string, RunData>;
+  selectedRunId: string;
+  selectedTaskId: string | null;
+  expanded: Set<string>;
+  onToggle: (key: string) => void;
+  onSelect: (runId: string, taskId: string) => void;
 }) {
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
-      {tasks.map((task) => {
-        const def = getEvalBySlug(task.evalName);
-        const isSelected = selectedId === task.id;
+    <div className="flex h-full flex-col overflow-y-auto text-sm">
+      {runs.map((run) => {
+        const runKey = `run-${run.id}`;
+        const isRunExpanded = expanded.has(runKey);
+        const runData = runDataMap[run.id];
+        const isActiveRun = run.id === selectedRunId;
+
+        const modelGroups = new Map<string, Task[]>();
+        if (runData) {
+          for (const task of runData.tasks) {
+            const list = modelGroups.get(task.model);
+            if (list) list.push(task);
+            else modelGroups.set(task.model, [task]);
+          }
+        }
+
         return (
-          <button
-            key={task.id}
-            type="button"
-            onClick={() => onSelect(task.id)}
-            className={`w-full text-left px-4 py-3 border-b transition-colors cursor-pointer hover:bg-accent/50 ${
-              isSelected ? 'bg-accent' : ''
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-0.5">
-              <span
-                className={`text-[11px] font-bold ${taskStatusColor(task.status)}`}
-              >
-                {task.status === 'running' && (
-                  <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-500" />
-                )}
-                {taskStatusLabel(task.status)}
-              </span>
-              <span className="ml-auto text-[10px] text-muted-foreground font-mono">
-                {formatDuration(task.durationMs)}
-              </span>
-            </div>
-            <div className="text-sm font-medium truncate">
-              {def?.name ?? task.evalName}
-            </div>
-            <div className="text-[11px] text-muted-foreground font-mono truncate">
-              {task.model.split('/').pop()}
-            </div>
-          </button>
+          <div key={run.id}>
+            <button
+              type="button"
+              onClick={() => onToggle(runKey)}
+              className={`w-full text-left px-3 py-2 border-b transition-colors cursor-pointer hover:bg-accent/50 flex items-center gap-2 ${
+                isActiveRun && !selectedTaskId ? 'bg-accent/30' : ''
+              }`}
+            >
+              {isRunExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium">
+                    {formatRunDate(run.createdAt)}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold ${taskStatusColor(run.status)}`}
+                  >
+                    {run.status === 'running' && (
+                      <span className="mr-0.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-500" />
+                    )}
+                    {run.status.toUpperCase()}
+                  </span>
+                </div>
+                <div className="text-[10px] text-muted-foreground font-mono">
+                  {run.passedCount}P / {run.failedCount}F / {run.taskCount}{' '}
+                  total
+                </div>
+              </div>
+            </button>
+
+            {isRunExpanded &&
+              runData &&
+              Array.from(modelGroups.entries()).map(([model, tasks]) => {
+                const modelKey = `model-${run.id}-${model}`;
+                const isModelExpanded = expanded.has(modelKey);
+                const shortModel = model.split('/').pop() ?? model;
+                const modelStatus = aggregateStatus(tasks);
+                const modelPassed = tasks.filter(
+                  (t) => t.status === 'completed',
+                ).length;
+                const modelFailed = tasks.filter(
+                  (t) => t.status === 'failed',
+                ).length;
+
+                return (
+                  <div key={modelKey}>
+                    <button
+                      type="button"
+                      onClick={() => onToggle(modelKey)}
+                      className="w-full text-left pl-7 pr-3 py-1.5 border-b transition-colors cursor-pointer hover:bg-accent/50 flex items-center gap-2"
+                    >
+                      {isModelExpanded ? (
+                        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      )}
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                          modelStatus === 'completed'
+                            ? 'bg-green-500'
+                            : modelStatus === 'failed'
+                              ? 'bg-red-500'
+                              : modelStatus === 'running'
+                                ? 'bg-yellow-500 animate-pulse'
+                                : 'bg-muted-foreground'
+                        }`}
+                      />
+                      <span className="text-xs font-mono truncate">
+                        {shortModel}
+                      </span>
+                      <span className="ml-auto text-[10px] text-muted-foreground font-mono shrink-0">
+                        {modelPassed}P
+                        {modelFailed > 0 ? ` / ${modelFailed}F` : ''}
+                      </span>
+                    </button>
+
+                    {isModelExpanded &&
+                      tasks.map((task) => {
+                        const def = getEvalBySlug(task.evalName);
+                        const isSelected =
+                          selectedTaskId === task.id &&
+                          selectedRunId === run.id;
+
+                        return (
+                          <button
+                            key={task.id}
+                            type="button"
+                            onClick={() => onSelect(run.id, task.id)}
+                            className={`w-full text-left pl-14 pr-3 py-1.5 border-b transition-colors cursor-pointer hover:bg-accent/50 flex items-center gap-2 ${
+                              isSelected ? 'bg-accent' : ''
+                            }`}
+                          >
+                            <span
+                              className={`text-[10px] font-bold shrink-0 ${taskStatusColor(task.status)}`}
+                            >
+                              {task.status === 'running' && (
+                                <span className="mr-0.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-500" />
+                              )}
+                              {taskStatusLabel(task.status)}
+                            </span>
+                            <span className="text-xs truncate">
+                              {def?.name ?? task.evalName}
+                            </span>
+                            <span className="ml-auto text-[10px] text-muted-foreground font-mono shrink-0">
+                              {formatDuration(task.durationMs)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                );
+              })}
+
+            {isRunExpanded && !runData && (
+              <div className="pl-7 py-3 border-b text-xs text-muted-foreground">
+                Loading…
+              </div>
+            )}
+          </div>
         );
       })}
-      {tasks.length === 0 && (
+      {runs.length === 0 && (
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-          No tasks
+          No runs
         </div>
       )}
     </div>
