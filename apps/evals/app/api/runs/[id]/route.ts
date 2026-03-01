@@ -31,3 +31,16 @@ export async function GET(
 
   return NextResponse.json({ ...run[0], tasks, comparisons });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  await db.delete(evalComparisons).where(eq(evalComparisons.runId, id));
+  await db.delete(evalTasks).where(eq(evalTasks.runId, id));
+  await db.delete(evalRuns).where(eq(evalRuns.id, id));
+
+  return NextResponse.json({ ok: true });
+}
