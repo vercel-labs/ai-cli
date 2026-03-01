@@ -2,12 +2,21 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { getEvalBySlug } from '@/lib/evals/registry';
 import type { Task, RunData, Comparison } from '@/components/run-detail';
 
@@ -21,27 +30,42 @@ interface RunSummary {
   failedCount: number;
 }
 
-function statusDotColor(status: string) {
-  switch (status) {
-    case 'completed':
-      return 'bg-green-500';
-    case 'failed':
-      return 'bg-red-500';
-    case 'running':
-      return 'bg-yellow-500 animate-pulse';
-    default:
-      return 'bg-muted-foreground';
-  }
-}
-
 function formatDuration(ms: number | null): string {
   if (ms == null) return '—';
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(0)}s`;
   return `${(ms / 60_000).toFixed(1)}m`;
+}
+
+function runDuration(run: RunSummary, now: number): number | null {
+  const start = new Date(run.createdAt).getTime();
+  if (run.completedAt) return new Date(run.completedAt).getTime() - start;
+  if (run.status === 'running' || run.status === 'pending') return now - start;
+  return null;
+}
+
+function taskDuration(task: Task, now: number): number | null {
+  if (task.durationMs != null) return task.durationMs;
+  if (task.startedAt && !task.completedAt) {
+    return now - new Date(task.startedAt).getTime();
+  }
+  return null;
 }
 
 function formatRunDate(date: string): string {
   const d = new Date(date);
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  if (isToday) {
+    return d.toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
   return d.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -75,6 +99,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [runDataMap, setRunDataMap] = useState<Record<string, RunData>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const lastAutoExpandedRunId = useRef<string | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const hasActive = runs.some(
+      (r) => r.status === 'running' || r.status === 'pending',
+    );
+    if (!hasActive) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [runs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,31 +201,77 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [router],
   );
 
+  const [deleteRunId, setDeleteRunId] = useState<string | null>(null);
+
+  const handleDeleteRun = useCallback(async () => {
+    if (!deleteRunId) return;
+    await fetch(`/api/runs/${deleteRunId}`, { method: 'DELETE' });
+    setRuns((prev) => prev.filter((r) => r.id !== deleteRunId));
+    setRunDataMap((prev) => {
+      const next = { ...prev };
+      delete next[deleteRunId];
+      return next;
+    });
+    if (selectedRunId === deleteRunId) {
+      router.push('/', { scroll: false });
+    }
+    setDeleteRunId(null);
+  }, [deleteRunId, selectedRunId, router]);
+
   return (
-    <ResizablePanelGroup orientation="horizontal" id="app-layout">
-      <ResizablePanel
-        id="sidebar"
-        defaultSize="25%"
-        minSize="15%"
-        maxSize="40%"
+    <>
+      <ResizablePanelGroup orientation="horizontal" id="app-layout">
+        <ResizablePanel
+          id="sidebar"
+          defaultSize="25%"
+          minSize="15%"
+          maxSize="40%"
+        >
+          <TaskTree
+            runs={runs}
+            runDataMap={runDataMap}
+            selectedRunId={selectedRunId}
+            selectedTaskId={selectedTaskId}
+            selectedComparisonId={selectedComparisonId}
+            expanded={expanded}
+            now={now}
+            onToggle={handleToggle}
+            onSelect={handleSelectTask}
+            onSelectComparison={handleSelectComparison}
+            onDeleteRun={setDeleteRunId}
+          />
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel id="content" defaultSize="75%" minSize="50%">
+          {children}
+        </ResizablePanel>
+      </ResizablePanelGroup>
+
+      <Dialog
+        open={deleteRunId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteRunId(null);
+        }}
       >
-        <TaskTree
-          runs={runs}
-          runDataMap={runDataMap}
-          selectedRunId={selectedRunId}
-          selectedTaskId={selectedTaskId}
-          selectedComparisonId={selectedComparisonId}
-          expanded={expanded}
-          onToggle={handleToggle}
-          onSelect={handleSelectTask}
-          onSelectComparison={handleSelectComparison}
-        />
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel id="content" defaultSize="75%" minSize="50%">
-        {children}
-      </ResizablePanel>
-    </ResizablePanelGroup>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete run</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the run and all its tasks, logs, and
+              comparisons. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRunId(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteRun}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -202,9 +282,11 @@ function TaskTree({
   selectedTaskId,
   selectedComparisonId,
   expanded,
+  now,
   onToggle,
   onSelect,
   onSelectComparison,
+  onDeleteRun,
 }: {
   runs: RunSummary[];
   runDataMap: Record<string, RunData>;
@@ -212,9 +294,11 @@ function TaskTree({
   selectedTaskId: string | null;
   selectedComparisonId: string | null;
   expanded: Set<string>;
+  now: number;
   onToggle: (key: string) => void;
   onSelect: (runId: string, taskId: string) => void;
   onSelectComparison: (runId: string, comparisonId: string) => void;
+  onDeleteRun: (runId: string) => void;
 }) {
   return (
     <div className="flex h-full flex-col overflow-y-auto text-sm">
@@ -235,33 +319,38 @@ function TaskTree({
 
         return (
           <div key={run.id} className="border-b last:border-b-0">
-            <button
-              type="button"
-              onClick={() => onToggle(runKey)}
-              className={`w-full text-left px-3 py-2 transition-colors cursor-pointer hover:bg-accent/50 flex items-center gap-2 ${
+            <div
+              className={`group flex items-center gap-2 px-3 py-2 transition-colors hover:bg-accent/50 ${
                 isActiveRun && !selectedTaskId ? 'bg-accent/30' : ''
               }`}
             >
-              {isRunExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium">
-                    {formatRunDate(run.createdAt)}
-                  </span>
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full shrink-0 ${statusDotColor(run.status)}`}
-                  />
-                </div>
-                <div className="text-[10px] text-muted-foreground font-mono">
-                  {run.passedCount}P / {run.failedCount}F / {run.taskCount}{' '}
-                  total
-                </div>
-              </div>
-            </button>
+              <button
+                type="button"
+                onClick={() => onToggle(runKey)}
+                className="flex flex-1 min-w-0 items-center gap-2 cursor-pointer text-left"
+              >
+                {isRunExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                )}
+                <span
+                  className={`text-xs font-medium ${run.status === 'running' || run.status === 'pending' ? 'shimmer-text' : ''}`}
+                >
+                  {formatRunDate(run.createdAt)}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteRun(run.id);
+                }}
+                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
 
             {isRunExpanded &&
               runData &&
@@ -272,12 +361,6 @@ function TaskTree({
                   const isModelExpanded = expanded.has(modelKey);
                   const shortModel = model.split('/').pop() ?? model;
                   const modelStatus = aggregateStatus(tasks);
-                  const modelPassed = tasks.filter(
-                    (t) => t.status === 'completed',
-                  ).length;
-                  const modelFailed = tasks.filter(
-                    (t) => t.status === 'failed',
-                  ).length;
 
                   return (
                     <div key={modelKey}>
@@ -292,14 +375,9 @@ function TaskTree({
                           <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                         )}
                         <span
-                          className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${statusDotColor(modelStatus)}`}
-                        />
-                        <span className="text-xs font-mono truncate">
+                          className={`text-xs font-mono truncate ${modelStatus === 'running' || modelStatus === 'pending' ? 'shimmer-text' : ''}`}
+                        >
                           {shortModel}
-                        </span>
-                        <span className="ml-auto text-[10px] text-muted-foreground font-mono shrink-0">
-                          {modelPassed}P
-                          {modelFailed > 0 ? ` / ${modelFailed}F` : ''}
                         </span>
                       </button>
 
@@ -322,13 +400,14 @@ function TaskTree({
                                 }`}
                               >
                                 <span
-                                  className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${statusDotColor(task.status)}`}
-                                />
-                                <span className="text-xs truncate">
+                                  className={`text-xs truncate ${task.status === 'running' || task.status === 'pending' ? 'shimmer-text' : ''}`}
+                                >
                                   {def?.name ?? task.evalName}
                                 </span>
-                                <span className="ml-auto text-[10px] text-muted-foreground font-mono shrink-0">
-                                  {formatDuration(task.durationMs)}
+                                <span
+                                  className={`ml-auto text-[10px] font-mono shrink-0 ${task.status === 'running' || task.status === 'pending' ? 'shimmer-text' : 'text-muted-foreground'}`}
+                                >
+                                  {formatDuration(taskDuration(task, now))}
                                 </span>
                               </button>
                             );
@@ -405,7 +484,6 @@ function ComparisonTreeNode({
         ) : (
           <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
         )}
-        <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-blue-500" />
         <span className="text-xs font-medium truncate">Final Comparison</span>
         <span className="ml-auto text-[10px] text-muted-foreground font-mono shrink-0">
           {comparisons.length}
@@ -429,7 +507,6 @@ function ComparisonTreeNode({
                 isSelected ? 'bg-accent' : ''
               }`}
             >
-              <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-blue-500" />
               <span className="text-xs truncate">
                 {def?.name ?? comp.evalName}
               </span>

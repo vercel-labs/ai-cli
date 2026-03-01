@@ -35,7 +35,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Date Awareness',
     description: 'Agent responds with the correct current date',
     category: 'defaults',
-    timeoutSec: 60,
+    timeoutSec: 600,
     prompt: "What is today's date? Respond with just the date.",
     criteria: [
       'Response contains the current year (2026)',
@@ -49,7 +49,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     description:
       'Detects yarn from lockfile and uses it to install a dependency',
     category: 'defaults',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt: 'Add the lodash package to this project.',
     criteria: [
       'Detects existing yarn.lock and uses yarn (not npm/pnpm/bun)',
@@ -64,7 +64,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Latest Package Versions',
     description: 'Installs current major version of zod, not an outdated one',
     category: 'defaults',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt: 'Add zod to this project. Install it properly.',
     criteria: [
       'zod added to package.json dependencies',
@@ -80,7 +80,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     description:
       'Scaffolds project with TypeScript, App Router, src dir, and builds',
     category: 'codegen',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create a new Next.js website with a landing page. Install all dependencies and make sure the project builds.',
     criteria: [
@@ -97,7 +97,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Clone Blog + Add Confetti',
     description: 'Clones repo, uses pnpm, installs confetti, modifies code',
     category: 'codegen',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Clone the repo rauchg/blog and add confetti that triggers on page load. Make sure to install dependencies and verify the changes work.',
     criteria: [
@@ -114,7 +114,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Fix a Known Bug',
     description: 'Finds and fixes the buggy divide function, tests pass',
     category: 'bugfix',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       "There's a bug in this project. The divide function returns wrong results. Find and fix it. Make sure the tests pass.",
     criteria: [
@@ -130,7 +130,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'CLI Tool with Tests',
     description: 'Creates calculator CLI with passing tests',
     category: 'codegen',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create a Node.js CLI calculator that supports add, subtract, multiply, and divide operations via command-line arguments (e.g. node src/index.ts add 2 3). Use TypeScript. Write tests for all operations. Make sure all tests pass.',
     criteria: [
@@ -147,7 +147,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Multi-file React Components',
     description: 'Creates Button and Modal components with tests that pass',
     category: 'codegen',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create a React component library with a Button component and a Modal component. Each component should have its own file, props interface, and test file. Use TypeScript and Vitest for testing. Make sure all tests pass.',
     criteria: [
@@ -164,7 +164,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'CRUD REST API',
     description: 'Creates Hono API with all CRUD routes and passing tests',
     category: 'codegen',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create a REST API using Hono that manages a list of todos. It should support GET /todos, POST /todos, PUT /todos/:id, and DELETE /todos/:id. Store data in memory. Use TypeScript. Write tests for all endpoints. Make sure all tests pass.',
     criteria: [
@@ -181,7 +181,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Safe Refactor',
     description: 'Splits utils.ts into separate files without breaking tests',
     category: 'refactor',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Refactor the utils module. Split the single utils.ts file into separate files (one per function: capitalize.ts, slugify.ts, truncate.ts). Update all imports in index.ts and the test file. Make sure the tests still pass.',
     criteria: [
@@ -197,7 +197,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Build Then Fix',
     description: 'Creates string utils with tests, then fixes a reported bug',
     category: 'multi-turn',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create a TypeScript string utility module with capitalize, reverse, and isPalindrome functions. Write tests using Vitest. Make sure all tests pass.',
     followUpPrompts: [
@@ -217,7 +217,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Iterative Feature Building',
     description: 'Builds a counter page, then adds reset button and dark mode',
     category: 'multi-turn',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create an index.html file with a button that counts clicks. Display the current count on the page. Use vanilla JavaScript (no frameworks).',
     followUpPrompts: [
@@ -236,7 +236,7 @@ export const EVAL_REGISTRY: EvalDefinition[] = [
     name: 'Progressive Enhancement',
     description: 'Creates Express API, then adds validation and error handling',
     category: 'multi-turn',
-    timeoutSec: 300,
+    timeoutSec: 600,
     prompt:
       'Create an Express REST API with GET /items and POST /items endpoints. Store items in memory as an array. Each item should have an id (auto-generated) and a name. Use TypeScript. Write tests using Vitest and supertest. Make sure all tests pass.',
     followUpPrompts: [

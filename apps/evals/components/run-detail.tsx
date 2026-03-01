@@ -22,6 +22,8 @@ export interface Task {
   judgeScore: number | null;
   judgeVerdict: string | null;
   messages: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
 }
 
 interface ChatMessage {
