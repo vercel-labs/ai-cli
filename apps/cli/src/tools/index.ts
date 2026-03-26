@@ -24,56 +24,56 @@ import { writeFile } from "./write-file.js";
 let cachedMcpTools: Record<string, unknown> | null = null;
 
 export async function loadMcpTools(): Promise<Record<string, unknown>> {
-  if (!cachedMcpTools) {
-    cachedMcpTools = await getMcpTools();
-  }
-  return cachedMcpTools;
+	if (!cachedMcpTools) {
+		cachedMcpTools = await getMcpTools();
+	}
+	return cachedMcpTools;
 }
 
 export function clearMcpCache(): void {
-  cachedMcpTools = null;
+	cachedMcpTools = null;
 }
 
 export function getTools(mcpTools?: Record<string, unknown>) {
-  const search: Record<string, unknown> = getSearchTool();
-  return {
-    weather,
-    fetchUrl,
-    readFile,
-    writeFile,
-    editFile,
-    createFolder,
-    copyFile,
-    renameFile,
-    deleteFile,
-    listDirectory,
-    findFiles,
-    searchInFiles,
-    codeOutline,
-    semanticSearch,
-    fileInfo,
-    runCommand,
-    startProcess,
-    readProcessLogs,
-    killProcess,
-    memory,
-    ...search,
-    ...mcpTools,
-  };
+	const search: Record<string, unknown> = getSearchTool();
+	return {
+		weather,
+		fetchUrl,
+		readFile,
+		writeFile,
+		editFile,
+		createFolder,
+		copyFile,
+		renameFile,
+		deleteFile,
+		listDirectory,
+		findFiles,
+		searchInFiles,
+		codeOutline,
+		semanticSearch,
+		fileInfo,
+		runCommand,
+		startProcess,
+		readProcessLogs,
+		killProcess,
+		memory,
+		...search,
+		...mcpTools,
+	};
 }
 
 export function getReadOnlyTools(mcpTools?: Record<string, unknown>) {
-  const search: Record<string, unknown> = getSearchTool();
-  return {
-    readFile,
-    listDirectory,
-    findFiles,
-    searchInFiles,
-    codeOutline,
-    semanticSearch,
-    fileInfo,
-    fetchUrl,
-    ...search,
-    ...mcpTools,
-  };
+	const search: Record<string, unknown> = getSearchTool();
+	return {
+		readFile,
+		listDirectory,
+		findFiles,
+		searchInFiles,
+		codeOutline,
+		semanticSearch,
+		fileInfo,
+		fetchUrl,
+		...search,
+		...mcpTools,
+	};
 }

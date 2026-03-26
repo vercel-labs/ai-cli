@@ -11,42 +11,43 @@ const LARGE_FILE_THRESHOLD = 500;
 const TRUNCATION_LIMIT = 10000;
 
 export const readFile = tool({
-  description:
-    "Read the contents of a file. When showing file contents to the user, use plain text with code blocks only for actual code.",
-  inputSchema: z.object({
-    filePath: z.string().describe("Absolute or relative path to the file"),
-  }),
-  execute: async ({ filePath }) => {
-    try {
-      let fullPath = safePath(filePath);
-      if (!fullPath) {
-        const allowed = await confirm(
-          `read file outside project: ${filePath}`,
-          { tool: "readFile", noAlways: true }
-        );
-        if (!allowed)
-          {return { error: "User denied access to file outside project." };}
-        fullPath = resolveAnyPath(filePath);
-      }
+	description:
+		"Read the contents of a file. When showing file contents to the user, use plain text with code blocks only for actual code.",
+	inputSchema: z.object({
+		filePath: z.string().describe("Absolute or relative path to the file"),
+	}),
+	execute: async ({ filePath }) => {
+		try {
+			let fullPath = safePath(filePath);
+			if (!fullPath) {
+				const allowed = await confirm(
+					`read file outside project: ${filePath}`,
+					{ tool: "readFile", noAlways: true },
+				);
+				if (!allowed) {
+					return { error: "User denied access to file outside project." };
+				}
+				fullPath = resolveAnyPath(filePath);
+			}
 
-      if (!fs.existsSync(fullPath)) {
-        return {
-          error: `file not found: ${filePath}. Check <project-files> for the correct path.`,
-        };
-      }
+			if (!fs.existsSync(fullPath)) {
+				return {
+					error: `file not found: ${filePath}. Check <project-files> for the correct path.`,
+				};
+			}
 
-      const content = mask(fs.readFileSync(fullPath, "utf8"));
-      const lines = content.split("\n").length;
-      if (lines > LARGE_FILE_THRESHOLD) {
-        return {
-          content: content.slice(0, TRUNCATION_LIMIT),
-          truncated: true,
-          totalLines: lines,
-        };
-      }
-      return { content, truncated: false, totalLines: lines };
-    } catch {
-      return { error: `read failed: ${filePath}` };
-    }
-  },
+			const content = mask(fs.readFileSync(fullPath, "utf8"));
+			const lines = content.split("\n").length;
+			if (lines > LARGE_FILE_THRESHOLD) {
+				return {
+					content: content.slice(0, TRUNCATION_LIMIT),
+					truncated: true,
+					totalLines: lines,
+				};
+			}
+			return { content, truncated: false, totalLines: lines };
+		} catch {
+			return { error: `read failed: ${filePath}` };
+		}
+	},
 });

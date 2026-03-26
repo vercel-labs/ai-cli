@@ -27,48 +27,50 @@ export { restoreHistory };
 export type { CommandHandler, CommandResult, Context } from "./types.js";
 
 export const commands: Record<string, CommandHandler> = {
-  help,
-  model,
-  clear,
-  chat,
-  info,
-  version: info,
-  processes,
-  init,
-  compress,
-  summary,
-  usage,
-  context: usage,
-  memory,
-  rollback,
-  copy,
-  settings,
-  permissions,
-  plan,
-  review,
-  rules,
-  skills,
-  mcp,
-  alias,
-  xix,
+	help,
+	model,
+	clear,
+	chat,
+	info,
+	version: info,
+	processes,
+	init,
+	compress,
+	summary,
+	usage,
+	context: usage,
+	memory,
+	rollback,
+	copy,
+	settings,
+	permissions,
+	plan,
+	review,
+	rules,
+	skills,
+	mcp,
+	alias,
+	xix,
 };
 
 export function resolveCommand(cmd: string): string {
-  const aliases = getAliases();
-  return aliases[cmd] || cmd;
+	const aliases = getAliases();
+	return aliases[cmd] || cmd;
 }
 
 export function getCompletions(line: string): [string[], string] {
-  if (!line.startsWith("/")) {return [[], line];}
+	if (!line.startsWith("/")) {
+		return [[], line];
+	}
 
-  const input = line.slice(1);
-  const parts = input.split(" ");
+	const input = line.slice(1);
+	const parts = input.split(" ");
 
-  if (parts.length === 1) {
-    const cmdNames = Object.keys(commands).filter((c) => !c.includes("-"));
-    const matches = cmdNames.filter((c) => c.startsWith(input));
-    return [matches.map((m) => `/${m}`), line];
-  }
+	if (parts.length === 1) {
+		const cmdNames = Object.keys(commands).filter((c) => !c.includes("-"));
+		const matches = cmdNames.filter((c) => c.startsWith(input));
+		return [matches.map((m) => `/${m}`), line];
+	}
 
-  return [[], line];
+	return [[], line];
 }

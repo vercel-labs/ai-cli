@@ -2,33 +2,33 @@ import * as os from "node:os";
 
 import { loadAllSkills, matchSkills } from "../skills/index.js";
 import {
-  buildContextPrompt,
-  getProjectFiles,
-  loadContextFiles,
+	buildContextPrompt,
+	getProjectFiles,
+	loadContextFiles,
 } from "./context.js";
 import { getMcpStatus } from "./mcp.js";
 
 export function buildSystemPrompt(
-  pm: { pm: string; run: string },
-  summary?: string,
-  userMessage?: string,
-  options?: { planMode?: boolean; appendSystem?: string }
+	pm: { pm: string; run: string },
+	summary?: string,
+	userMessage?: string,
+	options?: { planMode?: boolean; appendSystem?: string },
 ): string {
-  const cwd = process.cwd();
-  const platform = os.platform();
-  const date = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const contextFiles = loadContextFiles();
-  const contextPrompt = buildContextPrompt(contextFiles);
+	const cwd = process.cwd();
+	const platform = os.platform();
+	const date = new Date().toLocaleDateString("en-US", {
+		weekday: "long",
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+	const contextFiles = loadContextFiles();
+	const contextPrompt = buildContextPrompt(contextFiles);
 
-  const allSkills = loadAllSkills();
-  const matchedSkills = userMessage ? matchSkills(userMessage, allSkills) : [];
+	const allSkills = loadAllSkills();
+	const matchedSkills = userMessage ? matchSkills(userMessage, allSkills) : [];
 
-  const base = `You are ai-cli, a minimal terminal AI assistant.
+	const base = `You are ai-cli, a minimal terminal AI assistant.
 
 About ai-cli:
 - Created by nishimiya (x.com/nishimiya)
@@ -86,40 +86,44 @@ Slash commands (tell user to type these):
 - /help - list all commands
 When user asks to switch models, tell them the slash command to type.`;
 
-  let prompt = base;
+	let prompt = base;
 
-  const projectFiles = getProjectFiles(cwd);
-  if (projectFiles) {
-    prompt += `\n\n<project-files>\n${projectFiles}\n</project-files>`;
-  }
+	const projectFiles = getProjectFiles(cwd);
+	if (projectFiles) {
+		prompt += `\n\n<project-files>\n${projectFiles}\n</project-files>`;
+	}
 
-  if (contextPrompt) {prompt += `\n\n${contextPrompt}`;}
+	if (contextPrompt) {
+		prompt += `\n\n${contextPrompt}`;
+	}
 
-  if (allSkills.length > 0) {
-    const skillsList = allSkills
-      .map((s) => `- ${s.name}: ${s.description || "no description"}`)
-      .join("\n");
-    prompt += `\n\nInstalled skills (use /skills to manage):\n${skillsList}`;
-  }
+	if (allSkills.length > 0) {
+		const skillsList = allSkills
+			.map((s) => `- ${s.name}: ${s.description || "no description"}`)
+			.join("\n");
+		prompt += `\n\nInstalled skills (use /skills to manage):\n${skillsList}`;
+	}
 
-  if (matchedSkills.length > 0) {
-    const skillsPrompt = matchedSkills
-      .map((s) => `<skill name="${s.name}">\n${s.content}\n</skill>`)
-      .join("\n\n");
-    prompt += `\n\nActive skills for this query:\n${skillsPrompt}`;
-  }
+	if (matchedSkills.length > 0) {
+		const skillsPrompt = matchedSkills
+			.map((s) => `<skill name="${s.name}">\n${s.content}\n</skill>`)
+			.join("\n\n");
+		prompt += `\n\nActive skills for this query:\n${skillsPrompt}`;
+	}
 
-  const mcpServers = getMcpStatus();
-  const connectedMcp = mcpServers.filter((s) => s.connected);
-  if (connectedMcp.length > 0) {
-    const mcpList = connectedMcp.map((s) => `- ${s.name}`).join("\n");
-    prompt += `\n\nMCP servers connected (tools prefixed with server name):\n${mcpList}`;
-  }
+	const mcpServers = getMcpStatus();
+	const connectedMcp = mcpServers.filter((s) => s.connected);
+	if (connectedMcp.length > 0) {
+		const mcpList = connectedMcp.map((s) => `- ${s.name}`).join("\n");
+		prompt += `\n\nMCP servers connected (tools prefixed with server name):\n${mcpList}`;
+	}
 
-  if (summary) {prompt += `\n\nPrevious session context:\n${summary}`;}
+	if (summary) {
+		prompt += `\n\nPrevious session context:\n${summary}`;
+	}
 
-  if (options?.planMode) {
-    prompt += `\n\nPlan mode is ACTIVE:
+	if (options?.planMode) {
+		prompt += `\n\nPlan mode is ACTIVE:
 - FIRST use read-only tools (readFile, searchInFiles, codeOutline, findFiles, listDirectory, semanticSearch) to understand the relevant code before planning
 - Read the key files related to the request so your plan is grounded in the actual codebase
 - THEN output a numbered plan of specific steps you would take
@@ -127,36 +131,36 @@ When user asks to switch models, tell them the slash command to type.`;
 - Be specific: mention exact files, functions, and changes
 - Keep it concise — one line per step
 - End with "ready to execute" so the user knows the plan is complete`;
-  }
+	}
 
-  if (options?.appendSystem) {
-    prompt += `\n\n${options.appendSystem}`;
-  }
+	if (options?.appendSystem) {
+		prompt += `\n\n${options.appendSystem}`;
+	}
 
-  return prompt;
+	return prompt;
 }
 
 export const toolActions: Record<string, string> = {
-  readFile: "reading...",
-  writeFile: "writing...",
-  editFile: "editing...",
-  deleteFile: "deleting...",
-  copyFile: "copying...",
-  renameFile: "renaming...",
-  createFolder: "creating...",
-  listDirectory: "listing...",
-  findFiles: "searching...",
-  searchInFiles: "searching...",
-  codeOutline: "analyzing...",
-  semanticSearch: "searching...",
-  fileInfo: "checking...",
-  runCommand: "running...",
-  startProcess: "starting...",
-  readProcessLogs: "waiting for output...",
-  killProcess: "stopping...",
-  memory: "remembering...",
-  weather: "checking weather...",
-  fetchUrl: "fetching...",
-  perplexity_search: "searching...",
-  parallel_search: "searching...",
+	readFile: "reading...",
+	writeFile: "writing...",
+	editFile: "editing...",
+	deleteFile: "deleting...",
+	copyFile: "copying...",
+	renameFile: "renaming...",
+	createFolder: "creating...",
+	listDirectory: "listing...",
+	findFiles: "searching...",
+	searchInFiles: "searching...",
+	codeOutline: "analyzing...",
+	semanticSearch: "searching...",
+	fileInfo: "checking...",
+	runCommand: "running...",
+	startProcess: "starting...",
+	readProcessLogs: "waiting for output...",
+	killProcess: "stopping...",
+	memory: "remembering...",
+	weather: "checking weather...",
+	fetchUrl: "fetching...",
+	perplexity_search: "searching...",
+	parallel_search: "searching...",
 };

@@ -16,8 +16,17 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { assertAnyFileContains, assertCommandSucceeds, assertFileContains, assertFileExists, assertStepCount, cleanupWorkDir, createWorkDir, runEval } from './eval-helpers';
-import type { EvalResult } from './eval-helpers';
+import {
+	assertAnyFileContains,
+	assertCommandSucceeds,
+	assertFileContains,
+	assertFileExists,
+	assertStepCount,
+	cleanupWorkDir,
+	createWorkDir,
+	runEval,
+} from "./eval-helpers";
+import type { EvalResult } from "./eval-helpers";
 import { assertSpecAdherence } from "./eval-judge";
 
 const TIMEOUT = 3_600_000; // 60 min bun:test timeout
@@ -148,254 +157,256 @@ After creating all files, run the tests and make sure they ALL pass. Fix any fai
 // ---------------------------------------------------------------------------
 
 const ROUTE_GROUPS = [
-  "users",
-  "projects",
-  "tasks",
-  "comments",
-  "labels",
-  "search",
+	"users",
+	"projects",
+	"tasks",
+	"comments",
+	"labels",
+	"search",
 ];
 
 const REQUIRED_ENDPOINTS = ["GET", "POST", "PUT", "DELETE", "PATCH"];
 
 const MODEL_NAMES = [
-  "User",
-  "Project",
-  "Task",
-  "Comment",
-  "Label",
-  "TaskLabel",
+	"User",
+	"Project",
+	"Task",
+	"Comment",
+	"Label",
+	"TaskLabel",
 ];
 
 let workDir: string | null = null;
 
 afterEach(() => {
-  if (workDir) {
-    cleanupWorkDir(workDir);
-    workDir = null;
-  }
+	if (workDir) {
+		cleanupWorkDir(workDir);
+		workDir = null;
+	}
 });
 
 function findFilesRecursive(
-  dir: string,
-  pattern: RegExp,
-  skip = new Set(["node_modules", ".git", "dist"])
+	dir: string,
+	pattern: RegExp,
+	skip = new Set(["node_modules", ".git", "dist"]),
 ): string[] {
-  const results: string[] = [];
-  let dirents: import("node:fs").Dirent[];
-  try {
-    dirents = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return results;
-  }
-  for (const entry of dirents) {
-    const name = entry.name;
-    const isDir = entry.isDirectory();
-    if (skip.has(name)) {continue;}
-    const full = join(dir, name);
-    if (isDir) {
-      results.push(...findFilesRecursive(full, pattern, skip));
-    } else if (pattern.test(name)) {
-      results.push(full);
-    }
-  }
-  return results;
+	const results: string[] = [];
+	let dirents: import("node:fs").Dirent[];
+	try {
+		dirents = readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return results;
+	}
+	for (const entry of dirents) {
+		const name = entry.name;
+		const isDir = entry.isDirectory();
+		if (skip.has(name)) {
+			continue;
+		}
+		const full = join(dir, name);
+		if (isDir) {
+			results.push(...findFilesRecursive(full, pattern, skip));
+		} else if (pattern.test(name)) {
+			results.push(full);
+		}
+	}
+	return results;
 }
 
 function countRouteFiles(dir: string): { found: string[]; missing: string[] } {
-  const found: string[] = [];
-  const missing: string[] = [];
+	const found: string[] = [];
+	const missing: string[] = [];
 
-  const allTsFiles = findFilesRecursive(dir, /\.(ts|tsx)$/);
-  const allContent = allTsFiles.map((f) => {
-    try {
-      return { path: f, content: readFileSync(f, "utf8").toLowerCase() };
-    } catch {
-      return { path: f, content: "" };
-    }
-  });
+	const allTsFiles = findFilesRecursive(dir, /\.(ts|tsx)$/);
+	const allContent = allTsFiles.map((f) => {
+		try {
+			return { path: f, content: readFileSync(f, "utf8").toLowerCase() };
+		} catch {
+			return { path: f, content: "" };
+		}
+	});
 
-  for (const group of ROUTE_GROUPS) {
-    const hasFile = allContent.some(
-      (f) =>
-        f.path.toLowerCase().includes(group) &&
-        !f.path.includes(".test.") &&
-        !f.path.includes(".spec.")
-    );
-    if (hasFile) {
-      found.push(group);
-    } else {
-      missing.push(group);
-    }
-  }
+	for (const group of ROUTE_GROUPS) {
+		const hasFile = allContent.some(
+			(f) =>
+				f.path.toLowerCase().includes(group) &&
+				!f.path.includes(".test.") &&
+				!f.path.includes(".spec."),
+		);
+		if (hasFile) {
+			found.push(group);
+		} else {
+			missing.push(group);
+		}
+	}
 
-  return { found, missing };
+	return { found, missing };
 }
 
 function countTestFiles(dir: string): { found: string[]; missing: string[] } {
-  const found: string[] = [];
-  const missing: string[] = [];
+	const found: string[] = [];
+	const missing: string[] = [];
 
-  const allTestFiles = findFilesRecursive(dir, /\.(test|spec)\.(ts|tsx)$/);
+	const allTestFiles = findFilesRecursive(dir, /\.(test|spec)\.(ts|tsx)$/);
 
-  for (const group of ROUTE_GROUPS) {
-    const hasTest = allTestFiles.some((f) => f.toLowerCase().includes(group));
-    if (hasTest) {
-      found.push(group);
-    } else {
-      missing.push(group);
-    }
-  }
+	for (const group of ROUTE_GROUPS) {
+		const hasTest = allTestFiles.some((f) => f.toLowerCase().includes(group));
+		if (hasTest) {
+			found.push(group);
+		} else {
+			missing.push(group);
+		}
+	}
 
-  return { found, missing };
+	return { found, missing };
 }
 
 function countModels(dir: string): { found: string[]; missing: string[] } {
-  const found: string[] = [];
-  const missing: string[] = [];
+	const found: string[] = [];
+	const missing: string[] = [];
 
-  const allTsFiles = findFilesRecursive(dir, /\.ts$/);
-  const allContent = allTsFiles
-    .map((f) => {
-      try {
-        return readFileSync(f, "utf8");
-      } catch {
-        return "";
-      }
-    })
-    .join("\n");
+	const allTsFiles = findFilesRecursive(dir, /\.ts$/);
+	const allContent = allTsFiles
+		.map((f) => {
+			try {
+				return readFileSync(f, "utf8");
+			} catch {
+				return "";
+			}
+		})
+		.join("\n");
 
-  for (const model of MODEL_NAMES) {
-    const pattern = new RegExp(`(interface|type)\\s+${model}\\b`);
-    if (pattern.test(allContent)) {
-      found.push(model);
-    } else {
-      missing.push(model);
-    }
-  }
+	for (const model of MODEL_NAMES) {
+		const pattern = new RegExp(`(interface|type)\\s+${model}\\b`);
+		if (pattern.test(allContent)) {
+			found.push(model);
+		} else {
+			missing.push(model);
+		}
+	}
 
-  return { found, missing };
+	return { found, missing };
 }
 
 function countEndpointMethods(dir: string): Record<string, number> {
-  const allTsFiles = findFilesRecursive(dir, /\.ts$/);
-  const allContent = allTsFiles
-    .filter((f) => !f.includes(".test.") && !f.includes(".spec."))
-    .map((f) => {
-      try {
-        return readFileSync(f, "utf8");
-      } catch {
-        return "";
-      }
-    })
-    .join("\n");
+	const allTsFiles = findFilesRecursive(dir, /\.ts$/);
+	const allContent = allTsFiles
+		.filter((f) => !f.includes(".test.") && !f.includes(".spec."))
+		.map((f) => {
+			try {
+				return readFileSync(f, "utf8");
+			} catch {
+				return "";
+			}
+		})
+		.join("\n");
 
-  const counts: Record<string, number> = {};
-  for (const method of REQUIRED_ENDPOINTS) {
-    const pattern = new RegExp(`\\.${method.toLowerCase()}\\(`, "gi");
-    const matches = allContent.match(pattern);
-    counts[method] = matches ? matches.length : 0;
-  }
-  return counts;
+	const counts: Record<string, number> = {};
+	for (const method of REQUIRED_ENDPOINTS) {
+		const pattern = new RegExp(`\\.${method.toLowerCase()}\\(`, "gi");
+		const matches = allContent.match(pattern);
+		counts[method] = matches ? matches.length : 0;
+	}
+	return counts;
 }
 
 describe("eval: large PRD — project management API", () => {
-  test(
-    "builds full-stack project management API from a detailed PRD",
-    async () => {
-      workDir = createWorkDir();
+	test(
+		"builds full-stack project management API from a detailed PRD",
+		async () => {
+			workDir = createWorkDir();
 
-      const result: EvalResult = await runEval(PRD, {
-        cwd: workDir,
-        timeoutSec: CLI_TIMEOUT,
-        setup: async (dir: string) => {
-          writeFileSync(
-            join(dir, "package.json"),
-            JSON.stringify(
-              {
-                name: "taskflow",
-                version: "1.0.0",
-                type: "module",
-              },
-              null,
-              2
-            )
-          );
-        },
-      });
+			const result: EvalResult = await runEval(PRD, {
+				cwd: workDir,
+				timeoutSec: CLI_TIMEOUT,
+				setup: async (dir: string) => {
+					writeFileSync(
+						join(dir, "package.json"),
+						JSON.stringify(
+							{
+								name: "taskflow",
+								version: "1.0.0",
+								type: "module",
+							},
+							null,
+							2,
+						),
+					);
+				},
+			});
 
-      // -- Route files: at least 5 of 6 ----------------------------
-      const routes = countRouteFiles(workDir);
-      console.log(
-        `\n  route files found: ${routes.found.length}/6 — ${routes.found.join(", ")}`
-      );
-      if (routes.missing.length > 0) {
-        console.log(`  route files missing: ${routes.missing.join(", ")}`);
-      }
-      expect(routes.found.length).toBeGreaterThanOrEqual(5);
+			// -- Route files: at least 5 of 6 ----------------------------
+			const routes = countRouteFiles(workDir);
+			console.log(
+				`\n  route files found: ${routes.found.length}/6 — ${routes.found.join(", ")}`,
+			);
+			if (routes.missing.length > 0) {
+				console.log(`  route files missing: ${routes.missing.join(", ")}`);
+			}
+			expect(routes.found.length).toBeGreaterThanOrEqual(5);
 
-      // -- Test files: at least 5 of 6 -----------------------------
-      const tests = countTestFiles(workDir);
-      console.log(
-        `  test files found: ${tests.found.length}/6 — ${tests.found.join(", ")}`
-      );
-      if (tests.missing.length > 0) {
-        console.log(`  test files missing: ${tests.missing.join(", ")}`);
-      }
-      expect(tests.found.length).toBeGreaterThanOrEqual(5);
+			// -- Test files: at least 5 of 6 -----------------------------
+			const tests = countTestFiles(workDir);
+			console.log(
+				`  test files found: ${tests.found.length}/6 — ${tests.found.join(", ")}`,
+			);
+			if (tests.missing.length > 0) {
+				console.log(`  test files missing: ${tests.missing.join(", ")}`);
+			}
+			expect(tests.found.length).toBeGreaterThanOrEqual(5);
 
-      // -- Data models: at least 5 of 6 ----------------------------
-      const models = countModels(workDir);
-      console.log(
-        `  models found: ${models.found.length}/6 — ${models.found.join(", ")}`
-      );
-      if (models.missing.length > 0) {
-        console.log(`  models missing: ${models.missing.join(", ")}`);
-      }
-      expect(models.found.length).toBeGreaterThanOrEqual(5);
+			// -- Data models: at least 5 of 6 ----------------------------
+			const models = countModels(workDir);
+			console.log(
+				`  models found: ${models.found.length}/6 — ${models.found.join(", ")}`,
+			);
+			if (models.missing.length > 0) {
+				console.log(`  models missing: ${models.missing.join(", ")}`);
+			}
+			expect(models.found.length).toBeGreaterThanOrEqual(5);
 
-      // -- HTTP methods in source code ------------------------------
-      const methods = countEndpointMethods(workDir);
-      console.log(
-        `  endpoint methods: ${Object.entries(methods)
-          .map(([k, v]) => `${k}=${v}`)
-          .join(", ")}`
-      );
-      expect(methods.GET).toBeGreaterThanOrEqual(5);
-      expect(methods.POST).toBeGreaterThanOrEqual(4);
-      expect(methods.DELETE).toBeGreaterThanOrEqual(3);
+			// -- HTTP methods in source code ------------------------------
+			const methods = countEndpointMethods(workDir);
+			console.log(
+				`  endpoint methods: ${Object.entries(methods)
+					.map(([k, v]) => `${k}=${v}`)
+					.join(", ")}`,
+			);
+			expect(methods.GET).toBeGreaterThanOrEqual(5);
+			expect(methods.POST).toBeGreaterThanOrEqual(4);
+			expect(methods.DELETE).toBeGreaterThanOrEqual(3);
 
-      // -- TypeScript config ----------------------------------------
-      assertFileExists(workDir, "tsconfig.json");
+			// -- TypeScript config ----------------------------------------
+			assertFileExists(workDir, "tsconfig.json");
 
-      // -- Dependencies in package.json -----------------------------
-      assertFileContains(workDir, "package.json", "hono");
-      assertFileContains(workDir, "package.json", "vitest");
+			// -- Dependencies in package.json -----------------------------
+			assertFileContains(workDir, "package.json", "hono");
+			assertFileContains(workDir, "package.json", "vitest");
 
-      // -- Store module exists (data layer) -------------------------
-      assertAnyFileContains(workDir, ["ts"], "resetStore");
+			// -- Store module exists (data layer) -------------------------
+			assertAnyFileContains(workDir, ["ts"], "resetStore");
 
-      // -- Validation exists ----------------------------------------
-      assertAnyFileContains(workDir, ["ts"], "400");
-      assertAnyFileContains(workDir, ["ts"], "404");
-      assertAnyFileContains(workDir, ["ts"], "409");
+			// -- Validation exists ----------------------------------------
+			assertAnyFileContains(workDir, ["ts"], "400");
+			assertAnyFileContains(workDir, ["ts"], "404");
+			assertAnyFileContains(workDir, ["ts"], "409");
 
-      // -- Tests pass -----------------------------------------------
-      assertCommandSucceeds(workDir, "npx vitest run", 180_000);
+			// -- Tests pass -----------------------------------------------
+			assertCommandSucceeds(workDir, "npx vitest run", 180_000);
 
-      // -- Agent completed successfully -----------------------------
-      expect(result.json.exitCode).toBe(0);
+			// -- Agent completed successfully -----------------------------
+			expect(result.json.exitCode).toBe(0);
 
-      // -- Sanity: agent did significant work -----------------------
-      assertStepCount(result, { min: 15 });
+			// -- Sanity: agent did significant work -----------------------
+			assertStepCount(result, { min: 15 });
 
-      // -- Judge: spec adherence ------------------------------------
-      await assertSpecAdherence(PRD, workDir);
+			// -- Judge: spec adherence ------------------------------------
+			await assertSpecAdherence(PRD, workDir);
 
-      console.log(
-        `\n  tokens: ${result.json.tokens} | cost: $${result.json.cost.toFixed(4)} | steps: ${result.json.steps} | toolCalls: ${result.json.toolCalls} | exit: ${result.json.exitCode}`
-      );
-    },
-    TIMEOUT
-  );
+			console.log(
+				`\n  tokens: ${result.json.tokens} | cost: $${result.json.cost.toFixed(4)} | steps: ${result.json.steps} | toolCalls: ${result.json.toolCalls} | exit: ${result.json.exitCode}`,
+			);
+		},
+		TIMEOUT,
+	);
 });

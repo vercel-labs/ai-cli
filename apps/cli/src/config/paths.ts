@@ -11,21 +11,21 @@ export const SKILLS_DIR = path.join(BASE_DIR, "skills");
 export const MCP_FILE = path.join(BASE_DIR, "mcp.json");
 
 export function ensureBaseDir(): void {
-  if (!fs.existsSync(BASE_DIR)) {
-    fs.mkdirSync(BASE_DIR, { recursive: true });
-  }
+	if (!fs.existsSync(BASE_DIR)) {
+		fs.mkdirSync(BASE_DIR, { recursive: true });
+	}
 }
 
 export function ensureChatsDir(): void {
-  ensureBaseDir();
-  if (!fs.existsSync(CHATS_DIR)) {
-    fs.mkdirSync(CHATS_DIR, { recursive: true });
-  }
+	ensureBaseDir();
+	if (!fs.existsSync(CHATS_DIR)) {
+		fs.mkdirSync(CHATS_DIR, { recursive: true });
+	}
 }
 
 export function ensureSkillsDir(): void {
-  ensureBaseDir();
-  if (!fs.existsSync(SKILLS_DIR)) {
-    fs.mkdirSync(SKILLS_DIR, { recursive: true });
-  }
+	ensureBaseDir();
+	if (!fs.existsSync(SKILLS_DIR)) {
+		fs.mkdirSync(SKILLS_DIR, { recursive: true });
+	}
 }

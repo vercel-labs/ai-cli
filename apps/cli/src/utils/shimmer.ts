@@ -15,11 +15,13 @@ const GAP_FRAMES = 6;
  * fades smoothly into the uniform base gray on both sides.
  */
 function charShade(charIdx: number, shimmerPos: number): number {
-  const d = Math.abs(charIdx - shimmerPos);
-  if (d >= SHIMMER_RADIUS) {return BASE;}
-  // Cosine interpolation: 1.0 at center → 0.0 at SHIMMER_RADIUS
-  const t = (1 + Math.cos((d / SHIMMER_RADIUS) * Math.PI)) / 2;
-  return Math.round(BASE + (PEAK - BASE) * t);
+	const d = Math.abs(charIdx - shimmerPos);
+	if (d >= SHIMMER_RADIUS) {
+		return BASE;
+	}
+	// Cosine interpolation: 1.0 at center → 0.0 at SHIMMER_RADIUS
+	const t = (1 + Math.cos((d / SHIMMER_RADIUS) * Math.PI)) / 2;
+	return Math.round(BASE + (PEAK - BASE) * t);
 }
 
 /**
@@ -33,22 +35,24 @@ function charShade(charIdx: number, shimmerPos: number): number {
  * When NO_COLOR is set, returns the plain text.
  */
 export function shimmerText(text: string, pos: number): string {
-  if (!isColorEnabled() || text.length === 0) {return text;}
+	if (!isColorEnabled() || text.length === 0) {
+		return text;
+	}
 
-  let result = "";
-  let prevShade = -1;
+	let result = "";
+	let prevShade = -1;
 
-  for (let i = 0; i < text.length; i++) {
-    const shade = charShade(i, pos);
-    if (shade !== prevShade) {
-      result += `\x1B[38;5;${shade}m`;
-      prevShade = shade;
-    }
-    result += text[i];
-  }
+	for (let i = 0; i < text.length; i++) {
+		const shade = charShade(i, pos);
+		if (shade !== prevShade) {
+			result += `\x1B[38;5;${shade}m`;
+			prevShade = shade;
+		}
+		result += text[i];
+	}
 
-  result += "\x1B[0m";
-  return result;
+	result += "\x1B[0m";
+	return result;
 }
 
 /** Padding so the shimmer band fully enters / exits the text. */
@@ -56,9 +60,9 @@ export const SHIMMER_PADDING = SHIMMER_RADIUS;
 
 /** Compute the next shimmer position, cycling through the full sweep + gap. */
 export function nextShimmerPos(pos: number, textLength: number): number {
-  const next = pos + 1;
-  if (next > textLength + SHIMMER_PADDING + GAP_FRAMES) {
-    return -SHIMMER_PADDING;
-  }
-  return next;
+	const next = pos + 1;
+	if (next > textLength + SHIMMER_PADDING + GAP_FRAMES) {
+		return -SHIMMER_PADDING;
+	}
+	return next;
 }

@@ -1,15 +1,15 @@
 import { DEFAULT_MODEL } from "./constants.js";
 
 export async function readStdin(): Promise<string> {
-  const chunks: string[] = [];
-  for await (const chunk of process.stdin) {
-    chunks.push(chunk.toString());
-  }
-  return chunks.join("").trim();
+	const chunks: string[] = [];
+	for await (const chunk of process.stdin) {
+		chunks.push(chunk.toString());
+	}
+	return chunks.join("").trim();
 }
 
 export function showHelp(_version: string): void {
-  console.log(`ai - AI-powered chat interface
+	console.log(`ai - AI-powered chat interface
 
 Usage:
   ai [options] <message>

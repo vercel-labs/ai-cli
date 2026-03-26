@@ -4,37 +4,37 @@ import { z } from "zod";
 import { getRunningProcesses, killManagedProcess } from "../utils/processes.js";
 
 export const killProcess = tool({
-  description:
-    "Kill a background process. Do not say anything - the tool handles output.",
-  inputSchema: z.object({
-    pid: z
-      .number()
-      .optional()
-      .describe(
-        "Process ID to kill. If not provided, kills most recent process"
-      ),
-  }),
-  execute: async ({ pid }) => {
-    let targetPid = pid;
+	description:
+		"Kill a background process. Do not say anything - the tool handles output.",
+	inputSchema: z.object({
+		pid: z
+			.number()
+			.optional()
+			.describe(
+				"Process ID to kill. If not provided, kills most recent process",
+			),
+	}),
+	execute: async ({ pid }) => {
+		let targetPid = pid;
 
-    if (!targetPid) {
-      const procs = getRunningProcesses();
-      if (procs.length === 0) {
-        return { error: "No background processes running" };
-      }
-      targetPid = procs.at(-1).pid;
-    }
+		if (!targetPid) {
+			const procs = getRunningProcesses();
+			if (procs.length === 0) {
+				return { error: "No background processes running" };
+			}
+			targetPid = procs.at(-1).pid;
+		}
 
-    const killed = killManagedProcess(targetPid);
+		const killed = killManagedProcess(targetPid);
 
-    if (killed) {
-      return {
-        message: `killed process ${targetPid}`,
-        pid: targetPid,
-        silent: true,
-      };
-    }
+		if (killed) {
+			return {
+				message: `killed process ${targetPid}`,
+				pid: targetPid,
+				silent: true,
+			};
+		}
 
-    return { error: `Process ${targetPid} not found` };
-  },
+		return { error: `Process ${targetPid} not found` };
+	},
 });

@@ -15,26 +15,35 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { assertAnyFileContains, assertCommandSucceeds, assertFileContains, assertFileExists, assertStepCount, cleanupWorkDir, createWorkDir, runEval } from './eval-helpers';
-import type { EvalResult } from './eval-helpers';
+import {
+	assertAnyFileContains,
+	assertCommandSucceeds,
+	assertFileContains,
+	assertFileExists,
+	assertStepCount,
+	cleanupWorkDir,
+	createWorkDir,
+	runEval,
+} from "./eval-helpers";
+import type { EvalResult } from "./eval-helpers";
 import { assertSpecAdherence } from "./eval-judge";
 
 const TIMEOUT = 2_400_000; // 40 min bun:test timeout
 const CLI_TIMEOUT = 1800; // 30 min CLI timeout
 
 const COMPONENT_NAMES = [
-  "Button",
-  "Input",
-  "Select",
-  "Checkbox",
-  "Toggle",
-  "Badge",
-  "Avatar",
-  "Card",
-  "Modal",
-  "Toast",
-  "Tooltip",
-  "Tabs",
+	"Button",
+	"Input",
+	"Select",
+	"Checkbox",
+	"Toggle",
+	"Badge",
+	"Avatar",
+	"Card",
+	"Modal",
+	"Toast",
+	"Tooltip",
+	"Tabs",
 ];
 
 const PRD = `You are building a React component library called "ui-lib". Follow this PRD exactly.
@@ -129,10 +138,10 @@ After creating all files, run the tests and make sure they ALL pass. Fix any fai
 let workDir: string | null = null;
 
 afterEach(() => {
-  if (workDir) {
-    cleanupWorkDir(workDir);
-    workDir = null;
-  }
+	if (workDir) {
+		cleanupWorkDir(workDir);
+		workDir = null;
+	}
 });
 
 /**
@@ -140,145 +149,145 @@ afterEach(() => {
  * accepting flexible naming conventions.
  */
 function countComponentFiles(dir: string): {
-  found: string[];
-  missing: string[];
+	found: string[];
+	missing: string[];
 } {
-  const found: string[] = [];
-  const missing: string[] = [];
+	const found: string[] = [];
+	const missing: string[] = [];
 
-  for (const name of COMPONENT_NAMES) {
-    const lower = name.toLowerCase();
-    const candidates = [
-      `src/components/${name}.tsx`,
-      `src/components/${lower}.tsx`,
-      `src/components/${name}/index.tsx`,
-      `src/components/${lower}/index.tsx`,
-      `src/components/${name}/${name}.tsx`,
-      `src/components/${lower}/${lower}.tsx`,
-    ];
-    if (candidates.some((c) => existsSync(join(dir, c)))) {
-      found.push(name);
-    } else {
-      missing.push(name);
-    }
-  }
+	for (const name of COMPONENT_NAMES) {
+		const lower = name.toLowerCase();
+		const candidates = [
+			`src/components/${name}.tsx`,
+			`src/components/${lower}.tsx`,
+			`src/components/${name}/index.tsx`,
+			`src/components/${lower}/index.tsx`,
+			`src/components/${name}/${name}.tsx`,
+			`src/components/${lower}/${lower}.tsx`,
+		];
+		if (candidates.some((c) => existsSync(join(dir, c)))) {
+			found.push(name);
+		} else {
+			missing.push(name);
+		}
+	}
 
-  return { found, missing };
+	return { found, missing };
 }
 
 /**
  * Count how many of the expected components have a test file.
  */
 function countTestFiles(dir: string): { found: string[]; missing: string[] } {
-  const found: string[] = [];
-  const missing: string[] = [];
+	const found: string[] = [];
+	const missing: string[] = [];
 
-  for (const name of COMPONENT_NAMES) {
-    const lower = name.toLowerCase();
-    const candidates = [
-      `src/components/${name}.test.tsx`,
-      `src/components/${lower}.test.tsx`,
-      `src/components/${name}.test.ts`,
-      `src/components/${lower}.test.ts`,
-      `src/components/${name}/${name}.test.tsx`,
-      `src/components/${lower}/${lower}.test.tsx`,
-      `src/components/${name}/index.test.tsx`,
-      `src/components/${lower}/index.test.tsx`,
-      `src/__tests__/${name}.test.tsx`,
-      `src/__tests__/${lower}.test.tsx`,
-      `tests/${name}.test.tsx`,
-      `tests/${lower}.test.tsx`,
-    ];
-    if (candidates.some((c) => existsSync(join(dir, c)))) {
-      found.push(name);
-    } else {
-      missing.push(name);
-    }
-  }
+	for (const name of COMPONENT_NAMES) {
+		const lower = name.toLowerCase();
+		const candidates = [
+			`src/components/${name}.test.tsx`,
+			`src/components/${lower}.test.tsx`,
+			`src/components/${name}.test.ts`,
+			`src/components/${lower}.test.ts`,
+			`src/components/${name}/${name}.test.tsx`,
+			`src/components/${lower}/${lower}.test.tsx`,
+			`src/components/${name}/index.test.tsx`,
+			`src/components/${lower}/index.test.tsx`,
+			`src/__tests__/${name}.test.tsx`,
+			`src/__tests__/${lower}.test.tsx`,
+			`tests/${name}.test.tsx`,
+			`tests/${lower}.test.tsx`,
+		];
+		if (candidates.some((c) => existsSync(join(dir, c)))) {
+			found.push(name);
+		} else {
+			missing.push(name);
+		}
+	}
 
-  return { found, missing };
+	return { found, missing };
 }
 
 describe("eval: large PRD — component library", () => {
-  test(
-    "builds 12-component React library from a detailed PRD",
-    async () => {
-      workDir = createWorkDir();
+	test(
+		"builds 12-component React library from a detailed PRD",
+		async () => {
+			workDir = createWorkDir();
 
-      const result: EvalResult = await runEval(PRD, {
-        cwd: workDir,
-        timeoutSec: CLI_TIMEOUT,
-        setup: async (dir: string) => {
-          writeFileSync(
-            join(dir, "package.json"),
-            JSON.stringify(
-              {
-                name: "ui-lib",
-                version: "1.0.0",
-                type: "module",
-              },
-              null,
-              2
-            )
-          );
-        },
-      });
+			const result: EvalResult = await runEval(PRD, {
+				cwd: workDir,
+				timeoutSec: CLI_TIMEOUT,
+				setup: async (dir: string) => {
+					writeFileSync(
+						join(dir, "package.json"),
+						JSON.stringify(
+							{
+								name: "ui-lib",
+								version: "1.0.0",
+								type: "module",
+							},
+							null,
+							2,
+						),
+					);
+				},
+			});
 
-      // -- Component files: at least 10 of 12 ---------------------
-      const components = countComponentFiles(workDir);
-      console.log(
-        `\n  components found: ${components.found.length}/12 — ${components.found.join(", ")}`
-      );
-      if (components.missing.length > 0) {
-        console.log(`  components missing: ${components.missing.join(", ")}`);
-      }
-      expect(components.found.length).toBeGreaterThanOrEqual(10);
+			// -- Component files: at least 10 of 12 ---------------------
+			const components = countComponentFiles(workDir);
+			console.log(
+				`\n  components found: ${components.found.length}/12 — ${components.found.join(", ")}`,
+			);
+			if (components.missing.length > 0) {
+				console.log(`  components missing: ${components.missing.join(", ")}`);
+			}
+			expect(components.found.length).toBeGreaterThanOrEqual(10);
 
-      // -- Test files: at least 10 of 12 --------------------------
-      const tests = countTestFiles(workDir);
-      console.log(
-        `  test files found: ${tests.found.length}/12 — ${tests.found.join(", ")}`
-      );
-      if (tests.missing.length > 0) {
-        console.log(`  test files missing: ${tests.missing.join(", ")}`);
-      }
-      expect(tests.found.length).toBeGreaterThanOrEqual(10);
+			// -- Test files: at least 10 of 12 --------------------------
+			const tests = countTestFiles(workDir);
+			console.log(
+				`  test files found: ${tests.found.length}/12 — ${tests.found.join(", ")}`,
+			);
+			if (tests.missing.length > 0) {
+				console.log(`  test files missing: ${tests.missing.join(", ")}`);
+			}
+			expect(tests.found.length).toBeGreaterThanOrEqual(10);
 
-      // -- Props interfaces exist ---------------------------------
-      assertAnyFileContains(workDir, ["tsx", "ts"], "Props");
+			// -- Props interfaces exist ---------------------------------
+			assertAnyFileContains(workDir, ["tsx", "ts"], "Props");
 
-      // -- Accessibility: aria attributes present ------------------
-      assertAnyFileContains(workDir, ["tsx"], "aria-");
+			// -- Accessibility: aria attributes present ------------------
+			assertAnyFileContains(workDir, ["tsx"], "aria-");
 
-      // -- Barrel export ------------------------------------------
-      const barrelCandidates = ["src/index.ts", "src/index.tsx"];
-      const dir = workDir as string;
-      const hasBarrel = barrelCandidates.some((p) => existsSync(join(dir, p)));
-      expect(hasBarrel).toBe(true);
+			// -- Barrel export ------------------------------------------
+			const barrelCandidates = ["src/index.ts", "src/index.tsx"];
+			const dir = workDir as string;
+			const hasBarrel = barrelCandidates.some((p) => existsSync(join(dir, p)));
+			expect(hasBarrel).toBe(true);
 
-      // -- TypeScript config --------------------------------------
-      assertFileExists(workDir, "tsconfig.json");
+			// -- TypeScript config --------------------------------------
+			assertFileExists(workDir, "tsconfig.json");
 
-      // -- Dependencies in package.json ---------------------------
-      assertFileContains(workDir, "package.json", "react");
-      assertFileContains(workDir, "package.json", "vitest");
+			// -- Dependencies in package.json ---------------------------
+			assertFileContains(workDir, "package.json", "react");
+			assertFileContains(workDir, "package.json", "vitest");
 
-      // -- Tests pass ---------------------------------------------
-      assertCommandSucceeds(workDir, "npx vitest run", 180_000);
+			// -- Tests pass ---------------------------------------------
+			assertCommandSucceeds(workDir, "npx vitest run", 180_000);
 
-      // -- Agent completed successfully ---------------------------
-      expect(result.json.exitCode).toBe(0);
+			// -- Agent completed successfully ---------------------------
+			expect(result.json.exitCode).toBe(0);
 
-      // -- Sanity: agent did significant work ---------------------
-      assertStepCount(result, { min: 10 });
+			// -- Sanity: agent did significant work ---------------------
+			assertStepCount(result, { min: 10 });
 
-      // -- Judge: spec adherence -----------------------------------
-      await assertSpecAdherence(PRD, workDir);
+			// -- Judge: spec adherence -----------------------------------
+			await assertSpecAdherence(PRD, workDir);
 
-      console.log(
-        `\n  tokens: ${result.json.tokens} | cost: $${result.json.cost.toFixed(4)} | steps: ${result.json.steps} | toolCalls: ${result.json.toolCalls} | exit: ${result.json.exitCode}`
-      );
-    },
-    TIMEOUT
-  );
+			console.log(
+				`\n  tokens: ${result.json.tokens} | cost: $${result.json.cost.toFixed(4)} | steps: ${result.json.steps} | toolCalls: ${result.json.toolCalls} | exit: ${result.json.exitCode}`,
+			);
+		},
+		TIMEOUT,
+	);
 });

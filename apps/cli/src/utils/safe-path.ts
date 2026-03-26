@@ -6,10 +6,10 @@ import * as path from "node:path";
  * Expands a leading `~` or `~user` to the home directory.
  */
 function expandTilde(filePath: string): string {
-  if (filePath === "~" || filePath.startsWith("~/")) {
-    return path.join(os.homedir(), filePath.slice(1));
-  }
-  return filePath;
+	if (filePath === "~" || filePath.startsWith("~/")) {
+		return path.join(os.homedir(), filePath.slice(1));
+	}
+	return filePath;
 }
 
 /**
@@ -18,18 +18,18 @@ function expandTilde(filePath: string): string {
  * Returns the resolved path or null if it escapes the boundary.
  */
 export function safePath(filePath: string): string | null {
-  const cwd = fs.realpathSync(process.cwd());
-  let resolved: string;
-  try {
-    resolved = fs.realpathSync(path.resolve(expandTilde(filePath)));
-  } catch {
-    // File may not exist yet (e.g. write-file); fall back to path.resolve
-    resolved = path.resolve(expandTilde(filePath));
-  }
-  if (resolved.startsWith(cwd + path.sep) || resolved === cwd) {
-    return resolved;
-  }
-  return null;
+	const cwd = fs.realpathSync(process.cwd());
+	let resolved: string;
+	try {
+		resolved = fs.realpathSync(path.resolve(expandTilde(filePath)));
+	} catch {
+		// File may not exist yet (e.g. write-file); fall back to path.resolve
+		resolved = path.resolve(expandTilde(filePath));
+	}
+	if (resolved.startsWith(cwd + path.sep) || resolved === cwd) {
+		return resolved;
+	}
+	return null;
 }
 
 /**
@@ -37,17 +37,17 @@ export function safePath(filePath: string): string | null {
  * Use only after the user has explicitly confirmed access.
  */
 export function resolveAnyPath(filePath: string): string {
-  const expanded = expandTilde(filePath);
-  try {
-    return fs.realpathSync(path.resolve(expanded));
-  } catch {
-    return path.resolve(expanded);
-  }
+	const expanded = expandTilde(filePath);
+	try {
+		return fs.realpathSync(path.resolve(expanded));
+	} catch {
+		return path.resolve(expanded);
+	}
 }
 
 /**
  * Returns a human-readable error when a path escapes the project boundary.
  */
 export function pathError(filePath: string): string {
-  return `path outside project: ${filePath}`;
+	return `path outside project: ${filePath}`;
 }
