@@ -1,10 +1,11 @@
-import { generateText, gateway } from "ai";
+import { generateText, gateway, streamText } from "ai";
 import type { Command } from "commander";
 
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
 import { parsePositiveInt, parseTemperature } from "../lib/parse.js";
+import { formatElapsed } from "../lib/progress.js";
 import { readStdin, stdinAsText } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 4;
@@ -79,6 +80,48 @@ export function registerTextCommand(program: Command) {
       const temperature = opts.temperature
         ? parseTemperature(opts.temperature)
         : undefined;
+
+      const isSimpleStdoutPath =
+        models.length === 1 &&
+        countPerModel === 1 &&
+        !opts.output &&
+        !process.env.AI_CLI_OUTPUT_DIR &&
+        !opts.json &&
+        process.stdout.isTTY;
+
+      if (isSimpleStdoutPath) {
+        const modelId = models[0];
+        const start = Date.now();
+        const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+        const result = streamText({
+          headers: {
+            "http-referer": "https://github.com/vercel-labs/ai-cli",
+            "x-title": "ai-cli",
+          },
+          model: gateway(modelId),
+          prompt: fullPrompt,
+          system: opts.system,
+          maxOutputTokens: maxTokens,
+          temperature,
+          abortSignal: abort,
+        });
+
+        let endsWithNewline = false;
+        for await (const part of result.textStream) {
+          process.stdout.write(part);
+          endsWithNewline = part.endsWith("\n");
+        }
+
+        if (opts.quiet) {
+          if (!endsWithNewline) process.stdout.write("\n");
+        } else {
+          const elapsed = formatElapsed(Date.now() - start);
+          process.stderr.write(
+            `\nGenerated text with ${modelId} (${elapsed})\n`
+          );
+        }
+        return;
+      }
 
       const jobs = buildJobs(models, countPerModel);
 
