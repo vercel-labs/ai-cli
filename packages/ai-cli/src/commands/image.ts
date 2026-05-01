@@ -17,6 +17,7 @@ interface ImageOptions {
   aspectRatio?: string;
   quality?: string;
   style?: string;
+  seed?: string;
   quiet?: boolean;
   json?: boolean;
   concurrency?: string;
@@ -38,6 +39,10 @@ export function registerImageCommand(program: Command) {
     .option("--aspect-ratio <W:H>", "Aspect ratio (e.g. 16:9)")
     .option("--quality <level>", "Quality (standard, hd)")
     .option("--style <style>", "Style (e.g. vivid, natural)")
+    .option(
+      "--seed <n>",
+      "Random seed for reproducible generations (where supported)"
+    )
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON")
     .option(
@@ -73,7 +78,7 @@ export function registerImageCommand(program: Command) {
       const aspectRatio = opts.aspectRatio
         ? parseAspectRatio(opts.aspectRatio)
         : undefined;
-      const provOpts = buildProviderOptions(opts);
+      const seed = opts.seed ? parsePositiveInt(opts.seed, "seed") : undefined;
 
       if (
         (opts.quality || opts.style) &&
@@ -83,7 +88,18 @@ export function registerImageCommand(program: Command) {
           "Warning: --quality and --style only apply to OpenAI models\n"
         );
       }
+      if (seed !== undefined && models.every((m) => m.startsWith("openai/"))) {
+        process.stderr.write(
+          "Warning: --seed is ignored by OpenAI image models\n"
+        );
+      }
+      if (seed !== undefined && countPerModel > 1) {
+        process.stderr.write(
+          "Warning: --seed with -n > 1 produces identical images on providers that honor seed\n"
+        );
+      }
 
+      const provOpts = buildProviderOptions(opts);
       const jobs = buildJobs(models, countPerModel);
 
       const { total, failed } = await runJobs(
@@ -101,6 +117,7 @@ export function registerImageCommand(program: Command) {
             n: 1,
             size,
             aspectRatio,
+            seed,
             providerOptions:
               Object.keys(provOpts).length > 0 ? provOpts : undefined,
           });

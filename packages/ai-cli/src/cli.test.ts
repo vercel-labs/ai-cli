@@ -78,6 +78,13 @@ describe("cli integration", () => {
     expect(stdout).toContain("--no-preview");
     expect(stdout).toContain("--size");
     expect(stdout).toContain("--aspect-ratio");
+    expect(stdout).toContain("--seed");
+  });
+
+  test("image --seed with non-numeric value exits 1", async () => {
+    const { exitCode, stderr } = await run("image", "--seed", "abc", "x");
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("--seed must be a positive integer");
   });
 
   test("video --help exits 0 and lists flags", async () => {
