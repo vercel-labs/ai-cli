@@ -6,13 +6,27 @@ import { join } from "path";
 import { Command } from "commander";
 
 const generateTextMock = mock(async () => ({ text: "buffered text" }));
-const streamTextMock = mock(() => ({
-  textStream: (async function* () {
-    yield "Hello, ";
-    yield "world";
-    yield "!";
-  })(),
-}));
+
+interface StreamTextMockResult {
+  textStream: AsyncIterable<string>;
+  finishReason: Promise<string>;
+}
+
+function streamTextResult(
+  chunks: string[],
+  finishReason = Promise.resolve("stop")
+): StreamTextMockResult {
+  return {
+    textStream: (async function* () {
+      yield* chunks;
+    })(),
+    finishReason,
+  };
+}
+
+const streamTextMock = mock(() =>
+  streamTextResult(["Hello, ", "world", "!"])
+);
 const gatewayMock = Object.assign(
   mock((modelId: string) => modelId),
   {
@@ -102,6 +116,35 @@ describe("text command", () => {
     expect(generateTextMock).not.toHaveBeenCalled();
     expect(stdout.output()).toBe("Hello, world!");
     expect(stderr.output()).toContain(
+      "Generated text with openai/gpt-4.1-mini"
+    );
+  });
+
+  test("surfaces streaming errors before reporting success", async () => {
+    Object.defineProperty(process.stdout, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+    const error = new Error("rate limited");
+    streamTextMock.mockImplementationOnce(() =>
+      streamTextResult(["partial"], Promise.reject(error))
+    );
+    const stdout = captureWrites(process.stdout);
+    const stderr = captureWrites(process.stderr);
+
+    try {
+      await expect(
+        runTextCommand(["text", "-m", "openai/gpt-4.1-mini", "say hello"])
+      ).rejects.toThrow("rate limited");
+    } finally {
+      stdout.restore();
+      stderr.restore();
+    }
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1);
+    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(stdout.output()).toBe("partial");
+    expect(stderr.output()).not.toContain(
       "Generated text with openai/gpt-4.1-mini"
     );
   });

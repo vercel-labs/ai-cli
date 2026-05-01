@@ -111,6 +111,7 @@ export function registerTextCommand(program: Command) {
           process.stdout.write(part);
           endsWithNewline = part.endsWith("\n");
         }
+        await result.finishReason;
 
         if (opts.quiet) {
           if (!endsWithNewline) process.stdout.write("\n");
