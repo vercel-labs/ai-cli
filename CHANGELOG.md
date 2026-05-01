@@ -1,6 +1,18 @@
 # Changelog
 
+## 0.1.1
+
 <!-- release:start -->
+
+### Improvements
+
+- **npm README** — replaced symlink with a real file so the README renders correctly on the npm registry (#38)
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
 
 ## 0.1.0
 
