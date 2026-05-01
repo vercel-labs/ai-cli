@@ -184,6 +184,18 @@ See [Installation](/docs/installation#shell-completions) for setup instructions.
 
 ---
 
+## Timeouts
+
+Requests that exceed the per-command timeout are aborted automatically:
+
+| Command | Timeout |
+| --- | --- |
+| `text` | 120 seconds |
+| `image` | 120 seconds |
+| `video` | 300 seconds |
+
+Video generation uses a longer timeout because models typically need more processing time.
+
 ## Exit codes
 
 | Code | Meaning |

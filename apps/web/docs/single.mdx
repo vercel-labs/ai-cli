@@ -18,7 +18,17 @@ git diff | ai text "explain these changes"
 cat src/auth.ts | ai text "review for security issues"
 ```
 
-If both stdin and a prompt argument are provided, they're combined. If only stdin is provided, it becomes the full prompt.
+If both stdin and a prompt argument are provided, they're joined with a `---` separator:
+
+```
+<stdin content>
+
+---
+
+<prompt argument>
+```
+
+If only stdin is provided, it becomes the full prompt.
 
 ### Image
 

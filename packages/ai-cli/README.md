@@ -40,6 +40,13 @@ All commands support:
 --json                   Output metadata as JSON
 ```
 
+Model IDs can be specified as `provider/model-name` or just `model-name` (resolved against the known model list):
+
+```bash
+ai text -m gpt-5.5 "hello"          # resolves to openai/gpt-5.5
+ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
+```
+
 ### image
 
 ```
@@ -77,6 +84,16 @@ All commands support:
 
 All model types (text, image, video) are fetched live from the AI Gateway. If the gateway is unreachable, all model types fall back to a built-in list.
 
+### completions
+
+Output a shell completion script for tab completion of commands, flags, and model names:
+
+```bash
+ai completions zsh    # add eval "$(ai completions zsh)" to ~/.zshrc
+ai completions bash   # add eval "$(ai completions bash)" to ~/.bashrc
+ai completions fish   # add ai completions fish | source to config.fish
+```
+
 ### Multi-Model Comparison
 
 Generate with multiple models by comma-separating `-m`:
@@ -112,8 +129,28 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |
 | `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
 | `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
+| `NO_COLOR` | Disable ANSI color output |
+| `FORCE_COLOR` | Force color output even when not a TTY |
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
+
+### Timeouts
+
+Requests that exceed the timeout are aborted automatically:
+
+| Command | Timeout |
+|---|---|
+| `text` | 120 seconds |
+| `image` | 120 seconds |
+| `video` | 300 seconds |
+
+### Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | All generations failed |
+| `2` | Partial failure (some succeeded, some failed) |
 
 ## License
 
