@@ -1,10 +1,13 @@
 {
-  "name": "@ai-cli/cli",
+  "name": "ai-cli",
   "version": "0.1.0",
-  "private": true,
   "description": "A tiny, agent-native CLI for generating images, video and text with dead-simple commands, stdin support and predictable artifact outputs",
   "type": "module",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel-labs/ai-cli.git"
+  },
   "bin": {
     "ai": "./src/index.ts"
   },
