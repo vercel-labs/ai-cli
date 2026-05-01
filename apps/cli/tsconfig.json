@@ -1,8 +1,0 @@
-{
-	"extends": "@ai-cli/typescript-config/base.json",
-	"include": ["src"],
-	"exclude": ["opensrc"],
-	"compilerOptions": {
-		"strictNullChecks": true
-	}
-}

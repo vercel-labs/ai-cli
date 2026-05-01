@@ -2,14 +2,14 @@
 
 ## Monorepo Structure
 
-This is a Turborepo monorepo. The CLI application lives in `apps/cli/` and shared configuration packages live in `packages/`.
+This is a Turborepo monorepo. The CLI application lives in `packages/ai-cli/` and shared configuration packages live in `packages/`.
 
 ## Package Manager
 
 Use **bun** for all package management and script execution:
 
 - `bun install` to install dependencies
-- `bun add <package>` to add a dependency (use `--cwd apps/cli` to target the CLI app)
+- `bun add <package>` to add a dependency (use `--cwd packages/ai-cli` to target the CLI package)
 - `bun add -d <package>` to add a dev dependency
 - `bun run <script>` to run package.json scripts
 - `bun test` to run tests
@@ -22,17 +22,11 @@ Before installing any npm package, always check the latest version first:
 npm view <package> version
 ```
 
-Then install that specific version (e.g. `bun add --cwd apps/cli <package>@<version>`). Never blindly install without verifying the latest version.
+Then install that specific version (e.g. `bun add --cwd packages/ai-cli <package>@<version>`). Never blindly install without verifying the latest version.
 
 ## Documentation
 
-When making any user-facing change (new command, new flag, changed behavior, renamed option, etc.), update all relevant documentation in the same PR:
-
-- `apps/cli/README.md` — CLI usage, options, commands
-- `apps/cli/src/utils/index.ts` — `showHelp()` output
-- `apps/cli/src/commands/slash/help.ts` — `/help` listing and detail entries
-
-Keep these three in sync. A user-facing change without a docs update is incomplete.
+When making any user-facing change (new command, new flag, changed behavior, renamed option, etc.), update the documentation in `packages/ai-cli/README.md` in the same PR. A user-facing change without a docs update is incomplete.
 
 ## Type Checking
 

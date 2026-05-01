@@ -1,0 +1,45 @@
+{
+  "name": "@ai-cli/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A tiny, agent-native CLI for generating images, video and text with dead-simple commands, stdin support and predictable artifact outputs",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "ai": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "ai",
+    "cli",
+    "generative",
+    "image",
+    "video",
+    "text",
+    "ai-sdk",
+    "vercel"
+  ],
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile=dist/ai",
+    "typecheck": "tsc --noEmit",
+    "format": "oxfmt --write src/",
+    "format:check": "oxfmt --check src/",
+    "lint": "oxlint src/",
+    "test": "bun test",
+    "prepublishOnly": "bun run typecheck"
+  },
+  "dependencies": {
+    "ai": "^6.0.173",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13",
+    "oxfmt": "^0.47.0",
+    "oxlint": "^1.62.0",
+    "typescript": "^6.0.3"
+  }
+}

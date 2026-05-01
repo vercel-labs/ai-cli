@@ -5,20 +5,20 @@ minimal terminal AI assistant
 ## structure
 
 ```
-apps/
-  cli/            # the ai-cli package (npm)
 packages/
-  typescript-config/  # shared tsconfig
+  ai-cli/               # the ai-cli package
+  typescript-config/     # shared tsconfig
+apps/
+  web/                   # docs site
 ```
 
-See [apps/cli/README.md](apps/cli/README.md) for CLI usage, commands, and configuration.
+See [packages/ai-cli/README.md](packages/ai-cli/README.md) for CLI usage, commands, and configuration.
 
 ## development
 
 ### prerequisites
 
 - [Bun](https://bun.sh) (v1.3.9+)
-- Node.js 18+
 
 ### setup
 
@@ -34,31 +34,27 @@ bun run test        # run tests
 bun run typecheck   # type check
 bun run lint        # lint
 bun run format      # format
-bun run check       # lint + format check
 ```
 
 ### running the CLI locally
 
 ```bash
-cd apps/cli
-bun run build
-node dist/ai.mjs
+cd packages/ai-cli
+bun run dev          # run directly via bun
+bun run build        # compile to dist/ai binary
+./dist/ai
 ```
 
 ### testing
 
 ```bash
-bun run test              # unit tests (all packages)
-bun run test:e2e          # e2e tests (requires API key)
-  --cwd apps/cli
+bun run test         # unit tests (all packages)
 ```
 
-Unit tests use `bun:test`. E2E tests require `AI_GATEWAY_API_KEY` set and are not run in CI.
+Unit tests use `bun:test`.
 
 ### git hooks
 
 ```bash
 git config core.hooksPath .githooks
 ```
-
-This enables the pre-commit hook that auto-formats with Biome.
