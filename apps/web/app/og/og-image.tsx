@@ -4,16 +4,20 @@ import { join } from "node:path";
 
 export { getPageTitle } from "@/lib/page-titles";
 
-let fontCache: Buffer | null = null;
+let fontCache: { geistRegular: Buffer; geistPixelSquare: Buffer } | null = null;
 
-async function loadFont() {
+async function loadFonts() {
   if (fontCache) return fontCache;
-  fontCache = await readFile(join(process.cwd(), "public/Geist-Regular.ttf"));
+  const [geistRegular, geistPixelSquare] = await Promise.all([
+    readFile(join(process.cwd(), "public/Geist-Regular.ttf")),
+    readFile(join(process.cwd(), "public/GeistPixel-Square.ttf")),
+  ]);
+  fontCache = { geistRegular, geistPixelSquare };
   return fontCache;
 }
 
 export async function renderOgImage(title: string) {
-  const geistRegular = await loadFont();
+  const { geistRegular, geistPixelSquare } = await loadFonts();
 
   return new ImageResponse(
     <div
@@ -22,7 +26,7 @@ export async function renderOgImage(title: string) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#0a0a0a",
+        backgroundColor: "black",
         padding: "60px 80px",
       }}
     >
@@ -30,23 +34,26 @@ export async function renderOgImage(title: string) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "12px",
+          gap: "16px",
         }}
       >
+        <svg width="36" height="36" viewBox="0 0 16 16" fill="white">
+          <path fillRule="evenodd" clipRule="evenodd" d="M8 1L16 15H0L8 1Z" />
+        </svg>
         <span
           style={{
-            fontSize: 32,
+            fontSize: 36,
+            color: "#666",
             fontFamily: "Geist",
             fontWeight: 400,
-            color: "#888",
           }}
         >
-          $
+          /
         </span>
         <span
           style={{
-            fontSize: 32,
-            fontFamily: "Geist",
+            fontSize: 36,
+            fontFamily: "GeistPixelSquare",
             fontWeight: 400,
             color: "white",
           }}
@@ -89,6 +96,12 @@ export async function renderOgImage(title: string) {
         {
           name: "Geist",
           data: geistRegular.buffer as ArrayBuffer,
+          style: "normal",
+          weight: 400,
+        },
+        {
+          name: "GeistPixelSquare",
+          data: geistPixelSquare.buffer as ArrayBuffer,
           style: "normal",
           weight: 400,
         },

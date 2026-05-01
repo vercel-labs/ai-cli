@@ -1,5 +1,5 @@
 export const PAGE_TITLES: Record<string, string> = {
-  "": "Minimal Terminal\nAI Assistant",
+  "": "Generate Anything\nfrom Your Terminal",
   installation: "Installation",
   commands: "Commands",
   models: "Models",
