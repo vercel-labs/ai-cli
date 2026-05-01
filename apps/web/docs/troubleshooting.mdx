@@ -1,0 +1,68 @@
+---
+title: Troubleshooting
+description: Common issues and how to resolve them.
+order: 8
+---
+
+## Missing API key
+
+```
+Error: No API key found
+```
+
+Set one of the following environment variables:
+
+```bash
+export AI_GATEWAY_API_KEY="your-key"   # recommended — access to all models
+export OPENAI_API_KEY="sk-..."         # OpenAI models only
+```
+
+Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across sessions.
+
+## Timeout errors
+
+Requests are aborted if they exceed the per-command timeout:
+
+| Command | Timeout |
+| --- | --- |
+| `text` | 120 seconds |
+| `image` | 120 seconds |
+| `video` | 300 seconds |
+
+If you're consistently hitting timeouts, try a faster model variant (e.g. `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
+
+## `--quality` / `--style` warning
+
+```
+Warning: --quality and --style only apply to OpenAI models
+```
+
+The `--quality` and `--style` flags are OpenAI-specific provider options. They're silently ignored by other providers. Remove these flags when using non-OpenAI image models.
+
+## Version and upgrades
+
+Check your installed version:
+
+```bash
+ai --version
+```
+
+Upgrade to the latest release:
+
+```bash
+npm update -g ai-cli
+```
+
+## Gateway unreachable
+
+If the AI Gateway is unreachable, the `models` command falls back to a built-in list. Generation commands will fail if the gateway is required for routing.
+
+Check your network connection and verify the gateway status at [vercel.com/status](https://www.vercel.com/status).
+
+## No output / empty response
+
+If a command exits with code 0 but produces no visible output, it likely wrote to a file. Check stderr for the "Saved to" message, or use `--json` to see structured metadata including the output path:
+
+```bash
+ai image "a sunset" --json
+```
