@@ -7,6 +7,20 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ai-cli",
   description: "Minimal terminal AI assistant",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "ai-cli",
+    title: "ai-cli | Minimal Terminal AI Assistant",
+    description: "Minimal terminal AI assistant",
+    images: [{ url: "/og", width: 1200, height: 630, alt: "ai-cli" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ai-cli | Minimal Terminal AI Assistant",
+    description: "Minimal terminal AI assistant",
+    images: ["/og"],
+  },
 };
 
 export const viewport: Viewport = {
