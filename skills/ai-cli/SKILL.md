@@ -1,3 +1,8 @@
+---
+name: ai-cli
+description: Generate text, images, and video from the terminal using AI models.
+---
+
 # ai-cli
 
 Generate text, images, and video from the terminal using AI models.
