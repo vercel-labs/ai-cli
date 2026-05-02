@@ -188,13 +188,21 @@ See [Installation](/docs/installation#shell-completions) for setup instructions.
 
 Requests that exceed the per-command timeout are aborted automatically:
 
-| Command | Timeout |
+| Command | Default timeout |
 | --- | --- |
 | `text` | 120 seconds |
 | `image` | 120 seconds |
 | `video` | 300 seconds |
 
 Video generation uses a longer timeout because models typically need more processing time.
+
+Override the default with `--timeout <seconds>`. Useful for complex prompts where the default is too tight:
+
+```bash
+ai image "complex sprite atlas with 72 cells..." --timeout 600
+ai text "long structured response..." --timeout 300
+ai video "extended scene..." --timeout 900
+```
 
 ## Exit codes
 

@@ -21,6 +21,7 @@ interface TextOptions {
   concurrency?: string;
   quiet?: boolean;
   json?: boolean;
+  timeout?: string;
 }
 
 function resolveFormat(fmt?: string): OutputFormat {
@@ -50,6 +51,10 @@ export function registerTextCommand(program: Command) {
     .option("-t, --temperature <n>", "Temperature (0-2)")
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON")
+    .option(
+      "--timeout <seconds>",
+      `Per-request timeout in seconds (default: ${DEFAULT_TIMEOUT_MS / 1000})`
+    )
     .action(async (rawPrompt: string | undefined, opts: TextOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
@@ -82,10 +87,14 @@ export function registerTextCommand(program: Command) {
 
       const jobs = buildJobs(models, countPerModel);
 
+      const timeoutMs = opts.timeout
+        ? parsePositiveInt(opts.timeout, "timeout") * 1000
+        : DEFAULT_TIMEOUT_MS;
+
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
-          const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+          const abort = AbortSignal.timeout(timeoutMs);
           const result = await generateText({
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
