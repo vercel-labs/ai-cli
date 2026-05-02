@@ -10,7 +10,7 @@ export function Window({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-white/10 bg-[#0A0A0A] shadow-[0_40px_80px_rgba(0,0,0,0.55)] ring-1 ring-white/5">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#0A0A0A] shadow-[0_40px_80px_rgba(0,0,0,0.55)] ring-1 ring-white/5">
       {bar ? (
         <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/10 px-4 py-3">
           <div className="flex items-center gap-2">

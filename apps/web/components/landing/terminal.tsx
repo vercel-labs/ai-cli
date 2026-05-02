@@ -82,7 +82,7 @@ export function Terminal() {
   const rows = useMemo(() => active.data, [active]);
 
   return (
-    <div className="group flex h-[460px] flex-col transition-all duration-300 md:h-[520px]">
+    <div className="group flex h-[460px] flex-col overflow-hidden transition-all duration-300 md:h-[520px]">
       <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/15 px-3 py-2">
         <div className="flex items-center gap-3 font-mono text-[11px] text-white/40 tabular-nums">
           <div>
@@ -95,15 +95,17 @@ export function Terminal() {
         </div>
       </div>
 
-      <div className="terminal-scroll flex-1 overflow-y-auto bg-[#050505] px-4 py-3 font-mono text-[12px] leading-[1.62] tabular-nums">
-        {rows.map((row, index) => (
-          <div
-            key={`${active.name}-${index}`}
-            className={`${style(row.tone)} transition-colors duration-150`}
-          >
-            {row.text || "\u00A0"}
-          </div>
-        ))}
+      <div className="min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-[#050505] px-4 py-3 font-mono text-[12px] leading-[1.62] tabular-nums">
+        <div className="w-fit min-w-full">
+          {rows.map((row, index) => (
+            <div
+              key={`${active.name}-${index}`}
+              className={`${style(row.tone)} whitespace-nowrap transition-colors duration-150`}
+            >
+              {row.text || "\u00A0"}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="border-t border-white/[0.06] bg-black/15 px-2 py-1.5">

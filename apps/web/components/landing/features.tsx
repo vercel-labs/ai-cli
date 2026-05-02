@@ -60,13 +60,15 @@ function rowstyle(tone: row["tone"]): string {
 
 function Panel({ rows }: { readonly rows: readonly row[] }) {
   return (
-    <div className="flex h-[280px] flex-col bg-[#050505]">
-      <div className="flex-1 px-5 py-4 font-mono text-[13px] leading-[1.65] tabular-nums whitespace-pre">
-        {rows.map((entry, index) => (
-          <div key={`${entry.text}-${index}`} className={rowstyle(entry.tone)}>
-            {entry.text || "\u00A0"}
-          </div>
-        ))}
+    <div className="flex h-[280px] flex-col overflow-hidden bg-[#050505]">
+      <div className="flex-1 overflow-x-auto overflow-y-auto px-5 py-4 font-mono text-[12px] leading-[1.65] tabular-nums sm:text-[13px]">
+        <div className="w-fit min-w-full whitespace-pre">
+          {rows.map((entry, index) => (
+            <div key={`${entry.text}-${index}`} className={rowstyle(entry.tone)}>
+              {entry.text || "\u00A0"}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -88,8 +90,8 @@ function Spotlight({
   readonly window: ReactNode;
 }) {
   return (
-    <div className="grid items-center gap-10 md:grid-cols-2 md:gap-16">
-      <div className={flip ? "order-2 md:order-2" : "order-2 md:order-1"}>
+    <div className="grid min-w-0 items-center gap-10 overflow-hidden md:grid-cols-2 md:gap-16">
+      <div className={`min-w-0 ${flip ? "order-1 md:order-2" : "order-1 md:order-1"}`}>
         <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           {title}
         </h2>
@@ -106,9 +108,9 @@ function Spotlight({
         </ul>
       </div>
 
-      <div className={flip ? "order-1 md:order-1" : "order-1 md:order-2"}>
+      <div className={`min-w-0 ${flip ? "order-2 md:order-1" : "order-2 md:order-2"}`}>
         <Stage tone={tone}>
-          <div className="mx-auto w-full max-w-[1160px]">
+          <div className="mx-auto w-full min-w-0 max-w-[1160px]">
             <Window title="" bar={false}>
               {window}
             </Window>
@@ -122,7 +124,7 @@ function Spotlight({
 export function Features() {
   return (
     <section>
-      <div className="mx-auto max-w-[1320px] px-6 pt-20 pb-20 md:pt-28 md:pb-28">
+      <div className="mx-auto max-w-[1320px] overflow-hidden px-6 pt-20 pb-20 md:pt-28 md:pb-28">
         <div className="space-y-16 md:space-y-28">
           <Spotlight
             tone="slate"

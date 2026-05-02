@@ -36,7 +36,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="mx-auto mt-16 max-w-[1320px] px-6 md:mt-20 md:px-0">
+      <div className="mx-auto mt-16 max-w-[1320px] px-6 md:mt-20">
         <div className="landing-fade-up" style={{ animationDelay: "240ms" }}>
           <Stage tone="slate">
             <div className="mx-auto w-full max-w-[1160px]">
