@@ -54,8 +54,17 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 --aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
 --quality <level>        Quality (standard, hd)
 --style <style>          Style (vivid, natural)
+--seed <n>               Random seed for reproducible generations
 --no-preview             Disable inline image preview
 ```
+
+`--seed` is forwarded to `generateImage` as the SDK's top-level `seed` option.
+Providers that honor it (BFL, Stability, fal, several open-source models)
+return reproducible images for a given (prompt, model, seed) tuple. OpenAI
+image models ignore `--seed`; the CLI prints a warning on stderr if every
+selected model is OpenAI and proceeds. Combining `--seed` with `-n > 1`
+yields identical images on supported providers; run separate invocations with
+distinct `--seed` values to generate multiple reproducible variants.
 
 ### video
 

@@ -48,6 +48,7 @@ const IMAGE_FLAGS = [
   "--aspect-ratio",
   "--quality",
   "--style",
+  "--seed",
   "--no-preview",
 ];
 const VIDEO_FLAGS = ["--aspect-ratio", "--duration", "--no-preview"];
@@ -126,6 +127,7 @@ _ai() {
             '--aspect-ratio[Aspect ratio]:ratio:' \\
             '--quality[Quality]:quality:(standard hd)' \\
             '--style[Style]:style:(vivid natural)' \\
+            '--seed[Random seed for reproducible generations]:seed:' \\
             '--no-preview[Disable inline image preview]' \\
             '-q[Quiet]' \\
             '--quiet[Quiet]' \\
