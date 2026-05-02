@@ -138,11 +138,18 @@ The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` fla
 
 Requests that exceed the timeout are aborted automatically:
 
-| Command | Timeout |
+| Command | Default timeout |
 |---|---|
 | `text` | 120 seconds |
 | `image` | 120 seconds |
 | `video` | 300 seconds |
+
+Override with `--timeout <seconds>` per command. Useful for complex prompts (large images, long sprite atlases) where the default is too tight:
+
+```bash
+ai image "complex sprite atlas..." --timeout 600
+ai video "longer scene..." --timeout 900
+```
 
 ### Exit Codes
 

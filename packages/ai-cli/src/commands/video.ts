@@ -23,6 +23,7 @@ interface VideoOptions {
   json?: boolean;
   concurrency?: string;
   preview?: boolean;
+  timeout?: string;
 }
 
 export function registerVideoCommand(program: Command) {
@@ -47,6 +48,10 @@ export function registerVideoCommand(program: Command) {
     .option(
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
+    )
+    .option(
+      "--timeout <seconds>",
+      `Per-request timeout in seconds (default: ${DEFAULT_TIMEOUT_MS / 1000})`
     )
     .action(async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
@@ -78,10 +83,14 @@ export function registerVideoCommand(program: Command) {
 
       const jobs = buildJobs(models, countPerModel);
 
+      const timeoutMs = opts.timeout
+        ? parsePositiveInt(opts.timeout, "timeout") * 1000
+        : DEFAULT_TIMEOUT_MS;
+
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
-          const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+          const abort = AbortSignal.timeout(timeoutMs);
           const result = await generateVideo({
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
