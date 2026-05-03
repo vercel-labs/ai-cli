@@ -10,6 +10,7 @@ Generate text, images, and video from the terminal using AI models.
 ## When to Use
 
 Use when you need to:
+
 - Generate images from text prompts or existing images
 - Generate video from text prompts or images
 - Generate text (summaries, explanations, code reviews) from prompts or piped content
@@ -28,6 +29,8 @@ ai image "a sunset over mountains"       # generate an image
 ai video "a spinning triangle"           # generate a video
 ai models --type image                   # list available models
 ```
+
+Single-model `ai text` runs stream tokens to stdout in interactive terminals. Use `--json`, `-o`, or `AI_CLI_OUTPUT_DIR` for buffered output.
 
 ## Key Flags
 
@@ -64,6 +67,7 @@ ai image "a sunset" --json
 ```
 
 Returns:
+
 ```json
 {
   "elapsed_ms": 3420,
@@ -88,7 +92,7 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 
 ## Output Behavior
 
-- **Interactive (TTY)**: saves to file, prints path to stderr
+- **Interactive (TTY)**: text streams to stdout for single-model runs; image/video saves to file and prints path to stderr
 - **Piped (non-TTY)**: writes raw content to stdout for chaining
 - **`-o <dir>`**: saves inside directory with auto-generated names
 

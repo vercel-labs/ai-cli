@@ -67,6 +67,8 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 
 ### text
 
+In interactive terminals, single-model text output streams to stdout as tokens arrive. Use `--json`, `-o`, or `AI_CLI_OUTPUT_DIR` when you need buffered output.
+
 ```
 -f, --format <fmt>       Output format: md, txt (default: md)
 -s, --system <prompt>    System prompt
@@ -104,23 +106,23 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 ### Output Behavior
 
-- **text**: saves to `output.md` (interactive), stdout when piped
+- **text**: streams to stdout in interactive terminals for single-model runs, stdout when piped
 - **image/video**: saves to file (interactive), raw binary stdout when piped
 - **`-o <dir>`**: saves inside the directory with auto-generated names
 
 ### Environment Variables
 
-| Variable | Description |
-|---|---|
-| `AI_GATEWAY_API_KEY` | AI Gateway authentication key |
-| `OPENAI_API_KEY` | Provider-specific key (or other provider keys) |
-| `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
-| `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
+| Variable             | Description                                              |
+| -------------------- | -------------------------------------------------------- |
+| `AI_GATEWAY_API_KEY` | AI Gateway authentication key                            |
+| `OPENAI_API_KEY`     | Provider-specific key (or other provider keys)           |
+| `AI_CLI_TEXT_MODEL`  | Default text model (overrides `openai/gpt-5.5`)          |
+| `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`)     |
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |
-| `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
-| `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
-| `NO_COLOR` | Disable ANSI color output |
-| `FORCE_COLOR` | Force color output even when not a TTY |
+| `AI_CLI_OUTPUT_DIR`  | Default output directory for generated files             |
+| `AI_CLI_PREVIEW`     | Set to `1` to force inline image preview, `0` to disable |
+| `NO_COLOR`           | Disable ANSI color output                                |
+| `FORCE_COLOR`        | Force color output even when not a TTY                   |
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 
@@ -128,19 +130,19 @@ The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` fla
 
 Requests that exceed the timeout are aborted automatically:
 
-| Command | Timeout |
-|---|---|
-| `text` | 120 seconds |
+| Command | Timeout     |
+| ------- | ----------- |
+| `text`  | 120 seconds |
 | `image` | 120 seconds |
 | `video` | 300 seconds |
 
 ### Exit Codes
 
-| Code | Meaning |
-|---|---|
-| `0` | Success |
-| `1` | All generations failed |
-| `2` | Partial failure (some succeeded, some failed) |
+| Code | Meaning                                       |
+| ---- | --------------------------------------------- |
+| `0`  | Success                                       |
+| `1`  | All generations failed                        |
+| `2`  | Partial failure (some succeeded, some failed) |
 
 ## License
 
