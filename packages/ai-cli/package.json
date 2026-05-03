@@ -1,6 +1,6 @@
 {
   "name": "ai-cli",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A tiny, agent-native CLI for generating images, video and text with dead-simple commands, stdin support and predictable artifact outputs",
   "type": "module",
   "license": "Apache-2.0",
