@@ -18,14 +18,14 @@ The `-m` flag always takes priority over environment variables.
 
 ## Specifying a model
 
-Use `provider/model-name` format:
+Use `creator/model-name` format:
 
 ```bash
 ai text -m "anthropic/claude-sonnet-4" "hello"
 ai image -m "bfl/flux-2-pro" "a sunset"
 ```
 
-Short names (without the provider prefix) are resolved against models fetched from the gateway:
+Short names (without the creator prefix) are resolved against models fetched from the gateway:
 
 ```bash
 ai text -m gpt-5.5 "hello"
@@ -53,11 +53,11 @@ This produces 4 images total (2 per model), saved as `output-1.png` through `out
 ```bash
 ai models                          # all models
 ai models --type image             # image models only
-ai models --provider google        # Google models only
+ai models --creator google         # Google models only
 ai models --json                   # JSON with descriptions
 ```
 
-In human mode, models are grouped by provider and display short names. Use `--json` for machine-readable output with full IDs and descriptions.
+In human mode, models are grouped by creator and display short names. Use `--json` for machine-readable output with full IDs and descriptions.
 
 ## Providers
 

@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
-import { resolveModels, fetchGatewayModels } from "./models.js";
+import {
+  resolveModels,
+  fetchGatewayModels,
+  resetGatewayCache,
+} from "./models.js";
 
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  resetGatewayCache();
 });
 
 function mockGateway(models: Record<string, unknown>[]) {
@@ -37,13 +42,16 @@ describe("resolveModels", () => {
   });
 
   test("expands short names when knownModels provided", () => {
-    const known = [{ id: "openai/gpt-image-1" }, { id: "bfl/flux-2-pro" }];
-    expect(resolveModels("image", "gpt-image-1", known)).toEqual([
-      "openai/gpt-image-1",
-    ]);
-    expect(resolveModels("image", "flux-2-pro", known)).toEqual([
-      "bfl/flux-2-pro",
-    ]);
+    const known = [
+      { id: "openai/gpt-image-1", creator: "openai", capabilities: ["image"] },
+      { id: "bfl/flux-2-pro", creator: "bfl", capabilities: ["image"] },
+    ] as const;
+    expect(
+      resolveModels("image", "gpt-image-1", known as never)
+    ).toEqual(["openai/gpt-image-1"]);
+    expect(
+      resolveModels("image", "flux-2-pro", known as never)
+    ).toEqual(["bfl/flux-2-pro"]);
   });
 
   test("returns unknown short names as-is when no knownModels", () => {
@@ -51,8 +59,10 @@ describe("resolveModels", () => {
   });
 
   test("returns unknown short names as-is when not in knownModels", () => {
-    const known = [{ id: "openai/gpt-5" }];
-    expect(resolveModels("text", "nonexistent", known)).toEqual([
+    const known = [
+      { id: "openai/gpt-5", creator: "openai", capabilities: ["text"] },
+    ] as const;
+    expect(resolveModels("text", "nonexistent", known as never)).toEqual([
       "nonexistent",
     ]);
   });
@@ -79,8 +89,15 @@ describe("resolveModels multi", () => {
   });
 
   test("expands short names in comma list", () => {
-    const known = [{ id: "openai/gpt-image-1" }, { id: "bfl/flux-2-pro" }];
-    const result = resolveModels("image", "gpt-image-1,flux-2-pro", known);
+    const known = [
+      { id: "openai/gpt-image-1", creator: "openai", capabilities: ["image"] },
+      { id: "bfl/flux-2-pro", creator: "bfl", capabilities: ["image"] },
+    ] as const;
+    const result = resolveModels(
+      "image",
+      "gpt-image-1,flux-2-pro",
+      known as never
+    );
     expect(result).toEqual(["openai/gpt-image-1", "bfl/flux-2-pro"]);
   });
 
@@ -97,20 +114,36 @@ describe("resolveModels multi", () => {
 });
 
 describe("fetchGatewayModels", () => {
-  test("partitions models by type", async () => {
+  test("partitions models by type with enriched fields", async () => {
     mockGateway([
-      { id: "openai/gpt-5", name: "GPT 5", type: "language", tags: [] },
+      {
+        id: "openai/gpt-5",
+        name: "GPT 5",
+        owned_by: "openai",
+        type: "language",
+        tags: [],
+        pricing: { input: "0.000003", output: "0.000015" },
+      },
       {
         id: "openai/gpt-image-2",
         name: "GPT Image 2",
         description: "Image gen",
+        owned_by: "openai",
         type: "image",
         tags: ["image-generation"],
+        pricing: { image: "0.02" },
       },
-      { id: "google/veo-3.0", name: "Veo 3", type: "video", tags: [] },
+      {
+        id: "google/veo-3.0",
+        name: "Veo 3",
+        owned_by: "google",
+        type: "video",
+        tags: [],
+      },
       {
         id: "openai/text-embedding-3",
         name: "Embedding",
+        owned_by: "openai",
         type: "embedding",
         tags: [],
       },
@@ -118,19 +151,29 @@ describe("fetchGatewayModels", () => {
 
     const result = await fetchGatewayModels();
 
-    expect(result.text).toEqual([
-      { id: "openai/gpt-5", name: "GPT 5", description: undefined },
-    ]);
-    expect(result.image).toEqual([
-      {
-        id: "openai/gpt-image-2",
-        name: "GPT Image 2",
-        description: "Image gen",
-      },
-    ]);
-    expect(result.video).toEqual([
-      { id: "google/veo-3.0", name: "Veo 3", description: undefined },
-    ]);
+    expect(result.text).toHaveLength(1);
+    expect(result.text[0].id).toBe("openai/gpt-5");
+    expect(result.text[0].creator).toBe("openai");
+    expect(result.text[0].capabilities).toEqual(["text"]);
+    expect(result.text[0].pricing).toEqual({
+      input: "0.000003",
+      output: "0.000015",
+    });
+
+    expect(result.image).toHaveLength(1);
+    expect(result.image[0].id).toBe("openai/gpt-image-2");
+    expect(result.image[0].creator).toBe("openai");
+    expect(result.image[0].capabilities).toEqual(["image"]);
+    expect(result.image[0].description).toBe("Image gen");
+    expect(result.image[0].pricing).toEqual({ image: "0.02" });
+
+    expect(result.video).toHaveLength(1);
+    expect(result.video[0].id).toBe("google/veo-3.0");
+    expect(result.video[0].creator).toBe("google");
+    expect(result.video[0].capabilities).toEqual(["video"]);
+
+    // embedding type is excluded
+    expect(result.all).toHaveLength(3);
   });
 
   test("language models with image-generation tag appear in both text and image", async () => {
@@ -138,12 +181,14 @@ describe("fetchGatewayModels", () => {
       {
         id: "google/gemini-2.5-flash-image",
         name: "Gemini Flash Image",
+        owned_by: "google",
         type: "language",
         tags: ["image-generation"],
       },
       {
         id: "openai/gpt-image-2",
         name: "GPT Image 2",
+        owned_by: "openai",
         type: "image",
         tags: ["image-generation"],
       },
@@ -158,6 +203,12 @@ describe("fetchGatewayModels", () => {
       "google/gemini-2.5-flash-image"
     );
     expect(result.image.map((m) => m.id)).toContain("openai/gpt-image-2");
+
+    const gemini = result.all.find(
+      (m) => m.id === "google/gemini-2.5-flash-image"
+    )!;
+    expect(gemini.capabilities).toEqual(["text", "image"]);
+
     expect(
       result.languageImageModelIds.has("google/gemini-2.5-flash-image")
     ).toBe(true);
@@ -169,6 +220,7 @@ describe("fetchGatewayModels", () => {
       {
         id: "openai/gpt-5",
         name: "GPT 5",
+        owned_by: "openai",
         type: "language",
         tags: ["tool-use"],
       },
@@ -179,6 +231,7 @@ describe("fetchGatewayModels", () => {
     expect(result.text).toHaveLength(1);
     expect(result.image).toHaveLength(0);
     expect(result.languageImageModelIds.size).toBe(0);
+    expect(result.all[0].capabilities).toEqual(["text"]);
   });
 
   test("returns empty lists on gateway error", async () => {
@@ -189,6 +242,7 @@ describe("fetchGatewayModels", () => {
     expect(result.text).toHaveLength(0);
     expect(result.image).toHaveLength(0);
     expect(result.video).toHaveLength(0);
+    expect(result.all).toHaveLength(0);
     expect(result.languageImageModelIds.size).toBe(0);
   });
 
@@ -202,5 +256,64 @@ describe("fetchGatewayModels", () => {
     expect(result.text).toHaveLength(0);
     expect(result.image).toHaveLength(0);
     expect(result.video).toHaveLength(0);
+    expect(result.all).toHaveLength(0);
+  });
+
+  test("caches result across multiple calls", async () => {
+    const fetchMock = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "openai/gpt-5",
+                name: "GPT 5",
+                owned_by: "openai",
+                type: "language",
+                tags: [],
+              },
+            ],
+          }),
+          { status: 200 }
+        )
+      )
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const r1 = await fetchGatewayModels();
+    const r2 = await fetchGatewayModels();
+
+    expect(r1).toBe(r2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("pricing is omitted when all pricing fields are empty", async () => {
+    mockGateway([
+      {
+        id: "openai/gpt-5",
+        name: "GPT 5",
+        owned_by: "openai",
+        type: "language",
+        tags: [],
+        pricing: {},
+      },
+    ]);
+
+    const result = await fetchGatewayModels();
+    expect(result.text[0].pricing).toBeUndefined();
+  });
+
+  test("falls back to parsing creator from id when owned_by is absent", async () => {
+    mockGateway([
+      {
+        id: "openai/gpt-5",
+        name: "GPT 5",
+        type: "language",
+        tags: [],
+      },
+    ]);
+
+    const result = await fetchGatewayModels();
+    expect(result.text[0].creator).toBe("openai");
   });
 });

@@ -57,12 +57,13 @@ export function registerImageCommand(program: Command) {
         );
         process.exit(1);
       }
-      let imagePrompt: string | { images: Uint8Array[]; text?: string } =
-        prompt!;
+      let imagePrompt: string | { images: Uint8Array[]; text?: string };
       if (stdin) {
         imagePrompt = prompt
           ? { images: [new Uint8Array(stdin)], text: prompt }
           : { images: [new Uint8Array(stdin)] };
+      } else {
+        imagePrompt = prompt!;
       }
 
       const gatewayModels = await fetchGatewayModels();

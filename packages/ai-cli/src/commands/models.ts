@@ -1,14 +1,16 @@
 import type { Command } from "commander";
 
-import { fetchGatewayModels, type ModelEntry } from "../lib/models.js";
+import {
+  fetchGatewayModels,
+  type Modality,
+  type ModelEntry,
+} from "../lib/models.js";
 
-function groupByProvider(models: ModelEntry[]): Map<string, ModelEntry[]> {
+function groupByCreator(models: ModelEntry[]): Map<string, ModelEntry[]> {
   const groups = new Map<string, ModelEntry[]>();
   for (const m of models) {
-    const slash = m.id.indexOf("/");
-    const provider = slash !== -1 ? m.id.slice(0, slash) : "other";
-    if (!groups.has(provider)) groups.set(provider, []);
-    groups.get(provider)!.push(m);
+    if (!groups.has(m.creator)) groups.set(m.creator, []);
+    groups.get(m.creator)!.push(m);
   }
   return new Map(
     [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))
@@ -25,61 +27,42 @@ export function registerModelsCommand(program: Command) {
     .command("models")
     .description("List available models from AI Gateway")
     .option("--type <type>", "Filter by type: text, image, video")
-    .option("--provider <name>", "Filter by provider (e.g. openai, google)")
+    .option("--creator <name>", "Filter by creator (e.g. openai, google)")
     .option("--json", "Output as JSON (includes descriptions)")
     .action(
-      async (opts: { type?: string; provider?: string; json?: boolean }) => {
+      async (opts: { type?: string; creator?: string; json?: boolean }) => {
         const validTypes = ["text", "image", "video"];
-        const filterType = opts.type?.toLowerCase();
+        const filterType = opts.type?.toLowerCase() as Modality | undefined;
         if (filterType && !validTypes.includes(filterType)) {
           process.stderr.write(
             `Error: --type must be one of: ${validTypes.join(", ")} (got "${opts.type}")\n`
           );
           process.exit(1);
         }
-        const filterProvider = opts.provider?.toLowerCase();
+        const filterCreator = opts.creator?.toLowerCase();
 
         const gatewayModels = await fetchGatewayModels();
 
-        const filterGrouped = (grouped: Map<string, ModelEntry[]>) => {
-          if (!filterProvider) return grouped;
-          const filtered = new Map<string, ModelEntry[]>();
-          for (const [provider, models] of grouped) {
-            if (provider.toLowerCase() === filterProvider) {
-              filtered.set(provider, models);
-            }
-          }
-          return filtered;
-        };
-
         if (opts.json) {
-          const output: Record<string, unknown> = {};
-          const jsonMapper = (m: ModelEntry) => ({
+          let entries = gatewayModels.all;
+          if (filterType) {
+            entries = entries.filter((m) =>
+              m.capabilities.includes(filterType)
+            );
+          }
+          if (filterCreator) {
+            entries = entries.filter(
+              (m) => m.creator.toLowerCase() === filterCreator
+            );
+          }
+          const output = entries.map((m) => ({
             id: m.id,
             ...(m.name ? { name: m.name } : {}),
             ...(m.description ? { description: m.description } : {}),
-          });
-          if (!filterType || filterType === "text") {
-            output.text = Object.fromEntries(
-              [...filterGrouped(groupByProvider(gatewayModels.text))].map(
-                ([provider, models]) => [provider, models.map(jsonMapper)]
-              )
-            );
-          }
-          if (!filterType || filterType === "image") {
-            output.image = Object.fromEntries(
-              [...filterGrouped(groupByProvider(gatewayModels.image))].map(
-                ([provider, models]) => [provider, models.map(jsonMapper)]
-              )
-            );
-          }
-          if (!filterType || filterType === "video") {
-            output.video = Object.fromEntries(
-              [...filterGrouped(groupByProvider(gatewayModels.video))].map(
-                ([provider, models]) => [provider, models.map(jsonMapper)]
-              )
-            );
-          }
+            creator: m.creator,
+            capabilities: m.capabilities,
+            ...(m.pricing ? { pricing: m.pricing } : {}),
+          }));
           process.stdout.write(JSON.stringify(output, null, 2) + "\n");
           return;
         }
@@ -94,13 +77,26 @@ export function registerModelsCommand(program: Command) {
 
         let totalCount = 0;
         for (const section of sections) {
-          const grouped = filterGrouped(groupByProvider(section.entries));
-          const count = [...grouped.values()].reduce((s, m) => s + m.length, 0);
+          let entries = section.entries;
+          if (filterCreator) {
+            entries = entries.filter(
+              (m) => m.creator.toLowerCase() === filterCreator
+            );
+          }
+          const grouped = groupByCreator(
+            entries.length !== section.entries.length
+              ? entries
+              : section.entries
+          );
+          const count = [...grouped.values()].reduce(
+            (s, m) => s + m.length,
+            0
+          );
           if (count === 0) continue;
           totalCount += count;
           process.stdout.write(`\n${section.title} models (${count}):\n`);
-          for (const [provider, models] of grouped) {
-            process.stdout.write(`\n  ${provider}\n`);
+          for (const [creator, models] of grouped) {
+            process.stdout.write(`\n  ${creator}\n`);
             for (const m of models) {
               process.stdout.write(`    ${modelName(m.id)}\n`);
             }

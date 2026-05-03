@@ -109,7 +109,7 @@ ai text "summarize this" < notes.txt
 
 <Properties>
   <Property name="-m, --model" type="string">
-    Model ID (`provider/model`). Comma-separated for multi-model.
+    Model ID (`creator/model`). Comma-separated for multi-model.
   </Property>
   <Property name="-o, --output" type="path">
     Output file path or directory.
@@ -149,7 +149,7 @@ List available models from the AI Gateway.
 ```bash
 ai models
 ai models --type image
-ai models --provider openai --json
+ai models --creator openai --json
 ```
 
 ### Options
@@ -158,8 +158,8 @@ ai models --provider openai --json
   <Property name="--type" type="text | image | video">
     Filter by modality.
   </Property>
-  <Property name="--provider" type="string">
-    Filter by provider (e.g. `openai`, `google`).
+  <Property name="--creator" type="string">
+    Filter by creator (e.g. `openai`, `google`).
   </Property>
   <Property name="--json" type="boolean">
     Output as JSON with descriptions.

@@ -40,7 +40,7 @@ All commands support:
 --json                   Output metadata as JSON
 ```
 
-Model IDs can be specified as `provider/model-name` or just `model-name` (resolved against models fetched from the gateway):
+Model IDs can be specified as `creator/model-name` or just `model-name` (resolved against models fetched from the gateway):
 
 ```bash
 ai text -m gpt-5.5 "hello"          # resolves to openai/gpt-5.5
@@ -78,7 +78,7 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 
 ```
 --type <type>            Filter by type: text, image, video
---provider <name>        Filter by provider (e.g. openai, google)
+--creator <name>         Filter by creator (e.g. openai, google)
 --json                   Output as JSON (includes descriptions)
 ```
 
