@@ -92,6 +92,8 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 - **Piped (non-TTY)**: writes raw content to stdout for chaining
 - **`-o <dir>`**: saves inside directory with auto-generated names
 
+**Important for agents**: Always use `-o` to save to a file when generating images or video. Without `-o` in a non-TTY context, raw binary data is written to stdout, which wastes context and is not useful for agents. Use `-o output.png` (or a directory) and read the file path from `--json` output instead.
+
 ## Timeouts
 
 - text/image: 120 seconds
