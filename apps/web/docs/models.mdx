@@ -25,7 +25,7 @@ ai text -m "anthropic/claude-sonnet-4" "hello"
 ai image -m "bfl/flux-2-pro" "a sunset"
 ```
 
-Short names (without the provider prefix) are resolved against the known model list:
+Short names (without the provider prefix) are resolved against models fetched from the gateway:
 
 ```bash
 ai text -m gpt-5.5 "hello"

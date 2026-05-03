@@ -55,7 +55,7 @@ npm update -g ai-cli
 
 ## Gateway unreachable
 
-If the AI Gateway is unreachable, the `models` command falls back to a built-in list. Generation commands will fail if the gateway is required for routing.
+If the AI Gateway is unreachable, the `models` command will return an empty list and short-name resolution will be unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Generation commands will still work if you specify the full model ID with `-m`.
 
 Check your network connection and verify the gateway status at [vercel.com/status](https://www.vercel.com/status).
 

@@ -47,7 +47,7 @@ export function Footer() {
               <span>multi-model comparison</span>
               <span>stdin/stdout piping</span>
               <span>inline preview</span>
-              <span>shell completions</span>
+              <span>live model discovery</span>
             </div>
           </div>
 

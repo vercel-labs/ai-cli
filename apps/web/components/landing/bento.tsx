@@ -17,8 +17,8 @@ const items: readonly item[] = [
   },
   {
     id: "003",
-    title: "Shell completions",
-    body: "Tab completion for commands, flags, and model names. Supports zsh, bash, and fish. Run ai completions <shell> to get started.",
+    title: "Live model discovery",
+    body: "Models are fetched directly from the AI Gateway — no hardcoded lists to maintain. Use short names or full provider/model IDs.",
   },
   {
     id: "004",
