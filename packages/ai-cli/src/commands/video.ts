@@ -100,6 +100,7 @@ export function registerVideoCommand(program: Command) {
           noun: "video",
           format: "video",
           outputPath: opts.output,
+          prompt,
           quiet: opts.quiet,
           json: opts.json,
           display: opts.preview,

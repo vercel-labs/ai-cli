@@ -104,9 +104,12 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 ### Output Behavior
 
-- **text**: saves to `output.md` (interactive), stdout when piped
-- **image/video**: saves to file (interactive), raw binary stdout when piped
-- **`-o <dir>`**: saves inside the directory with auto-generated names
+Generated files are saved to `~/.ai-cli/generations/` by default, with filenames derived from the prompt (e.g. `a-sunset-a3f2.png`). Each file gets a short random hex suffix to avoid collisions.
+
+- **Interactive (TTY)**: saves to `~/.ai-cli/generations/<slug>-<hex>.<ext>`
+- **Piped (non-TTY)**: writes raw content to stdout for chaining
+- **`-o <path>`**: saves to the exact path specified
+- **`-o <dir>`**: saves inside the directory with smart names
 
 ### Environment Variables
 
@@ -117,7 +120,7 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 | `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
 | `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |
-| `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
+| `AI_CLI_OUTPUT_DIR` | Default output directory (overrides `~/.ai-cli/generations/`) |
 | `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
 | `NO_COLOR` | Disable ANSI color output |
 | `FORCE_COLOR` | Force color output even when not a TTY |
