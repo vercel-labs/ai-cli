@@ -36,6 +36,9 @@
     "prepublishOnly": "bun run typecheck"
   },
   "dependencies": {
+    "@ai-sdk/fal": "^2.0.33",
+    "@ai-sdk/openai": "^3.0.58",
+    "@openrouter/ai-sdk-provider": "^2.9.0",
     "ai": "^6.0.173",
     "commander": "^14.0.3"
   },

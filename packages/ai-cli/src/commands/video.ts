@@ -1,6 +1,7 @@
-import { experimental_generateVideo as generateVideo, gateway } from "ai";
+import { experimental_generateVideo as generateVideo } from "ai";
 import type { Command } from "commander";
 
+import { createProvider } from "../lib/provider.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import {
@@ -65,8 +66,17 @@ export function registerVideoCommand(program: Command) {
           : { image: new Uint8Array(stdin) };
       }
 
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("video", opts.model, gatewayModels.video);
+      const provider = createProvider();
+      if (!provider.video) {
+        process.stderr.write(
+          `Error: video generation is not supported with the "${provider.backend}" backend alone.\n` +
+          `Set FAL_KEY to enable video via fal.ai (Kling, Wan, HunyuanVideo, Runway Gen3),\n` +
+          `or use AI_GATEWAY_API_KEY for Vercel AI Gateway.\n`
+        );
+        process.exit(1);
+      }
+      const gatewayModels = await fetchGatewayModels(provider.backend);
+      const models = resolveModels("video", opts.model, gatewayModels.video, provider.backend);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -88,7 +98,7 @@ export function registerVideoCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway.video(modelId),
+            model: provider.video!(modelId),
             prompt: videoPrompt,
             abortSignal: abort,
             aspectRatio,
