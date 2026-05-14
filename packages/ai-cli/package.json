@@ -8,11 +8,14 @@
     "type": "git",
     "url": "https://github.com/vercel-labs/ai-cli.git"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
-    "ai": "./src/index.ts"
+    "ai": "./dist/index.js"
   },
   "files": [
-    "src",
+    "dist",
     "README.md"
   ],
   "keywords": [
@@ -27,13 +30,14 @@
   ],
   "scripts": {
     "dev": "bun run src/index.ts",
-    "build": "bun build src/index.ts --compile --outfile=dist/ai",
+    "clean": "bun -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "bun run clean && bun build src/index.ts --target=node --outdir=dist",
     "typecheck": "tsc --noEmit",
     "format": "oxfmt --write src/",
     "format:check": "oxfmt --check src/",
     "lint": "oxlint src/",
     "test": "bun test",
-    "prepublishOnly": "bun run typecheck"
+    "prepack": "bun run typecheck && bun run build"
   },
   "dependencies": {
     "ai": "^6.0.173",

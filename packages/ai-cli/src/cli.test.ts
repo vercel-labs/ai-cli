@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import pkg from "../package.json";
+
 const CLI = ["bun", "run", "src/index.ts"];
 const ROOT = import.meta.dir + "/..";
 
@@ -19,6 +21,12 @@ async function run(...args: string[]) {
 }
 
 describe("cli integration", () => {
+  test("published bin targets built JavaScript", () => {
+    expect(pkg.bin.ai).toBe("./dist/index.js");
+    expect(pkg.files).toContain("dist");
+    expect(pkg.files).not.toContain("src");
+  });
+
   test("--help exits 0 and lists subcommands", async () => {
     const { exitCode, stdout } = await run("--help");
     expect(exitCode).toBe(0);

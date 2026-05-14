@@ -8,7 +8,7 @@ A tiny, agent-native CLI for generating images, video and text with dead-simple 
 npm install -g ai-cli
 ```
 
-Requires an [AI Gateway](https://vercel.com/docs/ai-gateway) API key or a provider-specific key (e.g. `OPENAI_API_KEY`).
+Requires Node.js 20+ and an [AI Gateway](https://vercel.com/docs/ai-gateway) API key or a provider-specific key (e.g. `OPENAI_API_KEY`).
 
 ## Usage
 
