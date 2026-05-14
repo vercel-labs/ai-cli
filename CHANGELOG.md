@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.1
+
+<!-- release:start -->
+
+### Bug Fixes
+
+- **Published CLI binary** — packages `ai` as a Node-targeted `dist/index.js` bundle and points npm's `bin`/`files` metadata at `dist`, fixing global installs that could not execute the TypeScript source (#52)
+
+### Improvements
+
+- **Node engine requirement** — declares and documents the Node.js 20+ runtime requirement for the CLI package (#52)
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
 ## 0.2.0
 
 <!-- release:start -->
