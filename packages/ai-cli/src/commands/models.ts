@@ -41,7 +41,9 @@ export function registerModelsCommand(program: Command) {
         }
         const filterCreator = opts.creator?.toLowerCase();
 
-        const gatewayModels = await fetchGatewayModels();
+        const { createProvider } = await import("../lib/provider.js");
+        const provider = createProvider();
+        const gatewayModels = await fetchGatewayModels(provider.backend);
 
         if (opts.json) {
           let entries = gatewayModels.all;

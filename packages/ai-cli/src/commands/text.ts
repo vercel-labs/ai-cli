@@ -1,6 +1,7 @@
-import { generateText, gateway } from "ai";
+import { generateText } from "ai";
 import type { Command } from "commander";
 
+import { createProvider } from "../lib/provider.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
@@ -68,9 +69,10 @@ export function registerTextCommand(program: Command) {
         fullPrompt = prompt!;
       }
 
+      const provider = createProvider();
       const format = resolveFormat(opts.format);
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("text", opts.model, gatewayModels.text);
+      const gatewayModels = await fetchGatewayModels(provider.backend);
+      const models = resolveModels("text", opts.model, gatewayModels.text, provider.backend);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -92,7 +94,7 @@ export function registerTextCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway(modelId),
+            model: provider.text(modelId),
             prompt: fullPrompt,
             system: opts.system,
             maxOutputTokens: maxTokens,

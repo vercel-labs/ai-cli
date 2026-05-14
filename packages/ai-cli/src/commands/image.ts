@@ -1,6 +1,7 @@
-import { generateImage, generateText, gateway } from "ai";
+import { generateImage, generateText } from "ai";
 import type { Command } from "commander";
 
+import { createProvider } from "../lib/provider.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
@@ -66,8 +67,9 @@ export function registerImageCommand(program: Command) {
         imagePrompt = prompt!;
       }
 
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("image", opts.model, gatewayModels.image);
+      const provider = createProvider();
+      const gatewayModels = await fetchGatewayModels(provider.backend);
+      const models = resolveModels("image", opts.model, gatewayModels.image, provider.backend);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -93,7 +95,8 @@ export function registerImageCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
 
-          if (gatewayModels.languageImageModelIds.has(modelId)) {
+          // Language-image models (e.g. GPT-4o with image output) — Vercel gateway only
+          if (provider.backend === "vercel" && gatewayModels.languageImageModelIds.has(modelId)) {
             const messageContent: Array<
               | { type: "text"; text: string }
               | { type: "image"; image: Uint8Array }
@@ -104,27 +107,18 @@ export function registerImageCommand(program: Command) {
               for (const img of imagePrompt.images) {
                 messageContent.push({ type: "image", image: img });
               }
-              if (imagePrompt.text) {
-                messageContent.push({
-                  type: "text",
-                  text: imagePrompt.text,
-                });
-              } else {
-                messageContent.push({
-                  type: "text",
-                  text: "Generate an image",
-                });
-              }
+              messageContent.push({
+                type: "text",
+                text: imagePrompt.text ?? "Generate an image",
+              });
             }
-            const creator = gatewayModels.all.find(
-              (m) => m.id === modelId
-            )?.creator;
+            const creator = gatewayModels.all.find((m) => m.id === modelId)?.creator;
             const result = await generateText({
               headers: {
                 "http-referer": "https://github.com/vercel-labs/ai-cli",
                 "x-title": "ai-cli",
               },
-              model: gateway(modelId),
+              model: provider.text(modelId),
               messages: [{ role: "user", content: messageContent }],
               abortSignal: abort,
               providerOptions:
@@ -136,9 +130,7 @@ export function registerImageCommand(program: Command) {
               f.mediaType.startsWith("image/")
             );
             if (!imageFile) {
-              throw new Error(
-                `Model ${modelId} did not return an image in the response`
-              );
+              throw new Error(`Model ${modelId} did not return an image in the response`);
             }
             return Buffer.from(imageFile.uint8Array);
           }
@@ -148,7 +140,7 @@ export function registerImageCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway.image(modelId),
+            model: provider.image(modelId),
             prompt: imagePrompt,
             abortSignal: abort,
             n: 1,

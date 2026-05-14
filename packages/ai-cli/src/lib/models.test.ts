@@ -29,35 +29,35 @@ function mockGatewayError() {
 
 describe("resolveModels", () => {
   test("returns default when no user model", () => {
-    expect(resolveModels("text")[0]).toContain("/");
-    expect(resolveModels("image")[0]).toContain("/");
-    expect(resolveModels("video")[0]).toContain("/");
+    expect(resolveModels("text", undefined, undefined, "vercel")[0]).toContain("/");
+    expect(resolveModels("image", undefined, undefined, "vercel")[0]).toContain("/");
+    expect(resolveModels("video", undefined, undefined, "vercel")[0]).toContain("/");
   });
 
   test("returns fully-qualified model as-is", () => {
-    expect(resolveModels("text", "openai/gpt-4")).toEqual(["openai/gpt-4"]);
-    expect(resolveModels("image", "openai/gpt-image-1")).toEqual([
+    expect(resolveModels("text", "openai/gpt-4", undefined, "vercel")).toEqual(["openai/gpt-4"]);
+    expect(resolveModels("image", "openai/gpt-image-1", undefined, "vercel")).toEqual([
       "openai/gpt-image-1",
     ]);
   });
 
   test("expands short names when knownModels provided", () => {
     const known = [{ id: "openai/gpt-image-1" }, { id: "bfl/flux-2-pro" }];
-    expect(resolveModels("image", "gpt-image-1", known)).toEqual([
+    expect(resolveModels("image", "gpt-image-1", known, "vercel")).toEqual([
       "openai/gpt-image-1",
     ]);
-    expect(resolveModels("image", "flux-2-pro", known)).toEqual([
+    expect(resolveModels("image", "flux-2-pro", known, "vercel")).toEqual([
       "bfl/flux-2-pro",
     ]);
   });
 
   test("returns unknown short names as-is when no knownModels", () => {
-    expect(resolveModels("text", "my-model")).toEqual(["my-model"]);
+    expect(resolveModels("text", "my-model", undefined, "vercel")).toEqual(["my-model"]);
   });
 
   test("returns unknown short names as-is when not in knownModels", () => {
     const known = [{ id: "openai/gpt-5" }];
-    expect(resolveModels("text", "nonexistent", known)).toEqual([
+    expect(resolveModels("text", "nonexistent", known, "vercel")).toEqual([
       "nonexistent",
     ]);
   });
@@ -65,37 +65,39 @@ describe("resolveModels", () => {
 
 describe("resolveModels multi", () => {
   test("returns default when no user model", () => {
-    const result = resolveModels("text");
+    const result = resolveModels("text", undefined, undefined, "vercel");
     expect(result).toHaveLength(1);
     expect(result[0]).toContain("/");
   });
 
   test("splits comma-separated models", () => {
-    const result = resolveModels("image", "openai/gpt-image-1,bfl/flux-2-pro");
+    const result = resolveModels("image", "openai/gpt-image-1,bfl/flux-2-pro", undefined, "vercel");
     expect(result).toEqual(["openai/gpt-image-1", "bfl/flux-2-pro"]);
   });
 
   test("trims whitespace around model names", () => {
     const result = resolveModels(
       "image",
-      "openai/gpt-image-1 , bfl/flux-2-pro"
+      "openai/gpt-image-1 , bfl/flux-2-pro",
+      undefined,
+      "vercel"
     );
     expect(result).toEqual(["openai/gpt-image-1", "bfl/flux-2-pro"]);
   });
 
   test("expands short names in comma list", () => {
     const known = [{ id: "openai/gpt-image-1" }, { id: "bfl/flux-2-pro" }];
-    const result = resolveModels("image", "gpt-image-1,flux-2-pro", known);
+    const result = resolveModels("image", "gpt-image-1,flux-2-pro", known, "vercel");
     expect(result).toEqual(["openai/gpt-image-1", "bfl/flux-2-pro"]);
   });
 
   test("filters empty segments from trailing comma", () => {
-    const result = resolveModels("image", "openai/gpt-image-1,");
+    const result = resolveModels("image", "openai/gpt-image-1,", undefined, "vercel");
     expect(result).toEqual(["openai/gpt-image-1"]);
   });
 
   test("falls back to default when all segments are empty", () => {
-    const result = resolveModels("image", ",,,");
+    const result = resolveModels("image", ",,,", undefined, "vercel");
     expect(result).toHaveLength(1);
     expect(result[0]).toContain("/");
   });
