@@ -59,6 +59,12 @@ describe("parseNonNegativeFloat", () => {
     );
   });
 
+  test("rejects string with trailing non-numeric characters", () => {
+    expect(() => parseNonNegativeFloat("1.5s", "duration")).toThrow(
+      "non-negative"
+    );
+  });
+
   test("includes flag name in error", () => {
     expect(() => parseNonNegativeFloat("bad", "temperature")).toThrow(
       "--temperature"
@@ -110,5 +116,9 @@ describe("parseTemperature", () => {
 
   test("rejects non-numeric", () => {
     expect(() => parseTemperature("abc")).toThrow("between 0 and 2");
+  });
+
+  test("rejects string with trailing non-numeric characters", () => {
+    expect(() => parseTemperature("1abc")).toThrow("between 0 and 2");
   });
 });
