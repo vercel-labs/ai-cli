@@ -18,6 +18,7 @@ export interface RunJobsOptions {
   noun: string;
   format: OutputFormat;
   outputPath?: string;
+  prompt?: string;
   quiet?: boolean;
   json?: boolean;
   concurrency: number;
@@ -45,7 +46,8 @@ export async function runJobs(
   generate: (modelId: string) => Promise<Buffer | string>,
   opts: RunJobsOptions
 ): Promise<RunJobsResult> {
-  const { noun, format, outputPath, quiet, json, concurrency, display } = opts;
+  const { noun, format, outputPath, prompt, quiet, json, concurrency, display } =
+    opts;
 
   if (jobs.length === 1) {
     const { modelId } = jobs[0];
@@ -63,6 +65,7 @@ export async function runJobs(
           data,
           format,
           outputPath,
+          prompt,
           quiet: true,
           display,
         });
@@ -81,7 +84,7 @@ export async function runJobs(
         };
         process.stdout.write(JSON.stringify(meta, null, 2) + "\n");
       } else {
-        await writeOutput({ data, format, outputPath, quiet, display });
+        await writeOutput({ data, format, outputPath, prompt, quiet, display });
       }
     } catch (err) {
       progress.stop();
@@ -119,12 +122,12 @@ export async function runJobs(
       try {
         const data = await generate(job.modelId);
         const genElapsed = Date.now() - genStart;
-        const suffix = `${i + 1}`;
         const path = await writeOutput({
           data,
           format,
           outputPath,
-          suffix,
+          prompt,
+          index: i + 1,
           quiet: true,
           display: false,
         });

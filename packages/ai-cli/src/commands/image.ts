@@ -163,6 +163,7 @@ export function registerImageCommand(program: Command) {
           noun: "image",
           format: "image",
           outputPath: opts.output,
+          prompt,
           quiet: opts.quiet,
           json: opts.json,
           display: opts.preview,

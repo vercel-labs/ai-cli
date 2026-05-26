@@ -105,6 +105,7 @@ export function registerTextCommand(program: Command) {
           noun: "text",
           format,
           outputPath: opts.output,
+          prompt,
           quiet: opts.quiet,
           json: opts.json,
           concurrency: opts.concurrency
