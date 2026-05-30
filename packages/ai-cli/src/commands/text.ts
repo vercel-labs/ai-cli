@@ -1,6 +1,18 @@
-import { generateText, gateway } from "ai";
+import {
+  generateText,
+  gateway,
+  type ImagePart,
+  type ModelMessage,
+  type TextPart,
+} from "ai";
 import type { Command } from "commander";
 
+import {
+  collectImageReference,
+  isLikelyImage,
+  loadImageReferences,
+  type ImageReference,
+} from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
@@ -14,6 +26,7 @@ interface TextOptions {
   model?: string;
   output?: string;
   format?: string;
+  image?: string[];
   system?: string;
   maxTokens?: string;
   temperature?: string;
@@ -22,6 +35,8 @@ interface TextOptions {
   quiet?: boolean;
   json?: boolean;
 }
+
+type TextPrompt = string | ModelMessage[];
 
 function resolveFormat(fmt?: string): OutputFormat {
   if (!fmt || fmt === "md") return "md";
@@ -40,6 +55,12 @@ export function registerTextCommand(program: Command) {
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Output format: md, txt (default: md)")
+    .option(
+      "-i, --image <path-or-url>",
+      "Image input path or URL for vision (repeatable)",
+      collectImageReference,
+      []
+    )
     .option("-n, --count <n>", "Number of generations (default: 1)")
     .option(
       "-p, --concurrency <n>",
@@ -53,20 +74,31 @@ export function registerTextCommand(program: Command) {
     .action(async (rawPrompt: string | undefined, opts: TextOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
-      if (!prompt && !stdin) {
+      const imageReferenceInputs = opts.image ?? [];
+      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
         process.stderr.write(
-          "Error: prompt is required (provide as argument or pipe via stdin)\n"
+          "Error: prompt, stdin, or image is required (provide a prompt, --image, or pipe text/image via stdin)\n"
         );
         process.exit(1);
       }
-      let fullPrompt: string;
-      if (stdin && prompt) {
-        fullPrompt = `${stdinAsText(stdin)}\n\n---\n\n${prompt}`;
-      } else if (stdin) {
-        fullPrompt = stdinAsText(stdin);
-      } else {
-        fullPrompt = prompt!;
+
+      let referenceImages: ImageReference[] = [];
+      try {
+        referenceImages = await loadImageReferences(imageReferenceInputs);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`Error: ${message}\n`);
+        process.exit(1);
       }
+
+      const stdinBytes = stdin ? new Uint8Array(stdin) : undefined;
+      const stdinIsImage = stdinBytes ? isLikelyImage(stdinBytes) : false;
+      const images: ImageReference[] = [
+        ...(stdinBytes && stdinIsImage ? [stdinBytes] : []),
+        ...referenceImages,
+      ];
+      const stdinText = stdin && !stdinIsImage ? stdinAsText(stdin) : undefined;
+      const textPrompt = buildTextPrompt({ prompt, stdinText, images });
 
       const format = resolveFormat(opts.format);
       const gatewayModels = await fetchGatewayModels();
@@ -93,7 +125,7 @@ export function registerTextCommand(program: Command) {
               "x-title": "ai-cli",
             },
             model: gateway(modelId),
-            prompt: fullPrompt,
+            prompt: textPrompt,
             system: opts.system,
             maxOutputTokens: maxTokens,
             temperature,
@@ -115,4 +147,36 @@ export function registerTextCommand(program: Command) {
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
     });
+}
+
+function buildTextPrompt({
+  prompt,
+  stdinText,
+  images,
+}: {
+  prompt?: string;
+  stdinText?: string;
+  images: ImageReference[];
+}): TextPrompt {
+  if (images.length === 0) {
+    if (stdinText && prompt) return `${stdinText}\n\n---\n\n${prompt}`;
+    if (stdinText) return stdinText;
+    return prompt!;
+  }
+
+  const content: Array<TextPart | ImagePart> = [];
+
+  if (stdinText) content.push({ type: "text", text: stdinText });
+  for (const image of images) content.push({ type: "image", image });
+  if (prompt) {
+    content.push({ type: "text", text: prompt });
+  } else if (!stdinText) {
+    content.push({
+      type: "text",
+      text:
+        images.length === 1 ? "Describe this image." : "Describe these images.",
+    });
+  }
+
+  return [{ role: "user", content }];
 }

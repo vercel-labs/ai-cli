@@ -44,7 +44,7 @@ describe("cli integration", () => {
   test("text with no prompt and no stdin exits 1", async () => {
     const { exitCode, stderr } = await run("text");
     expect(exitCode).toBe(1);
-    expect(stderr).toContain("prompt is required");
+    expect(stderr).toContain("prompt, stdin, or image is required");
   });
 
   test("text --help exits 0 and lists flags", async () => {
@@ -52,6 +52,7 @@ describe("cli integration", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("--model");
     expect(stdout).toContain("--format");
+    expect(stdout).toContain("--image");
     expect(stdout).toContain("--temperature");
   });
 
@@ -59,6 +60,7 @@ describe("cli integration", () => {
     const { exitCode, stdout } = await run("image", "--help");
     expect(exitCode).toBe(0);
     expect(stdout).toContain("--no-preview");
+    expect(stdout).toContain("--image");
     expect(stdout).toContain("--size");
     expect(stdout).toContain("--aspect-ratio");
   });
