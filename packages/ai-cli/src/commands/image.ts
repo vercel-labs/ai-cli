@@ -1,6 +1,11 @@
 import { generateImage, generateText, gateway } from "ai";
 import type { Command } from "commander";
 
+import {
+  collectImageReference,
+  loadImageReferences,
+  type ImageReference,
+} from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
@@ -12,6 +17,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 interface ImageOptions {
   model?: string;
   output?: string;
+  image?: string[];
   count?: string;
   size?: string;
   aspectRatio?: string;
@@ -33,6 +39,12 @@ export function registerImageCommand(program: Command) {
       "Model ID (creator/model-name), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
+    .option(
+      "-i, --image <path-or-url>",
+      "Reference image path or URL (repeatable)",
+      collectImageReference,
+      []
+    )
     .option("-n, --count <n>", "Number of images per model (default: 1)")
     .option("--size <WxH>", "Image size (e.g. 1024x1024)")
     .option("--aspect-ratio <W:H>", "Aspect ratio (e.g. 16:9)")
@@ -51,17 +63,31 @@ export function registerImageCommand(program: Command) {
     .action(async (rawPrompt: string | undefined, opts: ImageOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
-      if (!prompt && !stdin) {
+      const imageReferenceInputs = opts.image ?? [];
+      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
         process.stderr.write(
-          "Error: prompt is required (provide as argument or pipe via stdin)\n"
+          "Error: prompt or reference image is required (provide a prompt, --image, or pipe an image via stdin)\n"
         );
         process.exit(1);
       }
-      let imagePrompt: string | { images: Uint8Array[]; text?: string };
-      if (stdin) {
-        imagePrompt = prompt
-          ? { images: [new Uint8Array(stdin)], text: prompt }
-          : { images: [new Uint8Array(stdin)] };
+
+      let referenceImages: ImageReference[] = [];
+      try {
+        referenceImages = await loadImageReferences(imageReferenceInputs);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`Error: ${message}\n`);
+        process.exit(1);
+      }
+
+      const images: ImageReference[] = [
+        ...(stdin ? [new Uint8Array(stdin)] : []),
+        ...referenceImages,
+      ];
+
+      let imagePrompt: string | { images: ImageReference[]; text?: string };
+      if (images.length > 0) {
+        imagePrompt = prompt ? { images, text: prompt } : { images };
       } else {
         imagePrompt = prompt!;
       }
@@ -96,7 +122,7 @@ export function registerImageCommand(program: Command) {
           if (gatewayModels.languageImageModelIds.has(modelId)) {
             const messageContent: Array<
               | { type: "text"; text: string }
-              | { type: "image"; image: Uint8Array }
+              | { type: "image"; image: ImageReference }
             > = [];
             if (typeof imagePrompt === "string") {
               messageContent.push({ type: "text", text: imagePrompt });

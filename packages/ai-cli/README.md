@@ -19,10 +19,14 @@ ai text "explain quantum computing"
 ai models                          # list available models
 ```
 
-### Piping
+### Piping and References
 
 ```bash
 ai image "a dragon" | ai video "animate this"
+ai image --image reference.png "make a sticker in this style"
+ai image -i sketch.png -i palette.jpg "render this product concept"
+ai text --image screenshot.png "what is broken in this UI?"
+cat photo.png | ai text "describe this image"
 cat notes.txt | ai text "summarize this"
 git diff | ai text "explain these changes"
 ```
@@ -50,12 +54,21 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 ### image
 
 ```
+-i, --image <path-or-url> Reference image path or URL (repeatable)
 --size <WxH>             Image size (e.g. 1024x1024)
 --aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
 --quality <level>        Quality (standard, hd)
 --style <style>          Style (vivid, natural)
 --no-preview             Disable inline image preview
 ```
+
+Reference images can be local paths, `file://` URLs, `http(s)://` URLs or data URLs. You can repeat `--image` to pass multiple references, and you can still pipe one image through stdin:
+
+```bash
+cat input.png | ai image -i style.png "combine the subject with this style"
+```
+
+Reference-image support is model-dependent; unsupported models may reject image inputs.
 
 ### video
 
@@ -69,9 +82,17 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 
 ```
 -f, --format <fmt>       Output format: md, txt (default: md)
+-i, --image <path-or-url> Image input path or URL for vision (repeatable)
 -s, --system <prompt>    System prompt
 --max-tokens <n>         Maximum tokens to generate
 -t, --temperature <n>    Temperature (0-2)
+```
+
+For vision-capable text models, `ai text` accepts images from `--image` or piped stdin:
+
+```bash
+ai text -i chart.png -i table.jpg "summarize the data"
+cat screenshot.png | ai text "list the visible errors"
 ```
 
 ### models
