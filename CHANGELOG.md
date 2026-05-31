@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+<!-- release:start -->
+
+### New Features
+
+- **Reference image inputs** — `ai image` and `ai text` now accept repeatable `--image` references from local paths, `file://` URLs, `http(s)://` URLs and data URLs
+- **Vision stdin detection** — `ai text` can distinguish piped image bytes from piped text, enabling image prompts from stdin without treating binary data as prompt text
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
 ## 0.2.1
 
 <!-- release:start -->
