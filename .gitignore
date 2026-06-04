@@ -7,5 +7,4 @@ gateway
 *.tsbuildinfo
 .env*
 !.env.example
-opensrc/
 next-env.d.ts
