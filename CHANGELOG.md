@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.1
+
+<!-- release:start -->
+
+### New Features
+
+- **Video image inputs** — `ai video` now accepts `--image` / `-i` image inputs from local paths, `file://` URLs, `http(s)://` URLs and data URLs (#57)
+
+### Improvements
+
+- **Default output filenames** — generated text, image and video files now use response IDs when available and random 8-character IDs otherwise, replacing generic `output.*` filenames (#59)
+- **Agent setup cleanup** — removed outdated opensrc references from local agent configuration (#58)
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
 ## 0.3.0
 
 <!-- release:start -->
