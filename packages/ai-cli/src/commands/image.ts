@@ -9,6 +9,7 @@ import {
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
+import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 4;
@@ -166,7 +167,10 @@ export function registerImageCommand(program: Command) {
                 `Model ${modelId} did not return an image in the response`
               );
             }
-            return Buffer.from(imageFile.uint8Array);
+            return {
+              data: Buffer.from(imageFile.uint8Array),
+              id: result.response.id,
+            };
           }
 
           const result = await generateImage({
@@ -183,7 +187,10 @@ export function registerImageCommand(program: Command) {
             providerOptions:
               Object.keys(provOpts).length > 0 ? provOpts : undefined,
           });
-          return Buffer.from(result.image.uint8Array);
+          return {
+            data: Buffer.from(result.image.uint8Array),
+            id: responseIdFromHeaders(result.responses[0]?.headers),
+          };
         },
         {
           noun: "image",

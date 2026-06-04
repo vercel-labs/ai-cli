@@ -13,6 +13,7 @@ import {
   parseAspectRatio,
   parseNonNegativeFloat,
 } from "../lib/parse.js";
+import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 2;
@@ -128,7 +129,10 @@ export function registerVideoCommand(program: Command) {
             aspectRatio,
             duration,
           });
-          return Buffer.from(result.video.uint8Array);
+          return {
+            data: Buffer.from(result.video.uint8Array),
+            id: responseIdFromHeaders(result.responses[0]?.headers),
+          };
         },
         {
           noun: "video",
