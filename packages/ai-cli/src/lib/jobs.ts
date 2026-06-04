@@ -40,9 +40,16 @@ export interface RunJobsResult {
   failed: number;
 }
 
+export interface GeneratedOutput {
+  data: Buffer | string;
+  id?: string;
+}
+
+type GenerateResult = Buffer | string | GeneratedOutput;
+
 export async function runJobs(
   jobs: Job[],
-  generate: (modelId: string) => Promise<Buffer | string>,
+  generate: (modelId: string) => Promise<GenerateResult>,
   opts: RunJobsOptions
 ): Promise<RunJobsResult> {
   const { noun, format, outputPath, quiet, json, concurrency, display } = opts;
@@ -54,15 +61,16 @@ export async function runJobs(
     progress.start(`Generating ${noun} with ${modelId}`);
 
     try {
-      const data = await generate(modelId);
+      const generated = normalizeGeneratedOutput(await generate(modelId));
       const elapsed = Date.now() - start;
       progress.stop(`Generated ${noun} with ${modelId}`);
 
       if (json) {
         const path = await writeOutput({
-          data,
+          data: generated.data,
           format,
           outputPath,
+          outputId: generated.id,
           quiet: true,
           display,
         });
@@ -81,7 +89,14 @@ export async function runJobs(
         };
         process.stdout.write(JSON.stringify(meta, null, 2) + "\n");
       } else {
-        await writeOutput({ data, format, outputPath, quiet, display });
+        await writeOutput({
+          data: generated.data,
+          format,
+          outputPath,
+          outputId: generated.id,
+          quiet,
+          display,
+        });
       }
     } catch (err) {
       progress.stop();
@@ -117,19 +132,20 @@ export async function runJobs(
       multi.startLine(lineIdxs[i]);
       const genStart = Date.now();
       try {
-        const data = await generate(job.modelId);
+        const generated = normalizeGeneratedOutput(await generate(job.modelId));
         const genElapsed = Date.now() - genStart;
         const suffix = `${i + 1}`;
         const path = await writeOutput({
-          data,
+          data: generated.data,
           format,
           outputPath,
+          outputId: generated.id,
           suffix,
           quiet: true,
           display: false,
         });
-        if (shouldDisplay && Buffer.isBuffer(data))
-          pendingDisplayBuffers.push(data);
+        if (shouldDisplay && Buffer.isBuffer(generated.data))
+          pendingDisplayBuffers.push(generated.data);
         const savedMsg = path
           ? `Saved to ${path}`
           : `${noun[0].toUpperCase()}${noun.slice(1)} ${job.label} written to stdout`;
@@ -189,4 +205,12 @@ export async function runJobs(
 
   const failCount = results.filter((r) => !r.success).length;
   return { total: results.length, failed: failCount };
+}
+
+function normalizeGeneratedOutput(result: GenerateResult): GeneratedOutput {
+  if (typeof result === "string" || Buffer.isBuffer(result)) {
+    return { data: result };
+  }
+
+  return result;
 }

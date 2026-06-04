@@ -134,9 +134,11 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 ### Output Behavior
 
-- **text**: saves to `output.md` (interactive), stdout when piped
-- **image/video**: saves to file (interactive), raw binary stdout when piped
+- **text**: saves to `<id>.md` (interactive), stdout when piped
+- **image/video**: saves to `<id>.png` / `<id>.mp4` (interactive), raw binary stdout when piped
 - **`-o <dir>`**: saves inside the directory with auto-generated names
+
+When the CLI needs to choose a filename, it uses a response id when available and falls back to a random 8-character id.
 
 ### Environment Variables
 

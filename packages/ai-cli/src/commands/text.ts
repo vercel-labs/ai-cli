@@ -131,7 +131,7 @@ export function registerTextCommand(program: Command) {
             temperature,
             abortSignal: abort,
           });
-          return result.text;
+          return { data: result.text, id: result.response.id };
         },
         {
           noun: "text",

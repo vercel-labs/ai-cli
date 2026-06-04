@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { writeFileSync, mkdirSync, statSync } from "fs";
 import { resolve, join, dirname } from "path";
 
@@ -20,13 +21,28 @@ export interface WriteOutputOptions {
   data: Buffer | string;
   format: OutputFormat;
   outputPath?: string;
+  outputId?: string;
   suffix?: string;
   quiet?: boolean;
   display?: boolean;
 }
 
-function defaultFilename(format: OutputFormat): string {
-  return `output${DEFAULT_EXTENSIONS[format]}`;
+function defaultFilename(format: OutputFormat, outputId?: string): string {
+  return `${filenameStem(outputId)}${DEFAULT_EXTENSIONS[format]}`;
+}
+
+function filenameStem(outputId?: string): string {
+  return sanitizeFilenameStem(outputId) ?? randomBytes(4).toString("hex");
+}
+
+function sanitizeFilenameStem(outputId?: string): string | undefined {
+  const trimmed = outputId?.trim();
+  if (!trimmed) return undefined;
+
+  const sanitized = trimmed.replace(/[^A-Za-z0-9._-]+/g, "-");
+  if (!sanitized || sanitized === "." || sanitized === "..") return undefined;
+
+  return sanitized;
 }
 
 function isDirectory(p: string): boolean {
@@ -40,7 +56,7 @@ function isDirectory(p: string): boolean {
 export async function writeOutput(
   opts: WriteOutputOptions
 ): Promise<string | null> {
-  const { data, format, suffix, quiet, display } = opts;
+  const { data, format, outputId, suffix, quiet, display } = opts;
   const effectiveOutput = opts.outputPath ?? process.env.AI_CLI_OUTPUT_DIR;
   const buf = typeof data === "string" ? Buffer.from(data, "utf-8") : data;
   const shouldDisplay =
@@ -54,7 +70,7 @@ export async function writeOutput(
     if (isDirectory(effectiveOutput)) {
       filePath = join(
         effectiveOutput,
-        addSuffix(defaultFilename(format), suffix)
+        addSuffix(defaultFilename(format, outputId), suffix)
       );
     } else {
       filePath = addSuffix(effectiveOutput, suffix);
@@ -72,7 +88,7 @@ export async function writeOutput(
     return null;
   }
 
-  const filename = addSuffix(defaultFilename(format), suffix);
+  const filename = addSuffix(defaultFilename(format, outputId), suffix);
   const path = resolve(filename);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, buf);
