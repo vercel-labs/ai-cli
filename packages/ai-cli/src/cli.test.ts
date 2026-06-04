@@ -68,8 +68,22 @@ describe("cli integration", () => {
   test("video --help exits 0 and lists flags", async () => {
     const { exitCode, stdout } = await run("video", "--help");
     expect(exitCode).toBe(0);
+    expect(stdout).toContain("--image");
     expect(stdout).toContain("--duration");
     expect(stdout).toContain("--aspect-ratio");
+  });
+
+  test("video -i validates image paths before generation", async () => {
+    const { exitCode, stderr } = await run(
+      "video",
+      "-i",
+      "/missing/ref.png",
+      "animate this"
+    );
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain(
+      'could not read reference image "/missing/ref.png"'
+    );
   });
 
   test("models --type invalid exits 1", async () => {

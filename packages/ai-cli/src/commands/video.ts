@@ -1,6 +1,11 @@
 import { experimental_generateVideo as generateVideo, gateway } from "ai";
 import type { Command } from "commander";
 
+import {
+  collectImageReference,
+  loadImageReferences,
+  type ImageReference,
+} from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import {
@@ -16,6 +21,7 @@ const DEFAULT_TIMEOUT_MS = 300_000;
 interface VideoOptions {
   model?: string;
   output?: string;
+  image?: string[];
   count?: string;
   aspectRatio?: string;
   duration?: string;
@@ -35,6 +41,12 @@ export function registerVideoCommand(program: Command) {
       "Model ID (creator/model-name), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
+    .option(
+      "-i, --image <path-or-url>",
+      "Image input path or URL",
+      collectImageReference,
+      []
+    )
     .option("-n, --count <n>", "Number of videos per model (default: 1)")
     .option("--aspect-ratio <W:H>", "Aspect ratio (e.g. 16:9)")
     .option("--duration <seconds>", "Video duration in seconds")
@@ -51,18 +63,40 @@ export function registerVideoCommand(program: Command) {
     .action(async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
-      if (!prompt && !stdin) {
+      const imageReferenceInputs = opts.image ?? [];
+      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
         process.stderr.write(
-          "Error: prompt is required (provide as argument or pipe via stdin)\n"
+          "Error: prompt or image is required (provide a prompt, --image, or pipe an image via stdin)\n"
         );
         process.exit(1);
       }
 
-      let videoPrompt: string | { image: Uint8Array; text?: string } = prompt!;
-      if (stdin) {
+      let referenceImages: ImageReference[] = [];
+      try {
+        referenceImages = await loadImageReferences(imageReferenceInputs);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`Error: ${message}\n`);
+        process.exit(1);
+      }
+
+      const images: ImageReference[] = [
+        ...(stdin ? [new Uint8Array(stdin)] : []),
+        ...referenceImages,
+      ];
+      if (images.length > 1) {
+        process.stderr.write(
+          "Error: video generation accepts one input image; provide one --image value or pipe one image via stdin\n"
+        );
+        process.exit(1);
+      }
+
+      let videoPrompt: string | { image: ImageReference; text?: string } =
+        prompt!;
+      if (images.length > 0) {
         videoPrompt = prompt
-          ? { image: new Uint8Array(stdin), text: prompt }
-          : { image: new Uint8Array(stdin) };
+          ? { image: images[0]!, text: prompt }
+          : { image: images[0]! };
       }
 
       const gatewayModels = await fetchGatewayModels();

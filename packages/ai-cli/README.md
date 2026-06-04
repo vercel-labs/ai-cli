@@ -23,6 +23,7 @@ ai models                          # list available models
 
 ```bash
 ai image "a dragon" | ai video "animate this"
+ai video -i input.png "animate this"
 ai image --image reference.png "make a sticker in this style"
 ai image -i sketch.png -i palette.jpg "render this product concept"
 ai text --image screenshot.png "what is broken in this UI?"
@@ -73,9 +74,17 @@ Reference-image support is model-dependent; unsupported models may reject image 
 ### video
 
 ```
+-i, --image <path-or-url> Image input path or URL
 --aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
 --duration <seconds>     Duration in seconds
 --no-preview             Disable inline video frame preview
+```
+
+Image inputs can be local paths, `file://` URLs, `http(s)://` URLs or data URLs. Video generation accepts one input image, provided either through `--image` or piped stdin:
+
+```bash
+ai video -i input.png "animate this"
+cat input.png | ai video "animate this"
 ```
 
 ### text
