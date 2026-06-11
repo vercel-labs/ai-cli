@@ -9,9 +9,16 @@ export function parsePositiveInt(value: string, name: string): number {
   return n;
 }
 
+function parseDecimal(value: string): number | null {
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) {
+    return null;
+  }
+  return Number(value);
+}
+
 export function parseNonNegativeFloat(value: string, name: string): number {
-  const n = parseFloat(value);
-  if (isNaN(n) || n < 0) {
+  const n = parseDecimal(value);
+  if (n === null || n < 0) {
     throw new Error(`--${name} must be a non-negative number, got "${value}"`);
   }
   return n;
@@ -36,8 +43,8 @@ export function parseAspectRatio(value: string): `${number}:${number}` {
 }
 
 export function parseTemperature(value: string): number {
-  const n = parseFloat(value);
-  if (isNaN(n) || n < 0 || n > 2) {
+  const n = parseDecimal(value);
+  if (n === null || n < 0 || n > 2) {
     throw new Error(`--temperature must be between 0 and 2, got "${value}"`);
   }
   return n;
