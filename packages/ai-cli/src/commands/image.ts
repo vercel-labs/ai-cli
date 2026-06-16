@@ -13,7 +13,7 @@ import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 4;
-const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_TIMEOUT_MS = 300_000;
 
 interface ImageOptions {
   model?: string;
