@@ -154,10 +154,10 @@ export function registerImageCommand(program: Command) {
               model: gateway(modelId),
               messages: [{ role: "user", content: messageContent }],
               abortSignal: abort,
-              providerOptions:
-                creator === "google"
-                  ? { google: { responseModalities: ["IMAGE", "TEXT"] } }
-                  : undefined,
+              providerOptions: buildLanguageImageProviderOptions(
+                creator,
+                aspectRatio
+              ),
             });
             const imageFile = result.files?.find((f) =>
               f.mediaType.startsWith("image/")
@@ -207,6 +207,38 @@ export function registerImageCommand(program: Command) {
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
     });
+}
+
+/**
+ * Build provider options for the language-image (generateText) path.
+ *
+ * Google language-image models such as `gemini-2.5-flash-image` produce images
+ * through `generateText`, so the `aspectRatio` understood by `generateImage`
+ * never reaches them. Google does support it natively via
+ * `providerOptions.google.imageConfig.aspectRatio` (defaulting to 1:1 when
+ * unset), so we forward it here. Note that these models do not support `size`,
+ * so only the aspect ratio is passed through.
+ */
+export function buildLanguageImageProviderOptions(
+  creator: string | undefined,
+  aspectRatio: `${number}:${number}` | undefined
+):
+  | {
+      google: {
+        responseModalities: string[];
+        imageConfig?: { aspectRatio: `${number}:${number}` };
+      };
+    }
+  | undefined {
+  if (creator !== "google") return undefined;
+  const google: {
+    responseModalities: string[];
+    imageConfig?: { aspectRatio: `${number}:${number}` };
+  } = { responseModalities: ["IMAGE", "TEXT"] };
+  if (aspectRatio) {
+    google.imageConfig = { aspectRatio };
+  }
+  return { google };
 }
 
 function buildProviderOptions(
