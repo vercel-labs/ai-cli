@@ -1,3 +1,5 @@
+import { getCustomEndpoint, type CustomEndpoint } from "./provider.js";
+
 export type Modality = "text" | "image" | "video";
 
 const DEFAULTS: Record<Modality, string> = {
@@ -71,6 +73,9 @@ async function doFetch(): Promise<GatewayModels> {
     languageImageModelIds: new Set(),
   };
 
+  const custom = getCustomEndpoint();
+  if (custom) return doFetchCustom(custom, result);
+
   try {
     const res = await fetch(GATEWAY_MODELS_URL, {
       signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
@@ -138,6 +143,47 @@ async function doFetch(): Promise<GatewayModels> {
   } catch {
     cached = null;
     process.stderr.write("Warning: could not fetch models from AI Gateway\n");
+  }
+
+  return result;
+}
+
+/**
+ * Fetch the model list from an OpenAI-compatible `/models` endpoint. That
+ * response has no type/tag metadata, so every model is listed under both text
+ * and image; pass an explicit `-m <id>` for whichever you need.
+ */
+async function doFetchCustom(
+  endpoint: CustomEndpoint,
+  result: GatewayModels
+): Promise<GatewayModels> {
+  const url = `${endpoint.baseURL.replace(/\/+$/, "")}/models`;
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
+      headers: endpoint.apiKey
+        ? { Authorization: `Bearer ${endpoint.apiKey}` }
+        : undefined,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = (await res.json()) as { data?: RawGatewayModel[] };
+    const models = json.data ?? [];
+
+    for (const m of models) {
+      const entry: ModelEntry = {
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        creator: m.owned_by ?? "other",
+        capabilities: ["text", "image"],
+      };
+      result.all.push(entry);
+      result.text.push(entry);
+      result.image.push(entry);
+    }
+  } catch {
+    cached = null;
+    process.stderr.write(`Warning: could not fetch models from ${url}\n`);
   }
 
   return result;

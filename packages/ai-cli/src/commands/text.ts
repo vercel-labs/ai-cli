@@ -1,6 +1,5 @@
 import {
   generateText,
-  gateway,
   type ImagePart,
   type ModelMessage,
   type TextPart,
@@ -17,6 +16,7 @@ import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
 import { parsePositiveInt, parseTemperature } from "../lib/parse.js";
+import { languageModel } from "../lib/provider.js";
 import { readStdin, stdinAsText } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 4;
@@ -124,7 +124,7 @@ export function registerTextCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway(modelId),
+            model: languageModel(modelId),
             prompt: textPrompt,
             system: opts.system,
             maxOutputTokens: maxTokens,

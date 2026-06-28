@@ -146,6 +146,7 @@ When the CLI needs to choose a filename, it uses a response id when available an
 |---|---|
 | `AI_GATEWAY_API_KEY` | AI Gateway authentication key |
 | `OPENAI_API_KEY` | Provider-specific key (or other provider keys) |
+| `OPENAI_BASE_URL` | Route `text` and `image` to a custom OpenAI-compatible endpoint instead of the AI Gateway (see below) |
 | `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
 | `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |
@@ -155,6 +156,25 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | `FORCE_COLOR` | Force color output even when not a TTY |
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
+
+### Custom OpenAI-compatible endpoint
+
+Set `OPENAI_BASE_URL` to point `text` and `image` generation at any OpenAI-compatible server (vLLM, Ollama, LM Studio, LocalAI, OpenRouter, a self-hosted gateway, etc.) instead of the Vercel AI Gateway. `OPENAI_API_KEY` is used for authentication.
+
+```sh
+export OPENAI_BASE_URL="https://my-host/v1"
+export OPENAI_API_KEY="sk-..."
+
+ai text -m llama-3.3-70b "hello"
+ai image -m my-image-model "a sunset"
+```
+
+Notes:
+
+- Text is sent to the endpoint's `/chat/completions`, images to `/v1/images/generations`.
+- `ai models` lists whatever the endpoint's `/models` returns. Since that response carries no type metadata, every model is shown under both Text and Image — pass an explicit `-m <id>` for the one you want.
+- Set `AI_CLI_TEXT_MODEL` / `AI_CLI_IMAGE_MODEL` if you want defaults other than the gateway ones (`openai/gpt-5.5`, `openai/gpt-image-2`), which likely won't exist on your endpoint.
+- `video` has no OpenAI-compatible standard and always uses the AI Gateway.
 
 ### Timeouts
 

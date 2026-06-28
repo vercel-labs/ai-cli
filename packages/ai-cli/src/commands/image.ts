@@ -1,4 +1,4 @@
-import { generateImage, generateText, gateway } from "ai";
+import { generateImage, generateText } from "ai";
 import type { Command } from "commander";
 
 import {
@@ -9,6 +9,7 @@ import {
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
+import { imageModel, languageModel } from "../lib/provider.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
 
@@ -151,7 +152,7 @@ export function registerImageCommand(program: Command) {
                 "http-referer": "https://github.com/vercel-labs/ai-cli",
                 "x-title": "ai-cli",
               },
-              model: gateway(modelId),
+              model: languageModel(modelId),
               messages: [{ role: "user", content: messageContent }],
               abortSignal: abort,
               providerOptions:
@@ -178,7 +179,7 @@ export function registerImageCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway.image(modelId),
+            model: imageModel(modelId),
             prompt: imagePrompt,
             abortSignal: abort,
             n: 1,
