@@ -77,4 +77,21 @@ describe("writeOutput", () => {
       expect(readFileSync(path!, "utf8")).toBe("hello");
     });
   });
+
+  test("supports custom audio extensions when writing to a directory", async () => {
+    await withTempDir(async (dir) => {
+      const path = await writeOutput({
+        data: Buffer.from([1, 2, 3]),
+        format: "audio",
+        extension: ".wav",
+        outputPath: dir,
+        outputId: "speech_123",
+        quiet: true,
+      });
+
+      expect(path).not.toBeNull();
+      expect(basename(path!)).toBe("speech_123.wav");
+      expect(readFileSync(path!)).toEqual(Buffer.from([1, 2, 3]));
+    });
+  });
 });

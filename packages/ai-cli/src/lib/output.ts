@@ -8,13 +8,14 @@ import {
   displayVideoFrame,
 } from "./kitty.js";
 
-export type OutputFormat = "md" | "txt" | "image" | "video";
+export type OutputFormat = "md" | "txt" | "image" | "video" | "audio";
 
 const DEFAULT_EXTENSIONS: Record<OutputFormat, string> = {
   md: ".md",
   txt: ".txt",
   image: ".png",
   video: ".mp4",
+  audio: ".mp3",
 };
 
 export interface WriteOutputOptions {
@@ -23,12 +24,17 @@ export interface WriteOutputOptions {
   outputPath?: string;
   outputId?: string;
   suffix?: string;
+  extension?: string;
   quiet?: boolean;
   display?: boolean;
 }
 
-function defaultFilename(format: OutputFormat, outputId?: string): string {
-  return `${filenameStem(outputId)}${DEFAULT_EXTENSIONS[format]}`;
+function defaultFilename(
+  format: OutputFormat,
+  outputId?: string,
+  extension?: string
+): string {
+  return `${filenameStem(outputId)}${extension ?? DEFAULT_EXTENSIONS[format]}`;
 }
 
 function filenameStem(outputId?: string): string {
@@ -56,7 +62,7 @@ function isDirectory(p: string): boolean {
 export async function writeOutput(
   opts: WriteOutputOptions
 ): Promise<string | null> {
-  const { data, format, outputId, suffix, quiet, display } = opts;
+  const { data, format, outputId, suffix, extension, quiet, display } = opts;
   const effectiveOutput = opts.outputPath ?? process.env.AI_CLI_OUTPUT_DIR;
   const buf = typeof data === "string" ? Buffer.from(data, "utf-8") : data;
   const shouldDisplay =
@@ -70,7 +76,7 @@ export async function writeOutput(
     if (isDirectory(effectiveOutput)) {
       filePath = join(
         effectiveOutput,
-        addSuffix(defaultFilename(format, outputId), suffix)
+        addSuffix(defaultFilename(format, outputId, extension), suffix)
       );
     } else {
       filePath = addSuffix(effectiveOutput, suffix);
@@ -88,7 +94,10 @@ export async function writeOutput(
     return null;
   }
 
-  const filename = addSuffix(defaultFilename(format, outputId), suffix);
+  const filename = addSuffix(
+    defaultFilename(format, outputId, extension),
+    suffix
+  );
   const path = resolve(filename);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, buf);

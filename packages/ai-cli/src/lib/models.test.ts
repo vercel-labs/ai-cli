@@ -32,6 +32,8 @@ describe("resolveModels", () => {
     expect(resolveModels("text")[0]).toContain("/");
     expect(resolveModels("image")[0]).toContain("/");
     expect(resolveModels("video")[0]).toContain("/");
+    expect(resolveModels("speech")[0]).toContain("/");
+    expect(resolveModels("transcription")[0]).toContain("/");
   });
 
   test("returns fully-qualified model as-is", () => {
@@ -129,6 +131,20 @@ describe("fetchGatewayModels", () => {
         tags: [],
       },
       {
+        id: "openai/tts-1",
+        name: "TTS 1",
+        owned_by: "openai",
+        type: "speech",
+        pricing: { speech_input_character_cost: "0.000015" },
+      },
+      {
+        id: "openai/whisper-1",
+        name: "Whisper",
+        owned_by: "openai",
+        type: "transcription",
+        pricing: { transcription_duration_cost_per_second: "0.000006" },
+      },
+      {
         id: "openai/text-embedding-3",
         name: "Embedding",
         owned_by: "openai",
@@ -160,8 +176,24 @@ describe("fetchGatewayModels", () => {
     expect(result.video[0].creator).toBe("google");
     expect(result.video[0].capabilities).toEqual(["video"]);
 
+    expect(result.speech).toHaveLength(1);
+    expect(result.speech[0].id).toBe("openai/tts-1");
+    expect(result.speech[0].creator).toBe("openai");
+    expect(result.speech[0].capabilities).toEqual(["speech"]);
+    expect(result.speech[0].pricing).toEqual({
+      speech_input_character_cost: "0.000015",
+    });
+
+    expect(result.transcription).toHaveLength(1);
+    expect(result.transcription[0].id).toBe("openai/whisper-1");
+    expect(result.transcription[0].creator).toBe("openai");
+    expect(result.transcription[0].capabilities).toEqual(["transcription"]);
+    expect(result.transcription[0].pricing).toEqual({
+      transcription_duration_cost_per_second: "0.000006",
+    });
+
     // embedding type is excluded
-    expect(result.all).toHaveLength(3);
+    expect(result.all).toHaveLength(5);
   });
 
   test("language models with image-generation tag appear in both text and image", async () => {
@@ -230,6 +262,8 @@ describe("fetchGatewayModels", () => {
     expect(result.text).toHaveLength(0);
     expect(result.image).toHaveLength(0);
     expect(result.video).toHaveLength(0);
+    expect(result.speech).toHaveLength(0);
+    expect(result.transcription).toHaveLength(0);
     expect(result.all).toHaveLength(0);
     expect(result.languageImageModelIds.size).toBe(0);
   });
@@ -244,6 +278,8 @@ describe("fetchGatewayModels", () => {
     expect(result.text).toHaveLength(0);
     expect(result.image).toHaveLength(0);
     expect(result.video).toHaveLength(0);
+    expect(result.speech).toHaveLength(0);
+    expect(result.transcription).toHaveLength(0);
     expect(result.all).toHaveLength(0);
   });
 

@@ -6,6 +6,8 @@ import {
   type ModelEntry,
 } from "../lib/models.js";
 
+type ModelFilter = Modality | "audio";
+
 function groupByCreator(models: ModelEntry[]): Map<string, ModelEntry[]> {
   const groups = new Map<string, ModelEntry[]>();
   for (const m of models) {
@@ -26,13 +28,23 @@ export function registerModelsCommand(program: Command) {
   program
     .command("models")
     .description("List available models from AI Gateway")
-    .option("--type <type>", "Filter by type: text, image, video")
+    .option(
+      "--type <type>",
+      "Filter by type: text, image, video, audio, speech, transcription"
+    )
     .option("--creator <name>", "Filter by creator (e.g. openai, google)")
     .option("--json", "Output as JSON (includes descriptions)")
     .action(
       async (opts: { type?: string; creator?: string; json?: boolean }) => {
-        const validTypes = ["text", "image", "video"];
-        const filterType = opts.type?.toLowerCase() as Modality | undefined;
+        const validTypes = [
+          "text",
+          "image",
+          "video",
+          "audio",
+          "speech",
+          "transcription",
+        ];
+        const filterType = opts.type?.toLowerCase() as ModelFilter | undefined;
         if (filterType && !validTypes.includes(filterType)) {
           process.stderr.write(
             `Error: --type must be one of: ${validTypes.join(", ")} (got "${opts.type}")\n`
@@ -47,7 +59,10 @@ export function registerModelsCommand(program: Command) {
           let entries = gatewayModels.all;
           if (filterType) {
             entries = entries.filter((m) =>
-              m.capabilities.includes(filterType)
+              filterType === "audio"
+                ? m.capabilities.includes("speech") ||
+                  m.capabilities.includes("transcription")
+                : m.capabilities.includes(filterType)
             );
           }
           if (filterCreator) {
@@ -74,6 +89,17 @@ export function registerModelsCommand(program: Command) {
           sections.push({ title: "Image", entries: gatewayModels.image });
         if (!filterType || filterType === "video")
           sections.push({ title: "Video", entries: gatewayModels.video });
+        if (!filterType || filterType === "audio" || filterType === "speech")
+          sections.push({ title: "Speech", entries: gatewayModels.speech });
+        if (
+          !filterType ||
+          filterType === "audio" ||
+          filterType === "transcription"
+        )
+          sections.push({
+            title: "Transcription",
+            entries: gatewayModels.transcription,
+          });
 
         let totalCount = 0;
         for (const section of sections) {

@@ -30,7 +30,7 @@ describe("cli integration", () => {
   test("--help exits 0 and lists subcommands", async () => {
     const { exitCode, stdout } = await run("--help");
     expect(exitCode).toBe(0);
-    for (const sub of ["text", "image", "video", "models"]) {
+    for (const sub of ["text", "image", "video", "audio", "models"]) {
       expect(stdout).toContain(sub);
     }
   });
@@ -73,6 +73,41 @@ describe("cli integration", () => {
     expect(stdout).toContain("--aspect-ratio");
   });
 
+  test("audio --help exits 0 and lists subcommands", async () => {
+    const { exitCode, stdout } = await run("audio", "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("speak");
+    expect(stdout).toContain("transcribe");
+  });
+
+  test("audio speak --help exits 0 and lists flags", async () => {
+    const { exitCode, stdout } = await run("audio", "speak", "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("--voice");
+    expect(stdout).toContain("--format");
+    expect(stdout).toContain("--speed");
+  });
+
+  test("audio transcribe --help exits 0 and lists flags", async () => {
+    const { exitCode, stdout } = await run("audio", "transcribe", "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("--model");
+    expect(stdout).toContain("--format");
+    expect(stdout).toContain("--output");
+  });
+
+  test("audio speak with no text and no stdin exits 1", async () => {
+    const { exitCode, stderr } = await run("audio", "speak");
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("text or stdin is required");
+  });
+
+  test("audio transcribe with no audio and no stdin exits 1", async () => {
+    const { exitCode, stderr } = await run("audio", "transcribe");
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("audio file, URL, or stdin is required");
+  });
+
   test("video -i validates image paths before generation", async () => {
     const { exitCode, stderr } = await run(
       "video",
@@ -87,7 +122,7 @@ describe("cli integration", () => {
   });
 
   test("models --type invalid exits 1", async () => {
-    const { exitCode, stderr } = await run("models", "--type", "audio");
+    const { exitCode, stderr } = await run("models", "--type", "realtime");
     expect(exitCode).toBe(1);
     expect(stderr).toContain("must be one of");
   });

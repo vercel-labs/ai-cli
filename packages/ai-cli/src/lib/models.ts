@@ -1,9 +1,11 @@
-export type Modality = "text" | "image" | "video";
+export type Modality = "text" | "image" | "video" | "speech" | "transcription";
 
 const DEFAULTS: Record<Modality, string> = {
   text: process.env.AI_CLI_TEXT_MODEL ?? "openai/gpt-5.5",
   image: process.env.AI_CLI_IMAGE_MODEL ?? "openai/gpt-image-2",
   video: process.env.AI_CLI_VIDEO_MODEL ?? "bytedance/seedance-2.0",
+  speech: process.env.AI_CLI_SPEECH_MODEL ?? "openai/tts-1",
+  transcription: process.env.AI_CLI_TRANSCRIPTION_MODEL ?? "openai/whisper-1",
 };
 
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
@@ -13,6 +15,7 @@ export interface ModelPricing {
   input?: string;
   output?: string;
   image?: string;
+  [key: string]: unknown;
 }
 
 export interface ModelEntry {
@@ -28,6 +31,8 @@ export interface GatewayModels {
   text: ModelEntry[];
   image: ModelEntry[];
   video: ModelEntry[];
+  speech: ModelEntry[];
+  transcription: ModelEntry[];
   all: ModelEntry[];
   languageImageModelIds: Set<string>;
 }
@@ -40,9 +45,7 @@ interface RawGatewayModel {
   type?: string;
   tags?: string[];
   pricing?: {
-    input?: string;
-    output?: string;
-    image?: string;
+    [key: string]: unknown;
   };
 }
 
@@ -67,6 +70,8 @@ async function doFetch(): Promise<GatewayModels> {
     text: [],
     image: [],
     video: [],
+    speech: [],
+    transcription: [],
     all: [],
     languageImageModelIds: new Set(),
   };
@@ -97,6 +102,12 @@ async function doFetch(): Promise<GatewayModels> {
         case "video":
           capabilities.push("video");
           break;
+        case "speech":
+          capabilities.push("speech");
+          break;
+        case "transcription":
+          capabilities.push("transcription");
+          break;
         default:
           continue;
       }
@@ -105,14 +116,7 @@ async function doFetch(): Promise<GatewayModels> {
         m.owned_by ??
         (m.id.slice(0, Math.max(0, m.id.indexOf("/"))) || "other");
 
-      const pricing: ModelPricing | undefined =
-        m.pricing?.input || m.pricing?.output || m.pricing?.image
-          ? {
-              ...(m.pricing.input ? { input: m.pricing.input } : {}),
-              ...(m.pricing.output ? { output: m.pricing.output } : {}),
-              ...(m.pricing.image ? { image: m.pricing.image } : {}),
-            }
-          : undefined;
+      const pricing = normalizePricing(m.pricing);
 
       const entry: ModelEntry = {
         id: m.id,
@@ -128,6 +132,9 @@ async function doFetch(): Promise<GatewayModels> {
       if (capabilities.includes("text")) result.text.push(entry);
       if (capabilities.includes("image")) result.image.push(entry);
       if (capabilities.includes("video")) result.video.push(entry);
+      if (capabilities.includes("speech")) result.speech.push(entry);
+      if (capabilities.includes("transcription"))
+        result.transcription.push(entry);
 
       if (m.type === "language" && isImageGen) {
         result.languageImageModelIds.add(m.id);
@@ -141,6 +148,19 @@ async function doFetch(): Promise<GatewayModels> {
   }
 
   return result;
+}
+
+function normalizePricing(
+  pricing?: Record<string, unknown>
+): ModelPricing | undefined {
+  if (!pricing) return undefined;
+
+  const entries = Object.entries(pricing).filter(
+    ([, value]) => value != null && value !== ""
+  );
+  if (entries.length === 0) return undefined;
+
+  return Object.fromEntries(entries) as ModelPricing;
 }
 
 export function resolveModels(

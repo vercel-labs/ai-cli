@@ -18,6 +18,7 @@ export interface RunJobsOptions {
   noun: string;
   format: OutputFormat;
   outputPath?: string;
+  extension?: string;
   quiet?: boolean;
   json?: boolean;
   concurrency: number;
@@ -52,7 +53,16 @@ export async function runJobs(
   generate: (modelId: string) => Promise<GenerateResult>,
   opts: RunJobsOptions
 ): Promise<RunJobsResult> {
-  const { noun, format, outputPath, quiet, json, concurrency, display } = opts;
+  const {
+    noun,
+    format,
+    outputPath,
+    extension,
+    quiet,
+    json,
+    concurrency,
+    display,
+  } = opts;
 
   if (jobs.length === 1) {
     const { modelId } = jobs[0];
@@ -71,6 +81,7 @@ export async function runJobs(
           format,
           outputPath,
           outputId: generated.id,
+          extension,
           quiet: true,
           display,
         });
@@ -94,6 +105,7 @@ export async function runJobs(
           format,
           outputPath,
           outputId: generated.id,
+          extension,
           quiet,
           display,
         });
@@ -141,6 +153,7 @@ export async function runJobs(
           outputPath,
           outputId: generated.id,
           suffix,
+          extension,
           quiet: true,
           display: false,
         });
