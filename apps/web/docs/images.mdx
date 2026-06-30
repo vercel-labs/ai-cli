@@ -53,17 +53,19 @@ ai audio speak "hello" --no-play
 ai audio speak "hello" --no-waveform
 ```
 
-Force preview on in terminals that aren't auto-detected:
+Force image and video preview on in terminals that aren't auto-detected:
 
 ```bash
 export AI_CLI_PREVIEW=1
 ```
 
-Force preview off globally:
+Disable image and video preview globally:
 
 ```bash
 export AI_CLI_PREVIEW=0
 ```
+
+`AI_CLI_PREVIEW` controls visual previews only. Use `--no-play`, `--no-waveform`, `--quiet`, or `--json` to disable audio playback and waveform previews.
 
 <Callout type="tip">
   When multiple images or audio files are generated (via `-n` or multi-model), previews are batched and displayed after all generations complete.

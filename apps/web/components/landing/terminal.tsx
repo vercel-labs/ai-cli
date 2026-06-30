@@ -23,8 +23,8 @@ const scenes: readonly scene[] = [
         text: '$ ai image "a sunset" -m "openai/gpt-image-2,bfl/flux-2-pro"',
       },
       { tone: "plain", text: "" },
-      { tone: "ok", text: "Saved to /Users/you/output-1.png (3.2s)" },
-      { tone: "ok", text: "Saved to /Users/you/output-2.png (4.1s)" },
+      { tone: "ok", text: "Saved to /Users/you/resp_img_a-1.png (3.2s)" },
+      { tone: "ok", text: "Saved to /Users/you/resp_img_b-2.png (4.1s)" },
     ],
   },
   {

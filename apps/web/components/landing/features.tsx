@@ -13,8 +13,8 @@ interface row {
 const multimodelrows: readonly row[] = [
   { tone: "cmd", text: '$ ai image "a sunset" -m "gpt-image-2,flux-2-pro"' },
   { tone: "dim", text: "" },
-  { tone: "code", text: "Saved to /Users/you/resp_img_1.png (3.2s)" },
-  { tone: "code", text: "Saved to /Users/you/resp_img_2.png (4.7s)" },
+  { tone: "code", text: "Saved to /Users/you/resp_img_a-1.png (3.2s)" },
+  { tone: "code", text: "Saved to /Users/you/resp_img_b-2.png (4.7s)" },
 ];
 
 const pipingrows: readonly row[] = [
@@ -36,13 +36,16 @@ const pipingrows: readonly row[] = [
 const modelrows: readonly row[] = [
   { tone: "cmd", text: "$ ai models --type audio" },
   { tone: "dim", text: "" },
+  { tone: "dim", text: "Speech models (8):" },
+  { tone: "dim", text: "" },
   { tone: "dim", text: "  openai" },
   { tone: "code", text: "    tts-1" },
+  { tone: "code", text: "    gpt-4o-mini-tts" },
+  { tone: "dim", text: "" },
+  { tone: "dim", text: "Transcription models (4):" },
+  { tone: "dim", text: "" },
+  { tone: "dim", text: "  openai" },
   { tone: "code", text: "    whisper-1" },
-  { tone: "dim", text: "  speech" },
-  { tone: "code", text: "    text-to-speech models" },
-  { tone: "dim", text: "  transcription" },
-  { tone: "code", text: "    speech-to-text models" },
   { tone: "dim", text: "  ...and more" },
 ];
 
