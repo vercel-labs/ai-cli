@@ -113,4 +113,47 @@ describe("runJobs", () => {
       }
     });
   });
+
+  test("json mode reports multi-run results in job order", async () => {
+    await withTempCwd(async () => {
+      const delays: Record<string, number> = {
+        slow: 30,
+        medium: 10,
+        fast: 0,
+      };
+
+      const stdout = await captureStdout(async () => {
+        await runJobs(
+          buildJobs(["slow", "medium", "fast"], 1),
+          async (modelId) => {
+            await new Promise((resolve) =>
+              setTimeout(resolve, delays[modelId] ?? 0)
+            );
+            return {
+              data: modelId,
+              id: modelId,
+            };
+          },
+          {
+            noun: "text",
+            format: "txt",
+            json: true,
+            quiet: true,
+            concurrency: 3,
+          }
+        );
+      });
+
+      const meta = JSON.parse(stdout.toString("utf8")) as {
+        results: Array<{ index: number; model: string }>;
+      };
+
+      expect(meta.results.map((r) => r.index)).toEqual([1, 2, 3]);
+      expect(meta.results.map((r) => r.model)).toEqual([
+        "slow",
+        "medium",
+        "fast",
+      ]);
+    });
+  });
 });

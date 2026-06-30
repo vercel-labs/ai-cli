@@ -197,10 +197,11 @@ export async function runJobs(
 
   if (json) {
     const totalElapsed = Date.now() - start;
+    const orderedResults = [...results].sort((a, b) => a.index - b.index);
     const meta = {
       elapsed_ms: totalElapsed,
-      count: results.filter((r) => r.success).length,
-      results: results.map((r) => ({
+      count: orderedResults.filter((r) => r.success).length,
+      results: orderedResults.map((r) => ({
         index: r.index + 1,
         model: r.model,
         elapsed_ms: r.elapsed_ms,
