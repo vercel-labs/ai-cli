@@ -226,10 +226,16 @@ export function playerCandidates(
     return candidates;
   }
 
+  return [...desktopPlayerCandidates(file), ...linuxPcmPlayerCandidates(file)];
+}
+
+function linuxPcmPlayerCandidates(file: string): PlayerCommand[] {
+  const extension = extname(file).toLowerCase();
+  if (extension !== ".wav" && extension !== ".pcm") return [];
+
   return [
     { command: "paplay", args: [file] },
     { command: "aplay", args: [file] },
-    ...desktopPlayerCandidates(file),
   ];
 }
 

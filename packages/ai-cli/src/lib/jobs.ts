@@ -160,6 +160,7 @@ export async function runJobs(
     elapsed_ms: number;
     file: string | null;
   }[] = [];
+  const collectOutputs = !json && Boolean(afterOutputs);
   const outputs: RunJobOutput[] = [];
   const pendingDisplayBuffers: Buffer[] = [];
 
@@ -199,14 +200,16 @@ export async function runJobs(
           elapsed_ms: genElapsed,
           file: path,
         });
-        outputs.push({
-          index: i,
-          model: job.modelId,
-          label: job.label,
-          data: generated.data,
-          file: path,
-          elapsed_ms: genElapsed,
-        });
+        if (collectOutputs) {
+          outputs.push({
+            index: i,
+            model: job.modelId,
+            label: job.label,
+            data: generated.data,
+            file: path,
+            elapsed_ms: genElapsed,
+          });
+        }
       } catch (err: unknown) {
         const genElapsed = Date.now() - genStart;
         const msg = err instanceof Error ? err.message : String(err);
@@ -243,8 +246,8 @@ export async function runJobs(
     process.stdout.write(JSON.stringify(meta, null, 2) + "\n");
   }
 
-  if (!json && afterOutputs) {
-    await afterOutputs([...outputs].sort((a, b) => a.index - b.index));
+  if (collectOutputs) {
+    await afterOutputs?.([...outputs].sort((a, b) => a.index - b.index));
   }
 
   for (const buf of pendingDisplayBuffers) {

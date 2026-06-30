@@ -104,10 +104,7 @@ export function registerAudioCommand(program: Command) {
         ? parsePositiveInt(opts.count, "count")
         : 1;
       const jobs = buildJobs(models, countPerModel);
-      const previewAudio =
-        !opts.json &&
-        process.stdout.isTTY &&
-        (opts.play !== false || (opts.waveform !== false && !opts.quiet));
+      const previewAudio = shouldPreviewAudio(opts);
 
       const { total, failed } = await runJobs(
         jobs,
@@ -262,6 +259,24 @@ export function resolveAudioFormat(
   }
 
   return normalized;
+}
+
+export function shouldPreviewAudio(
+  opts: Pick<SpeakOptions, "json" | "output" | "play" | "waveform" | "quiet">,
+  stdoutIsTTY = Boolean(process.stdout.isTTY),
+  stderrIsTTY = Boolean(process.stderr.isTTY),
+  envOutputDir = process.env.AI_CLI_OUTPUT_DIR
+): boolean {
+  if (opts.json) return false;
+
+  const playRequested = opts.play !== false;
+  const waveformRequested = opts.waveform !== false && !opts.quiet;
+  if (!playRequested && !waveformRequested) return false;
+
+  const hasSavedOutput = Boolean(opts.output || envOutputDir);
+  if (!stdoutIsTTY && !hasSavedOutput) return false;
+
+  return stderrIsTTY;
 }
 
 function audioFormatFromOutputPath(outputPath?: string): string | undefined {

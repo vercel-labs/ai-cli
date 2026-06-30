@@ -67,9 +67,17 @@ describe("playerCandidates", () => {
       .map((candidate) => candidate.args.join(" "));
 
     expect(powershellScripts[0]).toContain("System.Windows.Media.MediaPlayer");
-    expect(powershellScripts.join(" ")).toContain(
-      "System.Media.SoundPlayer"
+    expect(powershellScripts.join(" ")).toContain("System.Media.SoundPlayer");
+  });
+
+  test("prefers decode-capable Linux players for mp3 playback", () => {
+    const commands = playerCandidates("clip.mp3", "linux").map(
+      (candidate) => candidate.command
     );
+
+    expect(commands.slice(0, 3)).toEqual(["ffplay", "mpv", "play"]);
+    expect(commands).not.toContain("aplay");
+    expect(commands).not.toContain("paplay");
   });
 });
 
