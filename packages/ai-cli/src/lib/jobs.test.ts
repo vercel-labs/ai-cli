@@ -156,4 +156,41 @@ describe("runJobs", () => {
       ]);
     });
   });
+
+  test("passes saved outputs to afterOutputs in job order", async () => {
+    await withTempCwd(async (dir) => {
+      const seen: Array<{ model: string; file: string | null }> = [];
+
+      await runJobs(
+        buildJobs(["slow", "fast"], 1),
+        async (modelId) => {
+          if (modelId === "slow") {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+          return {
+            data: modelId,
+            id: modelId,
+          };
+        },
+        {
+          noun: "text",
+          format: "txt",
+          outputPath: dir,
+          quiet: true,
+          concurrency: 2,
+          afterOutputs: (outputs) => {
+            seen.push(
+              ...outputs.map((o) => ({ model: o.model, file: o.file }))
+            );
+          },
+        }
+      );
+
+      expect(seen.map((o) => o.model)).toEqual(["slow", "fast"]);
+      expect(seen.map((o) => basename(o.file!))).toEqual([
+        "slow-1.txt",
+        "fast-2.txt",
+      ]);
+    });
+  });
 });

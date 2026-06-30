@@ -128,6 +128,8 @@ ai audio transcribe recording.mp3
 --instructions <text>    Instructions for speech generation
 --speed <n>              Speech speed
 --language <code>        Language code (e.g. en, fr) or auto
+--no-play                Disable audio playback after generation
+--no-waveform            Disable accurate terminal waveform preview
 ```
 
 `audio speak` accepts text from an argument or stdin and saves audio to `<id>.mp3` by default:
@@ -138,6 +140,10 @@ cat announcement.txt | ai audio speak --format wav -o announcement.wav
 ```
 
 When using OpenAI speech models, `ai audio speak` defaults to the `alloy` voice unless `--voice` is provided.
+
+When `-o` points to a file with a known audio extension and `--format` is omitted, the extension selects the audio format. If both are provided, `--format` must match the filename extension.
+
+In interactive terminals, `audio speak` plays the generated audio after saving it and shows an accurate waveform derived from decoded audio samples. Use `--no-play` to skip playback and `--no-waveform` or `--quiet` to suppress the waveform. Playback and waveform previews are skipped for `--json` and binary stdout pipeline output. WAV output is decoded directly; MP3 and other encoded formats use a local decoder when available (`ffmpeg`, `mpg123`, `sox`, or `afconvert`).
 
 #### audio transcribe
 
