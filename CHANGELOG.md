@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.4.0
+
+<!-- release:start -->
+
+### New Features
+
+- **Audio commands** - `ai audio speak` generates speech from text and `ai audio transcribe` transcribes local files, URLs and piped audio (#66)
+- **Audio playback previews** - generated speech plays automatically in interactive terminals with accurate waveform previews and opt-out flags (#68)
+
+### Improvements
+
+- **Longer image timeout** - image generation requests now use a 300-second timeout to better accommodate slower models (#64)
+
+### Bug Fixes
+
+- **Metadata-only JSON output** - `--json` keeps stdout parseable by forcing generated artifacts to files and disabling previews (#67)
+
+### Contributors
+
+- @atinux
+- @piotrjoniec
+- @ctate
+
+<!-- release:end -->
+
 ## 0.3.1
 
 <!-- release:start -->

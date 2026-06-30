@@ -142,6 +142,103 @@ ai text "summarize this" < notes.txt
 
 ---
 
+## audio
+
+Generate speech from text or transcribe audio to text.
+
+```bash
+ai audio speak "Hello from AI Gateway"
+ai audio transcribe recording.mp3
+cat voice-note.mp3 | ai audio transcribe -o transcript.txt
+```
+
+### audio speak
+
+<Properties>
+  <Property name="-m, --model" type="string">
+    Speech model ID. Comma-separated for multi-model.
+  </Property>
+  <Property name="-o, --output" type="path">
+    Output file path or directory.
+  </Property>
+  <Property name="-f, --format" type="string" default="mp3">
+    Audio output format.
+  </Property>
+  <Property name="--voice" type="string">
+    Voice to use for speech generation.
+  </Property>
+  <Property name="--instructions" type="string">
+    Instructions for speech generation.
+  </Property>
+  <Property name="--speed" type="number">
+    Speech speed.
+  </Property>
+  <Property name="--language" type="code">
+    Language code, such as `en` or `fr`, or `auto`.
+  </Property>
+  <Property name="-n, --count" type="number" default="1">
+    Number of generations per model.
+  </Property>
+  <Property name="-p, --concurrency" type="number" default="4">
+    Max parallel generations.
+  </Property>
+  <Property name="-q, --quiet" type="boolean">
+    Suppress progress output.
+  </Property>
+  <Property name="--json" type="boolean">
+    Output metadata as JSON.
+  </Property>
+  <Property name="--no-play" type="boolean">
+    Disable audio playback after generation.
+  </Property>
+  <Property name="--no-waveform" type="boolean">
+    Disable accurate terminal waveform preview.
+  </Property>
+</Properties>
+
+`audio speak` accepts text from an argument or stdin:
+
+```bash
+echo "Ship the changelog" | ai audio speak -o changelog.mp3
+cat announcement.txt | ai audio speak --format wav -o announcement.wav
+```
+
+### audio transcribe
+
+<Properties>
+  <Property name="-m, --model" type="string">
+    Transcription model ID. Comma-separated for multi-model.
+  </Property>
+  <Property name="-o, --output" type="path">
+    Output file path or directory.
+  </Property>
+  <Property name="-f, --format" type="md | txt" default="txt">
+    Transcript output format.
+  </Property>
+  <Property name="-n, --count" type="number" default="1">
+    Number of transcriptions per model.
+  </Property>
+  <Property name="-p, --concurrency" type="number" default="4">
+    Max parallel transcriptions.
+  </Property>
+  <Property name="-q, --quiet" type="boolean">
+    Suppress progress output.
+  </Property>
+  <Property name="--json" type="boolean">
+    Output metadata as JSON.
+  </Property>
+</Properties>
+
+`audio transcribe` accepts a local path, `file://` URL, `http(s)://` URL, or piped audio:
+
+```bash
+ai audio transcribe meeting.mp3
+ai audio transcribe https://example.com/call.wav
+cat recording.mp3 | ai audio transcribe
+```
+
+---
+
 ## models
 
 List available models from the AI Gateway.
@@ -155,7 +252,7 @@ ai models --creator openai --json
 ### Options
 
 <Properties>
-  <Property name="--type" type="text | image | video">
+  <Property name="--type" type="text | image | video | audio | speech | transcription">
     Filter by modality.
   </Property>
   <Property name="--creator" type="string">
@@ -177,10 +274,12 @@ Requests that exceed the per-command timeout are aborted automatically:
 | Command | Timeout |
 | --- | --- |
 | `text` | 120 seconds |
-| `image` | 120 seconds |
+| `image` | 300 seconds |
 | `video` | 300 seconds |
+| `audio speak` | 120 seconds |
+| `audio transcribe` | 120 seconds |
 
-Video generation uses a longer timeout because models typically need more processing time.
+Image and video generation use a longer timeout because models typically need more processing time.
 
 ## Exit codes
 

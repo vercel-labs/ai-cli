@@ -2,7 +2,7 @@ import { defineConfig } from "fromsrc";
 
 export default defineConfig({
   title: "ai-cli",
-  description: "Generate text, images, and video from the terminal.",
+  description: "Generate text, images, video, and audio from the terminal.",
   docsDir: "docs",
   theme: "dark",
   sidebar: {

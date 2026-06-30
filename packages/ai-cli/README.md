@@ -185,7 +185,7 @@ ai image "a sunset" -n 2 -m "openai/gpt-image-1,bfl/flux-2-pro"   # 4 images tot
 
 ### Inline Preview
 
-When running in a terminal that supports the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) (Kitty, Ghostty, WezTerm, Warp, iTerm2), generated images and videos are displayed inline automatically. Video previews decode an H.264 keyframe from the midpoint of the video using [openh264](https://github.com/cisco/openh264) compiled to WebAssembly — no native dependencies required. Use `--no-preview` to disable this, or set `AI_CLI_PREVIEW=1` to force it on in undetected terminals.
+When running in a terminal that supports the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) (Kitty, Ghostty, WezTerm, Warp, iTerm2), generated images and videos are displayed inline automatically. Video previews decode an H.264 keyframe from the midpoint of the video using [openh264](https://github.com/cisco/openh264) compiled to WebAssembly — no native dependencies required. `audio speak` can also play generated speech and render a terminal waveform after saving. Use `--no-preview` for image/video previews, `--no-play` or `--no-waveform` for audio previews, or set `AI_CLI_PREVIEW=1` to force visual previews on in undetected terminals.
 
 ### Output Behavior
 
@@ -222,7 +222,7 @@ Requests that exceed the timeout are aborted automatically:
 | Command | Timeout |
 |---|---|
 | `text` | 120 seconds |
-| `image` | 120 seconds |
+| `image` | 300 seconds |
 | `video` | 300 seconds |
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |

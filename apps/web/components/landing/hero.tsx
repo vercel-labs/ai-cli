@@ -19,9 +19,9 @@ export function Hero() {
             className="landing-fade-up mt-5 text-base text-[#888] leading-relaxed"
             style={{ animationDelay: "90ms" }}
           >
-            A tiny CLI for generating text, images, and video with dead-simple
-            commands. Pipe content in and out. Compare models side by side. See
-            results inline.
+            A tiny CLI for generating text, images, video, and audio with
+            dead-simple commands. Pipe content in and out. Compare models side
+            by side. See results inline.
           </p>
         </div>
 

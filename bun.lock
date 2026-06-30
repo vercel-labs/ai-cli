@@ -36,7 +36,7 @@
     },
     "packages/ai-cli": {
       "name": "ai-cli",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "bin": {
         "ai": "./dist/index.js",
       },

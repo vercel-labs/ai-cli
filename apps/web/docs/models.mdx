@@ -13,6 +13,8 @@ Each command type has a default model used when `-m` is not specified:
 | text | `openai/gpt-5.5` | `AI_CLI_TEXT_MODEL` |
 | image | `openai/gpt-image-2` | `AI_CLI_IMAGE_MODEL` |
 | video | `bytedance/seedance-2.0` | `AI_CLI_VIDEO_MODEL` |
+| speech | `openai/tts-1` | `AI_CLI_SPEECH_MODEL` |
+| transcription | `openai/whisper-1` | `AI_CLI_TRANSCRIPTION_MODEL` |
 
 The `-m` flag always takes priority over environment variables.
 
@@ -23,6 +25,7 @@ Use `creator/model-name` format:
 ```bash
 ai text -m "anthropic/claude-sonnet-4" "hello"
 ai image -m "bfl/flux-2-pro" "a sunset"
+ai audio speak -m "openai/tts-1" "hello"
 ```
 
 Short names (without the creator prefix) are resolved against models fetched from the gateway:
@@ -30,6 +33,7 @@ Short names (without the creator prefix) are resolved against models fetched fro
 ```bash
 ai text -m gpt-5.5 "hello"
 ai image -m flux-2-pro "a sunset"
+ai audio speak -m tts-1 "hello"
 ```
 
 ## Multi-model comparison
@@ -46,13 +50,14 @@ Combine with `-n` to generate multiple per model:
 ai image "a sunset" -n 2 -m "openai/gpt-image-1,bfl/flux-2-pro"
 ```
 
-This produces 4 images total (2 per model), saved as `output-1.png` through `output-4.png`.
+This produces 4 images total (2 per model), saved with generated filename stems and numeric suffixes, such as `resp_abc-1.png` through `resp_def-4.png`.
 
 ## Listing models
 
 ```bash
 ai models                          # all models
 ai models --type image             # image models only
+ai models --type audio             # speech and transcription models
 ai models --creator google         # Google models only
 ai models --json                   # JSON with descriptions
 ```
@@ -64,7 +69,7 @@ In human mode, models are grouped by creator and display short names. Use `--jso
 All models are accessed through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway):
 
 <Cards>
-  <Card title="OpenAI" description="GPT-5.5, GPT-4.1, GPT Image 2, o3, o4-mini" />
+  <Card title="OpenAI" description="GPT-5.5, GPT-4.1, GPT Image 2, TTS, Whisper" />
   <Card title="Anthropic" description="Claude Sonnet 4" />
   <Card title="Google" description="Gemini 2.5 Pro, Imagen 4, Veo 3" />
   <Card title="xAI" description="Grok 3, Grok Imagine" />

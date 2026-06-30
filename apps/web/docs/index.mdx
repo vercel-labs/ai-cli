@@ -1,10 +1,10 @@
 ---
 title: Introduction
-description: Generate text, images, and video from the terminal.
+description: Generate text, images, video, and audio from the terminal.
 order: 1
 ---
 
-ai-cli is a tiny, agent-native CLI for generating text, images, and video with dead-simple commands. It uses the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
+ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio with dead-simple commands. It uses the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
 
 ## What it does
 
@@ -12,9 +12,10 @@ ai-cli is a tiny, agent-native CLI for generating text, images, and video with d
   <Card title="Image generation" description="Create images from text or existing images." />
   <Card title="Video generation" description="Generate video from text or images." />
   <Card title="Text generation" description="Generate text from prompts with any language model." />
+  <Card title="Audio generation" description="Generate speech or transcribe audio files and streams." />
   <Card title="Multi-model comparison" description="Run the same prompt across multiple models in parallel." />
   <Card title="Stdin piping" description="Pipe any content in and out for composable workflows." />
-  <Card title="Inline preview" description="See generated images and video frames directly in your terminal." />
+  <Card title="Inline preview" description="See generated images, video frames, and speech playback directly in your terminal." />
 </Cards>
 
 ## Quick start
@@ -41,6 +42,8 @@ ai-cli is a tiny, agent-native CLI for generating text, images, and video with d
     ai image "a cute dog"
     ai video "a spinning triangle"
     ai text "explain quantum computing"
+    ai audio speak "Thanks for trying ai-cli"
+    ai audio transcribe recording.mp3
     ```
   </Step>
 </Steps>
@@ -51,6 +54,7 @@ ai-cli is a tiny, agent-native CLI for generating text, images, and video with d
   <Card title="image" description="Generate images from a prompt." href="/docs/commands#image" />
   <Card title="video" description="Generate video from a prompt or image." href="/docs/commands#video" />
   <Card title="text" description="Generate text from a prompt." href="/docs/commands#text" />
+  <Card title="audio" description="Generate speech or transcribe audio." href="/docs/commands#audio" />
   <Card title="models" description="List available models from the gateway." href="/docs/commands#models" />
 </Cards>
 

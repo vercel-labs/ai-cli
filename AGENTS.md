@@ -26,7 +26,14 @@ Then install that specific version (e.g. `bun add --cwd packages/ai-cli <package
 
 ## Documentation
 
-When making any user-facing change (new command, new flag, changed behavior, renamed option, etc.), update the documentation in `packages/ai-cli/README.md` in the same PR. A user-facing change without a docs update is incomplete.
+When making any user-facing change (new command, new flag, changed behavior, renamed option, release note, website copy change, etc.), update every relevant user-facing documentation surface in the same PR:
+
+- `packages/ai-cli/README.md` for the npm/package README
+- `apps/web/docs/` for website documentation
+- `apps/web/components/landing/` and other website copy when the landing page or marketing copy should reflect the change
+- `CHANGELOG.md` for release-facing changes
+
+A user-facing change without matching README and website/docs updates is incomplete.
 
 ## Type Checking
 
