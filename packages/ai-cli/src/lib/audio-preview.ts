@@ -8,6 +8,9 @@ import type { RunJobOutput } from "./jobs.js";
 
 const WAVE_LEVELS = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588";
 const MIN_WAVEFORM_WIDTH = 8;
+const MAX_WAVEFORM_WIDTH = 80;
+const HIDE_CURSOR = "\x1b[?25l";
+const SHOW_CURSOR = "\x1b[?25h";
 const WINDOWS_MEDIA_PLAYER_SCRIPT = [
   "$ErrorActionPreference = 'Stop'",
   "Add-Type -AssemblyName PresentationCore",
@@ -292,11 +295,12 @@ function runPlayer(
   });
 }
 
-function startWaveformRenderer(
+export function startWaveformRenderer(
   decoded: DecodedWav,
   label: string
 ): (complete: boolean) => void {
   const start = Date.now();
+  const restoreCursor = hideTerminalCursor();
   const render = (elapsedMs: number) => {
     process.stderr.write(
       `\r${renderWaveformLine(decoded, elapsedMs, getColumns(), label)}\x1b[K`
@@ -312,6 +316,26 @@ function startWaveformRenderer(
     clearInterval(interval);
     render(complete ? decoded.durationMs : Date.now() - start);
     process.stderr.write("\n");
+    restoreCursor();
+  };
+}
+
+function hideTerminalCursor(): () => void {
+  if (!isTTY()) return () => {};
+
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    process.stderr.write(SHOW_CURSOR);
+  };
+
+  process.stderr.write(HIDE_CURSOR);
+  process.once("exit", restore);
+
+  return () => {
+    process.off("exit", restore);
+    restore();
   };
 }
 
@@ -449,12 +473,13 @@ export function renderWaveformLine(
   const displayLabel =
     label.length > maxLabelWidth ? label.slice(0, maxLabelWidth) : label;
   const prefix = displayLabel ? `${displayLabel} ` : "";
-  const width = columns - prefix.length - suffix.length - 1;
+  const availableWidth = columns - prefix.length - suffix.length - 1;
 
-  if (width < MIN_WAVEFORM_WIDTH) {
+  if (availableWidth < MIN_WAVEFORM_WIDTH) {
     return `${displayLabel}${suffix}`.slice(0, Math.max(0, columns - 1));
   }
 
+  const width = Math.min(availableWidth, MAX_WAVEFORM_WIDTH);
   return `${prefix}${waveformBars(decoded, elapsedMs, width)}${suffix}`;
 }
 

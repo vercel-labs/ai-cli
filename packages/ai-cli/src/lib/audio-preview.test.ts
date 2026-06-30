@@ -4,6 +4,7 @@ import {
   decodeWav,
   playerCandidates,
   renderWaveformLine,
+  startWaveformRenderer,
 } from "./audio-preview.js";
 
 describe("decodeWav", () => {
@@ -43,7 +44,36 @@ describe("renderWaveformLine", () => {
     expect(line).toContain("Playing audio");
     expect(line).toContain("0:00 / 0:01");
     expect(line).toMatch(new RegExp("[\\u2581-\\u2588]", "u"));
-    expect(line.length).toBeLessThanOrEqual(47);
+    expect(stripAnsi(line).length).toBeLessThanOrEqual(47);
+  });
+
+  test("caps the waveform timeline on wide terminals", () => {
+    const decoded = decodeWav(makePcm16Wav([0, 16_384, -32_768, 8_192], 4));
+    const line = stripAnsi(
+      renderWaveformLine(decoded!, 500, 180, "Playing audio")
+    );
+    const suffix = " 0:00 / 0:01";
+    const waveform = line.slice("Playing audio ".length, -suffix.length);
+
+    expect(waveform).toHaveLength(80);
+  });
+});
+
+describe("startWaveformRenderer", () => {
+  test("hides the terminal cursor while playback is rendering", () => {
+    const decoded = decodeWav(makePcm16Wav([0, 16_384, -32_768, 8_192], 4));
+    const stderr = withStderrTTY(true, () =>
+      captureStderr(() => {
+        const stop = startWaveformRenderer(decoded!, "Playing audio");
+        stop(true);
+      })
+    );
+
+    expect(stderr).toContain("\x1b[?25l");
+    expect(stderr).toContain("\x1b[?25h");
+    expect(stderr.indexOf("\x1b[?25l")).toBeLessThan(
+      stderr.indexOf("\x1b[?25h")
+    );
   });
 });
 
@@ -104,4 +134,52 @@ function makePcm16Wav(samples: number[], sampleRate: number): Buffer {
   }
 
   return wav;
+}
+
+function stripAnsi(value: string): string {
+  return value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
+function captureStderr(fn: () => void): string {
+  const originalWrite = process.stderr.write;
+  let output = "";
+  (
+    process.stderr as {
+      write: (chunk: string | Uint8Array) => boolean;
+    }
+  ).write = (chunk) => {
+    output +=
+      typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+    return true;
+  };
+
+  try {
+    fn();
+  } finally {
+    (
+      process.stderr as {
+        write: typeof originalWrite;
+      }
+    ).write = originalWrite;
+  }
+
+  return output;
+}
+
+function withStderrTTY<T>(isTTY: boolean, fn: () => T): T {
+  const descriptor = Object.getOwnPropertyDescriptor(process.stderr, "isTTY");
+  Object.defineProperty(process.stderr, "isTTY", {
+    configurable: true,
+    value: isTTY,
+  });
+
+  try {
+    return fn();
+  } finally {
+    if (descriptor) {
+      Object.defineProperty(process.stderr, "isTTY", descriptor);
+    } else {
+      delete (process.stderr as { isTTY?: boolean }).isTTY;
+    }
+  }
 }
