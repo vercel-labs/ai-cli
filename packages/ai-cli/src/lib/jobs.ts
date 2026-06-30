@@ -23,6 +23,16 @@ export interface RunJobsOptions {
   json?: boolean;
   concurrency: number;
   display?: boolean;
+  afterOutputs?: (outputs: RunJobOutput[]) => Promise<void> | void;
+}
+
+export interface RunJobOutput {
+  index: number;
+  model: string;
+  label: string;
+  data: Buffer | string;
+  file: string | null;
+  elapsed_ms: number;
 }
 
 export function buildJobs(models: string[], countPerModel: number): Job[] {
@@ -62,10 +72,12 @@ export async function runJobs(
     json,
     concurrency,
     display,
+    afterOutputs,
   } = opts;
 
   if (jobs.length === 1) {
-    const { modelId } = jobs[0];
+    const job = jobs[0];
+    const { modelId } = job;
     const progress = new Progress(quiet);
     const start = Date.now();
     progress.start(`Generating ${noun} with ${modelId}`);
@@ -101,7 +113,7 @@ export async function runJobs(
         };
         process.stdout.write(JSON.stringify(meta, null, 2) + "\n");
       } else {
-        await writeOutput({
+        const path = await writeOutput({
           data: generated.data,
           format,
           outputPath,
@@ -110,6 +122,16 @@ export async function runJobs(
           quiet,
           display,
         });
+        await afterOutputs?.([
+          {
+            index: 0,
+            model: modelId,
+            label: job.label,
+            data: generated.data,
+            file: path,
+            elapsed_ms: elapsed,
+          },
+        ]);
       }
     } catch (err) {
       progress.stop();
@@ -138,6 +160,7 @@ export async function runJobs(
     elapsed_ms: number;
     file: string | null;
   }[] = [];
+  const outputs: RunJobOutput[] = [];
   const pendingDisplayBuffers: Buffer[] = [];
 
   await pMap(
@@ -176,6 +199,14 @@ export async function runJobs(
           elapsed_ms: genElapsed,
           file: path,
         });
+        outputs.push({
+          index: i,
+          model: job.modelId,
+          label: job.label,
+          data: generated.data,
+          file: path,
+          elapsed_ms: genElapsed,
+        });
       } catch (err: unknown) {
         const genElapsed = Date.now() - genStart;
         const msg = err instanceof Error ? err.message : String(err);
@@ -210,6 +241,10 @@ export async function runJobs(
       })),
     };
     process.stdout.write(JSON.stringify(meta, null, 2) + "\n");
+  }
+
+  if (!json && afterOutputs) {
+    await afterOutputs([...outputs].sort((a, b) => a.index - b.index));
   }
 
   for (const buf of pendingDisplayBuffers) {

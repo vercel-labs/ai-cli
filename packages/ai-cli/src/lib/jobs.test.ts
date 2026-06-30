@@ -73,7 +73,7 @@ describe("runJobs", () => {
 
       expect(meta.count).toBe(1);
       expect(file).not.toBeNull();
-      expect(basename(file!)).toBe("speech_123.mp3");
+      expect(basename(file!)).toBe("speech_123.wav");
       expect(readFileSync(file!)).toEqual(Buffer.from([1, 2, 3]));
     });
   });
@@ -105,8 +105,8 @@ describe("runJobs", () => {
 
       expect(meta.count).toBe(2);
       expect(meta.results.map((r) => basename(r.file!)).sort()).toEqual([
-        "speech_456-1.mp3",
-        "speech_456-2.mp3",
+        "speech_456-1.wav",
+        "speech_456-2.wav",
       ]);
       for (const result of meta.results) {
         expect(readFileSync(result.file!)).toEqual(Buffer.from([4, 5, 6]));
@@ -153,6 +153,43 @@ describe("runJobs", () => {
         "slow",
         "medium",
         "fast",
+      ]);
+    });
+  });
+
+  test("passes saved outputs to afterOutputs in job order", async () => {
+    await withTempCwd(async (dir) => {
+      const seen: Array<{ model: string; file: string | null }> = [];
+
+      await runJobs(
+        buildJobs(["slow", "fast"], 1),
+        async (modelId) => {
+          if (modelId === "slow") {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+          return {
+            data: modelId,
+            id: modelId,
+          };
+        },
+        {
+          noun: "text",
+          format: "txt",
+          outputPath: dir,
+          quiet: true,
+          concurrency: 2,
+          afterOutputs: (outputs) => {
+            seen.push(
+              ...outputs.map((o) => ({ model: o.model, file: o.file }))
+            );
+          },
+        }
+      );
+
+      expect(seen.map((o) => o.model)).toEqual(["slow", "fast"]);
+      expect(seen.map((o) => basename(o.file!))).toEqual([
+        "slow-1.txt",
+        "fast-2.txt",
       ]);
     });
   });

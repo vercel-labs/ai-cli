@@ -86,6 +86,8 @@ describe("cli integration", () => {
     expect(stdout).toContain("--voice");
     expect(stdout).toContain("--format");
     expect(stdout).toContain("--speed");
+    expect(stdout).toContain("--no-play");
+    expect(stdout).toContain("--no-waveform");
   });
 
   test("audio transcribe --help exits 0 and lists flags", async () => {

@@ -5,6 +5,7 @@ import { gateway } from "@ai-sdk/gateway";
 import { generateSpeech, transcribe } from "ai";
 import type { Command } from "commander";
 
+import { previewAudioOutputs } from "../lib/audio-preview.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
@@ -14,6 +15,7 @@ import { readStdin, stdinAsText } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_AUDIO_FORMAT = "wav";
 
 interface SpeakOptions {
   model?: string;
@@ -27,6 +29,8 @@ interface SpeakOptions {
   concurrency?: string;
   quiet?: boolean;
   json?: boolean;
+  play?: boolean;
+  waveform?: boolean;
 }
 
 interface TranscribeOptions {
@@ -53,7 +57,7 @@ export function registerAudioCommand(program: Command) {
       "Speech model ID (creator/model-name), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
-    .option("-f, --format <fmt>", "Audio output format (default: mp3)")
+    .option("-f, --format <fmt>", "Audio output format (default: wav)")
     .option("--voice <voice>", "Voice to use for speech generation")
     .option("--instructions <text>", "Instructions for speech generation")
     .option("--speed <n>", "Speech speed")
@@ -65,6 +69,8 @@ export function registerAudioCommand(program: Command) {
     )
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON")
+    .option("--no-play", "Disable audio playback after generation")
+    .option("--no-waveform", "Disable accurate terminal waveform preview")
     .action(async (rawText: string | undefined, opts: SpeakOptions) => {
       const text = rawText?.trim() || undefined;
       const stdin = await readStdin();
@@ -88,6 +94,10 @@ export function registerAudioCommand(program: Command) {
         ? parsePositiveInt(opts.count, "count")
         : 1;
       const jobs = buildJobs(models, countPerModel);
+      const previewAudio =
+        !opts.json &&
+        process.stdout.isTTY &&
+        (opts.play !== false || (opts.waveform !== false && !opts.quiet));
 
       const { total, failed } = await runJobs(
         jobs,
@@ -119,6 +129,14 @@ export function registerAudioCommand(program: Command) {
           concurrency: opts.concurrency
             ? parsePositiveInt(opts.concurrency, "concurrency")
             : DEFAULT_CONCURRENCY,
+          afterOutputs: previewAudio
+            ? (outputs) =>
+                previewAudioOutputs(outputs, {
+                  play: opts.play !== false,
+                  waveform: opts.waveform !== false,
+                  quiet: opts.quiet,
+                })
+            : undefined,
         }
       );
       if (failed === total) process.exit(1);
@@ -215,7 +233,7 @@ function buildSpeechText(
 }
 
 function resolveAudioFormat(format?: string): string {
-  if (!format) return "mp3";
+  if (!format) return DEFAULT_AUDIO_FORMAT;
 
   const normalized = format.trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9._-]*$/.test(normalized)) {
