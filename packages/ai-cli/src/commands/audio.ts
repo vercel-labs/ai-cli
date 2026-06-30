@@ -239,7 +239,7 @@ function resolveTranscriptFormat(format?: string): OutputFormat {
 
 async function loadAudioInput(
   rawAudio: string | undefined,
-  stdin: Buffer | null
+  stdin: Uint8Array | null
 ): Promise<Uint8Array | URL> {
   if (stdin) return new Uint8Array(stdin);
   const audio = rawAudio?.trim();

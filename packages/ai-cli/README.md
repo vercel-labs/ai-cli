@@ -49,6 +49,8 @@ All commands support:
 --json                   Output metadata as JSON
 ```
 
+When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped.
+
 Model IDs can be specified as `creator/model-name` or just `model-name` (resolved against models fetched from the gateway):
 
 ```bash

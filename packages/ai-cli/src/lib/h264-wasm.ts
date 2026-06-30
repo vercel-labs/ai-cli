@@ -101,7 +101,7 @@ function getModule(): Promise<OpenH264Module> {
       const wasmBinary = readFileSync(wasmPath);
       const factory = (await import("./openh264.mjs")).default;
       return factory({
-        wasmBinary,
+        wasmBinary: new Uint8Array(wasmBinary),
         print: () => {},
         printErr: () => {},
       }) as Promise<OpenH264Module>;

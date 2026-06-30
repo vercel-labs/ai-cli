@@ -13,7 +13,7 @@ export function encodePNG(
 
   // YUV420 -> RGB, with PNG filter byte per row
   const rowSize = width * 3 + 1;
-  const raw = Buffer.alloc(rowSize * height);
+  const raw = new Uint8Array(rowSize * height);
 
   for (let y = 0; y < height; y++) {
     raw[y * rowSize] = 0; // filter: None
@@ -36,7 +36,7 @@ export function encodePNG(
   const compressed = deflateSync(raw);
 
   // Build PNG file
-  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
@@ -47,23 +47,25 @@ export function encodePNG(
   ihdr[11] = 0; // filter
   ihdr[12] = 0; // interlace
 
-  const ihdrChunk = makeChunk("IHDR", ihdr);
-  const idatChunk = makeChunk("IDAT", compressed);
-  const iendChunk = makeChunk("IEND", Buffer.alloc(0));
+  const ihdrChunk = makeChunk("IHDR", new Uint8Array(ihdr));
+  const idatChunk = makeChunk("IDAT", new Uint8Array(compressed));
+  const iendChunk = makeChunk("IEND", new Uint8Array(0));
 
   return Buffer.concat([signature, ihdrChunk, idatChunk, iendChunk]);
 }
 
-function makeChunk(type: string, data: Buffer): Buffer {
-  const typeBytes = Buffer.from(type, "ascii");
+function makeChunk(type: string, data: Uint8Array): Uint8Array {
+  const typeBytes = new TextEncoder().encode(type);
   const len = Buffer.alloc(4);
   len.writeUInt32BE(data.length, 0);
 
   const crcInput = Buffer.concat([typeBytes, data]);
   const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(crcInput), 0);
+  crc.writeUInt32BE(crc32(new Uint8Array(crcInput)), 0);
 
-  return Buffer.concat([len, typeBytes, data, crc]);
+  return new Uint8Array(
+    Buffer.concat([new Uint8Array(len), typeBytes, data, new Uint8Array(crc)])
+  );
 }
 
 const CRC_TABLE = new Uint32Array(256);
@@ -77,7 +79,7 @@ const CRC_TABLE = new Uint32Array(256);
   }
 }
 
-function crc32(buf: Buffer): number {
+function crc32(buf: Uint8Array): number {
   let crc = 0xffffffff;
   for (let i = 0; i < buf.length; i++) {
     crc = CRC_TABLE[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);

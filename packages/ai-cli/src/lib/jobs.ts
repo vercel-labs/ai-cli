@@ -82,8 +82,9 @@ export async function runJobs(
           outputPath,
           outputId: generated.id,
           extension,
+          forceFile: true,
           quiet: true,
-          display,
+          display: false,
         });
         const meta = {
           elapsed_ms: elapsed,
@@ -120,6 +121,7 @@ export async function runJobs(
   const multi = new MultiProgress(quiet);
   const start = Date.now();
   const shouldDisplay =
+    !json &&
     display !== false &&
     (format === "image" || format === "video") &&
     process.stdout.isTTY &&
@@ -154,6 +156,7 @@ export async function runJobs(
           outputId: generated.id,
           suffix,
           extension,
+          forceFile: Boolean(json),
           quiet: true,
           display: false,
         });
@@ -194,10 +197,11 @@ export async function runJobs(
 
   if (json) {
     const totalElapsed = Date.now() - start;
+    const orderedResults = [...results].sort((a, b) => a.index - b.index);
     const meta = {
       elapsed_ms: totalElapsed,
-      count: results.filter((r) => r.success).length,
-      results: results.map((r) => ({
+      count: orderedResults.filter((r) => r.success).length,
+      results: orderedResults.map((r) => ({
         index: r.index + 1,
         model: r.model,
         elapsed_ms: r.elapsed_ms,
