@@ -1,12 +1,12 @@
 ---
-title: Inline Preview
-description: See generated images and video frames directly in your terminal.
+title: Terminal Previews
+description: See generated media previews directly in your terminal.
 order: 7
 ---
 
 ## How it works
 
-When running in a terminal that supports the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/), generated images and video frames are displayed inline automatically.
+When running in a terminal that supports the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/), generated images and video frames are displayed inline automatically. Speech output can also play back after saving and render a waveform preview when audio samples can be decoded locally.
 
 ## Supported terminals
 
@@ -34,13 +34,28 @@ Video previews extract and decode an H.264 keyframe from the midpoint of the gen
 ai video "ocean waves"
 ```
 
+## Audio preview
+
+Speech output is saved to disk, then played back in interactive terminals. WAV output is decoded directly; MP3 and other encoded formats use a local decoder when available (`ffmpeg`, `mpg123`, `sox`, or `afconvert`) to render a waveform.
+
+```bash
+ai audio speak "Read this as a product update"
+```
+
 ## Controlling preview
 
-Disable inline preview for a single command:
+Disable image or video preview for a single command:
 
 ```bash
 ai image "a sunset" --no-preview
 ai video "a sunset" --no-preview
+```
+
+Disable audio playback or waveform previews:
+
+```bash
+ai audio speak "hello" --no-play
+ai audio speak "hello" --no-waveform
 ```
 
 Force preview on in terminals that aren't auto-detected:
@@ -56,5 +71,5 @@ export AI_CLI_PREVIEW=0
 ```
 
 <Callout type="tip">
-  When multiple images are generated (via `-n` or multi-model), previews are batched and displayed after all generations complete.
+  When multiple media outputs are generated via `-n` or multi-model, previews are batched and displayed after all generations complete.
 </Callout>

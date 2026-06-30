@@ -28,8 +28,14 @@ Requests are aborted if they exceed the per-command timeout:
 | `text` | 120 seconds |
 | `image` | 120 seconds |
 | `video` | 300 seconds |
+| `audio speak` | 120 seconds |
+| `audio transcribe` | 120 seconds |
 
 If you're consistently hitting timeouts, try a faster model variant (e.g. `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
+
+## Audio preview does not play
+
+`ai audio speak` saves the generated file even when local playback or waveform decoding is unavailable. Use `--no-play` to skip playback, or install a local decoder such as `ffmpeg`, `mpg123`, `sox`, or `afconvert` for encoded audio waveform previews.
 
 ## `--quality` / `--style` warning
 

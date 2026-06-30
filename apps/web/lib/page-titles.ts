@@ -5,7 +5,7 @@ export const PAGE_TITLES: Record<string, string> = {
   models: "Models",
   configuration: "Configuration",
   single: "Piping & Output",
-  images: "Inline Preview",
+  images: "Terminal Previews",
 };
 
 export function getPageTitle(slug: string): string | null {

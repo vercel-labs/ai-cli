@@ -31,7 +31,7 @@ const navigation = [
       },
       {
         type: "item" as const,
-        title: "Inline Preview",
+        title: "Terminal Previews",
         href: "/docs/images",
       },
     ],

@@ -54,6 +54,20 @@ const scenes: readonly scene[] = [
       { tone: "ok", text: "Saved to /Users/you/output.md" },
     ],
   },
+  {
+    name: "audio",
+    data: [
+      { tone: "input", text: '$ ai audio speak "Ship the changelog" -o changelog.mp3' },
+      { tone: "dim", text: "" },
+      { tone: "dim", text: "Generating audio with openai/tts-1" },
+      { tone: "ok", text: "Saved to /Users/you/changelog.mp3 (2.8s)" },
+      { tone: "plain", text: "" },
+      { tone: "plain", text: "__/--\\___/---\\__/--\\__" },
+      { tone: "plain", text: "" },
+      { tone: "input", text: "$ ai audio transcribe meeting.mp3" },
+      { tone: "ok", text: "Action items: update the release notes and publish the demo." },
+    ],
+  },
 ];
 
 function style(tone: tone): string {

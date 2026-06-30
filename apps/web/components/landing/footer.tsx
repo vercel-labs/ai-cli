@@ -8,7 +8,7 @@ export function Footer() {
               ai-cli
             </div>
             <div className="mt-3 text-sm text-white/40">
-              Generate text, images, and video from your terminal.
+              Generate text, images, video, and audio from your terminal.
             </div>
             <a
               href="https://vercel.com"
@@ -35,6 +35,7 @@ export function Footer() {
               <span>ai image &quot;prompt&quot;</span>
               <span>ai video &quot;prompt&quot;</span>
               <span>ai text &quot;prompt&quot;</span>
+              <span>ai audio speak &quot;prompt&quot;</span>
               <span>ai models</span>
             </div>
           </div>
@@ -46,7 +47,7 @@ export function Footer() {
             <div className="mt-4 flex flex-col gap-2 font-mono text-sm text-white/45">
               <span>multi-model comparison</span>
               <span>stdin/stdout piping</span>
-              <span>inline preview</span>
+              <span>terminal previews</span>
               <span>live model discovery</span>
             </div>
           </div>

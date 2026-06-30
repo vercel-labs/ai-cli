@@ -7,8 +7,8 @@ interface item {
 const items: readonly item[] = [
   {
     id: "001",
-    title: "Inline preview",
-    body: "Generated images and video frames display directly in your terminal using the Kitty graphics protocol. Supports Kitty, Ghostty, WezTerm, Warp, and iTerm2.",
+    title: "Terminal previews",
+    body: "Generated images and video frames display directly in supported terminals. Speech output can play back after saving and render an accurate waveform preview.",
   },
   {
     id: "002",
@@ -88,7 +88,7 @@ export function Bento() {
             <div className="mt-6">
               <div className="inline-flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 font-mono text-sm text-white/60">
                 <span className="text-white/30">$</span>
-                <span>ai text &quot;hello&quot;</span>
+                <span>ai audio speak &quot;hello&quot;</span>
               </div>
             </div>
           </div>

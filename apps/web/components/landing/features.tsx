@@ -28,19 +28,21 @@ const pipingrows: readonly row[] = [
   { tone: "dim", text: "" },
   { tone: "cmd", text: '$ ai image "a dragon" | ai video "animate this"' },
   { tone: "code", text: "Saved to /Users/you/output.mp4" },
+  { tone: "dim", text: "" },
+  { tone: "cmd", text: '$ cat notes.txt | ai audio speak -o update.mp3' },
+  { tone: "code", text: "Saved to /Users/you/update.mp3" },
 ];
 
 const modelrows: readonly row[] = [
-  { tone: "cmd", text: "$ ai models --type image" },
+  { tone: "cmd", text: "$ ai models --type audio" },
   { tone: "dim", text: "" },
   { tone: "dim", text: "  openai" },
-  { tone: "code", text: "    gpt-image-2" },
-  { tone: "code", text: "    gpt-image-1" },
-  { tone: "dim", text: "  bfl" },
-  { tone: "code", text: "    flux-2-pro" },
-  { tone: "code", text: "    flux-kontext-pro" },
-  { tone: "dim", text: "  google" },
-  { tone: "code", text: "    imagen-4.0-generate-001" },
+  { tone: "code", text: "    tts-1" },
+  { tone: "code", text: "    whisper-1" },
+  { tone: "code", text: "    gpt-4o-transcribe" },
+  { tone: "dim", text: "  xai" },
+  { tone: "code", text: "    grok-tts" },
+  { tone: "code", text: "    grok-stt" },
   { tone: "dim", text: "  ...and more" },
 ];
 
@@ -141,11 +143,11 @@ export function Features() {
           <Spotlight
             tone="ash"
             title="Pipe everything."
-            description="Pipe text in as context, pipe images into video generation, chain commands together. Raw output on stdout when piped, file saves when interactive."
+            description="Pipe text in as context, pipe images into video generation, pipe text into speech, and transcribe audio from files or stdin. Raw output on stdout when piped, file saves when interactive."
             bullets={[
               "text stdin becomes prompt context",
-              "binary stdin for image-to-image and image-to-video",
-              "chain: ai image | ai video",
+              "binary stdin for image-to-image, image-to-video, and transcription",
+              "chain: ai image | ai video, text | ai audio speak",
             ]}
             flip
             window={<Panel rows={pipingrows} />}
@@ -154,7 +156,7 @@ export function Features() {
           <Spotlight
             tone="iron"
             title="Hundreds of models, one key."
-            description="Access text, image, and video models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, and more through Vercel AI Gateway."
+            description="Access text, image, video, speech, and transcription models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, xAI, and more through Vercel AI Gateway."
             bullets={[
               "short names resolve automatically: flux-2-pro, gpt-5.5",
               "live model listing from the gateway",

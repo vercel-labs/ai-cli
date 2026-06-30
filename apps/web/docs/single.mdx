@@ -47,6 +47,15 @@ ai image "a dragon" | ai video "animate this"
 cat scene.png | ai video "zoom out slowly"
 ```
 
+### Audio
+
+`audio speak` reads stdin as text for speech generation, while `audio transcribe` reads stdin as binary audio data:
+
+```bash
+cat announcement.txt | ai audio speak -o announcement.mp3
+cat voice-note.mp3 | ai audio transcribe
+```
+
 ## Stdout
 
 Output behavior changes based on whether stdout is a TTY (interactive terminal) or a pipe:
@@ -59,6 +68,7 @@ Saves to a file and prints the path to stderr:
 ai text "hello"         # → saves output.md, prints "Saved to /path/output.md"
 ai image "a cat"        # → saves output.png
 ai video "ocean"        # → saves output.mp4
+ai audio speak "hello"  # → saves output.mp3
 ```
 
 ### Piped (non-TTY)
@@ -69,6 +79,7 @@ Writes raw output directly to stdout for composability:
 ai text "hello" | pbcopy                    # copy to clipboard
 ai image "a dragon" | ai video "animate"    # chain image → video
 ai text "hello" > response.md              # redirect to file
+ai audio speak "hello" > hello.mp3         # redirect binary audio
 ```
 
 ## Output path
@@ -78,6 +89,7 @@ Control where files are saved with `-o`:
 ```bash
 ai image "a sunset" -o sunset.png          # specific file
 ai image "a sunset" -o ./renders/          # directory (auto-names files)
+ai audio transcribe meeting.mp3 -o notes.txt
 ```
 
 When `-o` points to a directory, files are named `output.png`, `output-2.png`, etc.
@@ -87,6 +99,7 @@ The `AI_CLI_OUTPUT_DIR` environment variable sets a default output directory:
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output
 ai image "a sunset"    # → saves to ~/ai-output/output.png
+ai audio speak "hi"    # → saves to ~/ai-output/output.mp3
 ```
 
 ## JSON metadata
