@@ -32,7 +32,7 @@ ai text --image screenshot.png "what is broken in this UI?"
 cat photo.png | ai text "describe this image"
 cat notes.txt | ai text "summarize this"
 git diff | ai text "explain these changes"
-echo "Ship the changelog" | ai audio speak -o changelog.wav
+echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe
 ```
 
@@ -123,7 +123,7 @@ ai audio transcribe recording.mp3
 #### audio speak
 
 ```
--f, --format <fmt>       Audio output format (default: wav)
+-f, --format <fmt>       Audio output format (default: mp3)
 --voice <voice>          Voice to use for speech generation
 --instructions <text>    Instructions for speech generation
 --speed <n>              Speech speed
@@ -132,14 +132,16 @@ ai audio transcribe recording.mp3
 --no-waveform            Disable accurate terminal waveform preview
 ```
 
-`audio speak` accepts text from an argument or stdin and saves audio to `<id>.wav` by default:
+`audio speak` accepts text from an argument or stdin and saves audio to `<id>.mp3` by default:
 
 ```bash
 ai audio speak --voice alloy "Read this as a friendly update"
-cat announcement.txt | ai audio speak -o announcement.wav
+cat announcement.txt | ai audio speak --format wav -o announcement.wav
 ```
 
 When using OpenAI speech models, `ai audio speak` defaults to the `alloy` voice unless `--voice` is provided.
+
+When `-o` points to a file with a known audio extension and `--format` is omitted, the extension selects the audio format. If both are provided, `--format` must match the filename extension.
 
 In interactive terminals, `audio speak` plays the generated audio after saving it and shows an accurate waveform derived from decoded audio samples. Use `--no-play` to skip playback and `--no-waveform` or `--quiet` to suppress the waveform. Playback and waveform previews are skipped for `--json` and binary stdout pipeline output. WAV output is decoded directly; MP3 and other encoded formats use a local decoder when available (`ffmpeg`, `mpg123`, `sox`, or `afconvert`).
 
@@ -189,7 +191,7 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 - **text**: saves to `<id>.md` (interactive), stdout when piped
 - **image/video**: saves to `<id>.png` / `<id>.mp4` (interactive), raw binary stdout when piped
-- **audio speak**: saves to `<id>.wav` (interactive), raw binary stdout when piped
+- **audio speak**: saves to `<id>.mp3` (interactive), raw binary stdout when piped
 - **audio transcribe**: saves to `<id>.txt` (interactive), stdout when piped
 - **`-o <dir>`**: saves inside the directory with auto-generated names
 

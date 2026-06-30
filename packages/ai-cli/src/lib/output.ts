@@ -15,7 +15,7 @@ const DEFAULT_EXTENSIONS: Record<OutputFormat, string> = {
   txt: ".txt",
   image: ".png",
   video: ".mp4",
-  audio: ".wav",
+  audio: ".mp3",
 };
 
 export interface WriteOutputOptions {

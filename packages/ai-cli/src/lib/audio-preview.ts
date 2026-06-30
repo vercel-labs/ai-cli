@@ -48,10 +48,12 @@ async function previewAudioOutput(
   outputCount: number,
   opts: AudioPreviewOptions
 ): Promise<void> {
-  const decoded = opts.waveform ? await decodeAudioForWaveform(output) : null;
-  const canRenderWaveform = Boolean(decoded && isTTY() && !opts.quiet);
+  const canRenderWaveform = opts.waveform && isTTY() && !opts.quiet;
+  const decoded = canRenderWaveform
+    ? await decodeAudioForWaveform(output)
+    : null;
 
-  if (opts.waveform && !decoded && isTTY() && !opts.quiet) {
+  if (canRenderWaveform && !decoded) {
     process.stderr.write(
       "Warning: could not decode audio for waveform preview; install ffmpeg or use --no-waveform\n"
     );
@@ -76,7 +78,7 @@ async function previewAudioOutput(
   }
 
   await playAudioFile(output.file, {
-    decoded: canRenderWaveform ? decoded : null,
+    decoded,
     label: outputCount > 1 ? `Playing audio ${output.label}` : "Playing audio",
     quiet: opts.quiet,
   });

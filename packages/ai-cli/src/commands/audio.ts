@@ -1,4 +1,6 @@
+import { statSync } from "fs";
 import { readFile } from "fs/promises";
+import { extname } from "path";
 import { fileURLToPath } from "url";
 
 import { gateway } from "@ai-sdk/gateway";
@@ -15,7 +17,15 @@ import { readStdin, stdinAsText } from "../lib/stdin.js";
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 120_000;
-const DEFAULT_AUDIO_FORMAT = "wav";
+const DEFAULT_AUDIO_FORMAT = "mp3";
+const KNOWN_AUDIO_FORMATS = new Set([
+  "mp3",
+  "wav",
+  "opus",
+  "aac",
+  "flac",
+  "pcm",
+]);
 
 interface SpeakOptions {
   model?: string;
@@ -57,7 +67,7 @@ export function registerAudioCommand(program: Command) {
       "Speech model ID (creator/model-name), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
-    .option("-f, --format <fmt>", "Audio output format (default: wav)")
+    .option("-f, --format <fmt>", "Audio output format (default: mp3)")
     .option("--voice <voice>", "Voice to use for speech generation")
     .option("--instructions <text>", "Instructions for speech generation")
     .option("--speed <n>", "Speech speed")
@@ -84,7 +94,7 @@ export function registerAudioCommand(program: Command) {
         process.exit(1);
       }
 
-      const outputFormat = resolveAudioFormat(opts.format);
+      const outputFormat = resolveAudioFormat(opts.format, opts.output);
       const speed = opts.speed
         ? parseNonNegativeFloat(opts.speed, "speed")
         : undefined;
@@ -232,8 +242,12 @@ function buildSpeechText(
   return stdinText || text;
 }
 
-function resolveAudioFormat(format?: string): string {
-  if (!format) return DEFAULT_AUDIO_FORMAT;
+export function resolveAudioFormat(
+  format?: string,
+  outputPath?: string
+): string {
+  const outputPathFormat = audioFormatFromOutputPath(outputPath);
+  if (!format) return outputPathFormat ?? DEFAULT_AUDIO_FORMAT;
 
   const normalized = format.trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9._-]*$/.test(normalized)) {
@@ -241,8 +255,30 @@ function resolveAudioFormat(format?: string): string {
       `--format must be a valid audio format name (got "${format}")`
     );
   }
+  if (outputPathFormat && outputPathFormat !== normalized) {
+    throw new Error(
+      `--format "${normalized}" does not match output file extension ".${outputPathFormat}"`
+    );
+  }
 
   return normalized;
+}
+
+function audioFormatFromOutputPath(outputPath?: string): string | undefined {
+  if (!outputPath || isExistingDirectory(outputPath)) return undefined;
+
+  const extension = extname(outputPath).slice(1).toLowerCase();
+  if (!extension || !KNOWN_AUDIO_FORMATS.has(extension)) return undefined;
+
+  return extension;
+}
+
+function isExistingDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function extensionForAudioFormat(format: string): string {

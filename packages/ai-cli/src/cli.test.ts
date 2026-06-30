@@ -85,6 +85,7 @@ describe("cli integration", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("--voice");
     expect(stdout).toContain("--format");
+    expect(stdout).toContain("default: mp3");
     expect(stdout).toContain("--speed");
     expect(stdout).toContain("--no-play");
     expect(stdout).toContain("--no-waveform");

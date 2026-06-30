@@ -73,7 +73,7 @@ describe("runJobs", () => {
 
       expect(meta.count).toBe(1);
       expect(file).not.toBeNull();
-      expect(basename(file!)).toBe("speech_123.wav");
+      expect(basename(file!)).toBe("speech_123.mp3");
       expect(readFileSync(file!)).toEqual(Buffer.from([1, 2, 3]));
     });
   });
@@ -105,8 +105,8 @@ describe("runJobs", () => {
 
       expect(meta.count).toBe(2);
       expect(meta.results.map((r) => basename(r.file!)).sort()).toEqual([
-        "speech_456-1.wav",
-        "speech_456-2.wav",
+        "speech_456-1.mp3",
+        "speech_456-2.mp3",
       ]);
       for (const result of meta.results) {
         expect(readFileSync(result.file!)).toEqual(Buffer.from([4, 5, 6]));
