@@ -24,6 +24,12 @@ ai-cli is configured entirely through environment variables. There is no config 
   <Property name="AI_CLI_VIDEO_MODEL" type="string">
     Default video model. Overrides `bytedance/seedance-2.0`.
   </Property>
+  <Property name="AI_CLI_SPEECH_MODEL" type="string">
+    Default speech model. Overrides `openai/tts-1`.
+  </Property>
+  <Property name="AI_CLI_TRANSCRIPTION_MODEL" type="string">
+    Default transcription model. Overrides `openai/whisper-1`.
+  </Property>
   <Property name="AI_CLI_OUTPUT_DIR" type="path">
     Default output directory for generated files.
   </Property>
@@ -50,5 +56,6 @@ ai-cli is configured entirely through environment variables. There is no config 
 export AI_GATEWAY_API_KEY="gw_..."
 export AI_CLI_TEXT_MODEL="anthropic/claude-sonnet-4"
 export AI_CLI_IMAGE_MODEL="bfl/flux-2-pro"
+export AI_CLI_SPEECH_MODEL="openai/tts-1"
 export AI_CLI_OUTPUT_DIR="$HOME/ai-output"
 ```

@@ -6,7 +6,7 @@ order: 6
 
 ## Stdin
 
-All generation commands accept input via stdin. The behavior depends on the command type:
+Most commands accept input via stdin. The behavior depends on the command type:
 
 ### Text
 
@@ -47,6 +47,15 @@ ai image "a dragon" | ai video "animate this"
 cat scene.png | ai video "zoom out slowly"
 ```
 
+### Audio
+
+`audio speak` reads stdin as text. `audio transcribe` reads stdin as binary audio:
+
+```bash
+echo "Ship the changelog" | ai audio speak -o changelog.mp3
+cat recording.mp3 | ai audio transcribe -o transcript.txt
+```
+
 ## Stdout
 
 Output behavior changes based on whether stdout is a TTY (interactive terminal) or a pipe:
@@ -56,9 +65,10 @@ Output behavior changes based on whether stdout is a TTY (interactive terminal) 
 Saves to a file and prints the path to stderr:
 
 ```bash
-ai text "hello"         # → saves output.md, prints "Saved to /path/output.md"
-ai image "a cat"        # → saves output.png
-ai video "ocean"        # → saves output.mp4
+ai text "hello"         # → saves <id>.md, prints "Saved to /path/<id>.md"
+ai image "a cat"        # → saves <id>.png
+ai video "ocean"        # → saves <id>.mp4
+ai audio speak "hello"  # → saves <id>.mp3
 ```
 
 ### Piped (non-TTY)
@@ -69,6 +79,7 @@ Writes raw output directly to stdout for composability:
 ai text "hello" | pbcopy                    # copy to clipboard
 ai image "a dragon" | ai video "animate"    # chain image → video
 ai text "hello" > response.md              # redirect to file
+ai audio speak "hello" > speech.mp3        # redirect audio bytes
 ```
 
 ## Output path
@@ -78,15 +89,16 @@ Control where files are saved with `-o`:
 ```bash
 ai image "a sunset" -o sunset.png          # specific file
 ai image "a sunset" -o ./renders/          # directory (auto-names files)
+ai audio transcribe call.mp3 -o call.txt   # transcript file
 ```
 
-When `-o` points to a directory, files are named `output.png`, `output-2.png`, etc.
+When `-o` points to a directory, files use response IDs when available and random 8-character names otherwise.
 
 The `AI_CLI_OUTPUT_DIR` environment variable sets a default output directory:
 
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output
-ai image "a sunset"    # → saves to ~/ai-output/output.png
+ai image "a sunset"    # → saves to ~/ai-output/<id>.png
 ```
 
 ## JSON metadata
@@ -107,7 +119,7 @@ ai image "a sunset" --json
       "model": "openai/gpt-image-2",
       "elapsed_ms": 3420,
       "success": true,
-      "file": "/Users/you/output.png"
+      "file": "/Users/you/resp_abc123.png"
     }
   ]
 }

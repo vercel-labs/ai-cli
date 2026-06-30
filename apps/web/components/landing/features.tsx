@@ -13,8 +13,8 @@ interface row {
 const multimodelrows: readonly row[] = [
   { tone: "cmd", text: '$ ai image "a sunset" -m "gpt-image-2,flux-2-pro"' },
   { tone: "dim", text: "" },
-  { tone: "code", text: "Saved to /Users/you/output-1.png (3.2s)" },
-  { tone: "code", text: "Saved to /Users/you/output-2.png (4.7s)" },
+  { tone: "code", text: "Saved to /Users/you/resp_img_1.png (3.2s)" },
+  { tone: "code", text: "Saved to /Users/you/resp_img_2.png (4.7s)" },
 ];
 
 const pipingrows: readonly row[] = [
@@ -27,20 +27,22 @@ const pipingrows: readonly row[] = [
   { tone: "code", text: "  3. Removes deprecated OAuth1 flow" },
   { tone: "dim", text: "" },
   { tone: "cmd", text: '$ ai image "a dragon" | ai video "animate this"' },
-  { tone: "code", text: "Saved to /Users/you/output.mp4" },
+  { tone: "code", text: "Saved to /Users/you/resp_video.mp4" },
+  { tone: "dim", text: "" },
+  { tone: "cmd", text: '$ echo "Ship the changelog" | ai audio speak' },
+  { tone: "code", text: "Saved to /Users/you/resp_speech.mp3" },
 ];
 
 const modelrows: readonly row[] = [
-  { tone: "cmd", text: "$ ai models --type image" },
+  { tone: "cmd", text: "$ ai models --type audio" },
   { tone: "dim", text: "" },
   { tone: "dim", text: "  openai" },
-  { tone: "code", text: "    gpt-image-2" },
-  { tone: "code", text: "    gpt-image-1" },
-  { tone: "dim", text: "  bfl" },
-  { tone: "code", text: "    flux-2-pro" },
-  { tone: "code", text: "    flux-kontext-pro" },
-  { tone: "dim", text: "  google" },
-  { tone: "code", text: "    imagen-4.0-generate-001" },
+  { tone: "code", text: "    tts-1" },
+  { tone: "code", text: "    whisper-1" },
+  { tone: "dim", text: "  speech" },
+  { tone: "code", text: "    text-to-speech models" },
+  { tone: "dim", text: "  transcription" },
+  { tone: "code", text: "    speech-to-text models" },
   { tone: "dim", text: "  ...and more" },
 ];
 
@@ -141,11 +143,11 @@ export function Features() {
           <Spotlight
             tone="ash"
             title="Pipe everything."
-            description="Pipe text in as context, pipe images into video generation, chain commands together. Raw output on stdout when piped, file saves when interactive."
+            description="Pipe text in as context, pipe images into video generation, turn text into speech, or transcribe piped audio. Raw output on stdout when piped, file saves when interactive."
             bullets={[
               "text stdin becomes prompt context",
-              "binary stdin for image-to-image and image-to-video",
-              "chain: ai image | ai video",
+              "binary stdin for image, video, and audio workflows",
+              "chain: ai image | ai video, or pipe text to ai audio speak",
             ]}
             flip
             window={<Panel rows={pipingrows} />}
@@ -154,9 +156,9 @@ export function Features() {
           <Spotlight
             tone="iron"
             title="Hundreds of models, one key."
-            description="Access text, image, and video models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, and more through Vercel AI Gateway."
+            description="Access text, image, video, speech, and transcription models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, and more through Vercel AI Gateway."
             bullets={[
-              "short names resolve automatically: flux-2-pro, gpt-5.5",
+              "short names resolve automatically: flux-2-pro, gpt-5.5, tts-1",
               "live model listing from the gateway",
               "per-type defaults configurable via env vars",
             ]}

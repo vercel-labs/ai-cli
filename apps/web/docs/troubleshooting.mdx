@@ -26,8 +26,10 @@ Requests are aborted if they exceed the per-command timeout:
 | Command | Timeout |
 | --- | --- |
 | `text` | 120 seconds |
-| `image` | 120 seconds |
+| `image` | 300 seconds |
 | `video` | 300 seconds |
+| `audio speak` | 120 seconds |
+| `audio transcribe` | 120 seconds |
 
 If you're consistently hitting timeouts, try a faster model variant (e.g. `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
 

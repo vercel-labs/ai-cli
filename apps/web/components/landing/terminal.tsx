@@ -35,7 +35,7 @@ const scenes: readonly scene[] = [
       { tone: "dim", text: "Generating image with openai/gpt-image-2" },
       { tone: "ok", text: "Generating video with bytedance/seedance-2.0" },
       { tone: "plain", text: "" },
-      { tone: "ok", text: "Saved to /Users/you/output.mp4 (12.4s)" },
+      { tone: "ok", text: "Saved to /Users/you/resp_video.mp4 (12.4s)" },
     ],
   },
   {
@@ -51,7 +51,21 @@ const scenes: readonly scene[] = [
       { tone: "plain", text: "  2. Adds token expiry validation" },
       { tone: "plain", text: "  3. Removes deprecated OAuth1 flow" },
       { tone: "plain", text: "" },
-      { tone: "ok", text: "Saved to /Users/you/output.md" },
+      { tone: "ok", text: "Saved to /Users/you/resp_text.md" },
+    ],
+  },
+  {
+    name: "audio",
+    data: [
+      { tone: "input", text: '$ ai audio speak "Thanks for trying ai-cli"' },
+      { tone: "dim", text: "" },
+      { tone: "dim", text: "Generating audio with openai/tts-1" },
+      { tone: "plain", text: "" },
+      { tone: "ok", text: "Saved to /Users/you/resp_8j3k2m1n.mp3 (1.8s)" },
+      { tone: "muted", text: "Playing audio  ▁▂▃▅▇▆▄▃▂▁" },
+      { tone: "plain", text: "" },
+      { tone: "input", text: "$ ai audio transcribe meeting.mp3" },
+      { tone: "ok", text: "Saved to /Users/you/transcript.txt" },
     ],
   },
 ];

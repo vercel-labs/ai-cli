@@ -8,7 +8,7 @@ const items: readonly item[] = [
   {
     id: "001",
     title: "Inline preview",
-    body: "Generated images and video frames display directly in your terminal using the Kitty graphics protocol. Supports Kitty, Ghostty, WezTerm, Warp, and iTerm2.",
+    body: "Generated images, video frames, and speech previews display directly in your terminal. Visual previews use the Kitty graphics protocol where supported.",
   },
   {
     id: "002",
