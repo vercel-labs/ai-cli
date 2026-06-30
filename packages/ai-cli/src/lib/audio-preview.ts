@@ -1,13 +1,31 @@
 import { spawn } from "child_process";
 import { accessSync, constants, mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
-import { delimiter, isAbsolute, join, sep } from "path";
+import { delimiter, extname, isAbsolute, join, sep } from "path";
 
 import { isColorEnabled } from "./color.js";
 import type { RunJobOutput } from "./jobs.js";
 
 const WAVE_LEVELS = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588";
 const MIN_WAVEFORM_WIDTH = 8;
+const WINDOWS_MEDIA_PLAYER_SCRIPT = [
+  "$ErrorActionPreference = 'Stop'",
+  "Add-Type -AssemblyName PresentationCore",
+  "$done = New-Object System.Threading.ManualResetEvent($false)",
+  "$state = @{ Failed = $false }",
+  "$player = New-Object System.Windows.Media.MediaPlayer",
+  "$player.add_MediaEnded({ $done.Set() | Out-Null })",
+  "$player.add_MediaFailed({ $state.Failed = $true; $done.Set() | Out-Null })",
+  "$path = (Resolve-Path -LiteralPath $args[0]).ProviderPath",
+  "$player.Open([System.Uri]::new($path))",
+  "$player.Play()",
+  "$limit = [DateTime]::UtcNow.AddSeconds(10)",
+  "while (-not $player.NaturalDuration.HasTimeSpan -and -not $state.Failed -and [DateTime]::UtcNow -lt $limit) { Start-Sleep -Milliseconds 50 }",
+  "$timeout = if ($player.NaturalDuration.HasTimeSpan) { [TimeSpan]::FromMilliseconds($player.NaturalDuration.TimeSpan.TotalMilliseconds + 1000) } else { [TimeSpan]::FromSeconds(300) }",
+  "$done.WaitOne($timeout) | Out-Null",
+  "$player.Close()",
+  "if ($state.Failed) { exit 1 }",
+].join("; ");
 
 interface PlayerCommand {
   command: string;
@@ -191,28 +209,51 @@ async function playAudioFile(
   }
 }
 
-function playerCandidates(file: string): PlayerCommand[] {
-  if (process.platform === "darwin") {
+export function playerCandidates(
+  file: string,
+  platform = process.platform
+): PlayerCommand[] {
+  if (platform === "darwin") {
     return [{ command: "afplay", args: [file] }];
   }
 
-  if (process.platform === "win32") {
-    return [
-      {
-        command: "powershell.exe",
-        args: [
-          "-NoProfile",
-          "-Command",
-          "$player = New-Object System.Media.SoundPlayer; $player.SoundLocation = $args[0]; $player.Load(); $player.PlaySync()",
-          file,
-        ],
-      },
-    ];
+  if (platform === "win32") {
+    const candidates = [windowsMediaPlayerCandidate(file)];
+    if (extname(file).toLowerCase() === ".wav") {
+      candidates.push(windowsSoundPlayerCandidate(file));
+    }
+    candidates.push(...desktopPlayerCandidates(file));
+    return candidates;
   }
 
   return [
     { command: "paplay", args: [file] },
     { command: "aplay", args: [file] },
+    ...desktopPlayerCandidates(file),
+  ];
+}
+
+function windowsMediaPlayerCandidate(file: string): PlayerCommand {
+  return {
+    command: "powershell.exe",
+    args: ["-NoProfile", "-Sta", "-Command", WINDOWS_MEDIA_PLAYER_SCRIPT, file],
+  };
+}
+
+function windowsSoundPlayerCandidate(file: string): PlayerCommand {
+  return {
+    command: "powershell.exe",
+    args: [
+      "-NoProfile",
+      "-Command",
+      "$player = New-Object System.Media.SoundPlayer; $player.SoundLocation = $args[0]; $player.Load(); $player.PlaySync()",
+      file,
+    ],
+  };
+}
+
+function desktopPlayerCandidates(file: string): PlayerCommand[] {
+  return [
     {
       command: "ffplay",
       args: ["-nodisp", "-autoexit", "-loglevel", "quiet", file],

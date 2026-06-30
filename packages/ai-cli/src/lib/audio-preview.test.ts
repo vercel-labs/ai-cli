@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { decodeWav, renderWaveformLine } from "./audio-preview.js";
+import {
+  decodeWav,
+  playerCandidates,
+  renderWaveformLine,
+} from "./audio-preview.js";
 
 describe("decodeWav", () => {
   test("decodes PCM samples into amplitudes", () => {
@@ -40,6 +44,32 @@ describe("renderWaveformLine", () => {
     expect(line).toContain("0:00 / 0:01");
     expect(line).toMatch(new RegExp("[\\u2581-\\u2588]", "u"));
     expect(line.length).toBeLessThanOrEqual(47);
+  });
+});
+
+describe("playerCandidates", () => {
+  test("uses Windows MediaPlayer for mp3 playback", () => {
+    const candidates = playerCandidates("clip.mp3", "win32");
+    const powershellScripts = candidates
+      .filter((candidate) => candidate.command === "powershell.exe")
+      .map((candidate) => candidate.args.join(" "));
+
+    expect(powershellScripts[0]).toContain("System.Windows.Media.MediaPlayer");
+    expect(powershellScripts.join(" ")).not.toContain(
+      "System.Media.SoundPlayer"
+    );
+  });
+
+  test("keeps Windows SoundPlayer as a wav fallback only", () => {
+    const candidates = playerCandidates("clip.wav", "win32");
+    const powershellScripts = candidates
+      .filter((candidate) => candidate.command === "powershell.exe")
+      .map((candidate) => candidate.args.join(" "));
+
+    expect(powershellScripts[0]).toContain("System.Windows.Media.MediaPlayer");
+    expect(powershellScripts.join(" ")).toContain(
+      "System.Media.SoundPlayer"
+    );
   });
 });
 
