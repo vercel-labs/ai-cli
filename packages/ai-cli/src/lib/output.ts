@@ -25,6 +25,7 @@ export interface WriteOutputOptions {
   outputId?: string;
   suffix?: string;
   extension?: string;
+  forceFile?: boolean;
   quiet?: boolean;
   display?: boolean;
 }
@@ -62,9 +63,21 @@ function isDirectory(p: string): boolean {
 export async function writeOutput(
   opts: WriteOutputOptions
 ): Promise<string | null> {
-  const { data, format, outputId, suffix, extension, quiet, display } = opts;
+  const {
+    data,
+    format,
+    outputId,
+    suffix,
+    extension,
+    forceFile,
+    quiet,
+    display,
+  } = opts;
   const effectiveOutput = opts.outputPath ?? process.env.AI_CLI_OUTPUT_DIR;
-  const buf = typeof data === "string" ? Buffer.from(data, "utf-8") : data;
+  const buf =
+    typeof data === "string"
+      ? new TextEncoder().encode(data)
+      : new Uint8Array(data);
   const shouldDisplay =
     display !== false &&
     (format === "image" || format === "video") &&
@@ -89,7 +102,7 @@ export async function writeOutput(
     return filePath;
   }
 
-  if (!process.stdout.isTTY) {
+  if (!process.stdout.isTTY && !forceFile) {
     process.stdout.write(buf);
     return null;
   }
@@ -106,11 +119,15 @@ export async function writeOutput(
   return path;
 }
 
-async function showPreview(format: OutputFormat, buf: Buffer): Promise<void> {
+async function showPreview(
+  format: OutputFormat,
+  buf: Uint8Array
+): Promise<void> {
+  const preview = Buffer.from(buf);
   if (format === "video") {
-    await displayVideoFrame(buf);
+    await displayVideoFrame(preview);
   } else {
-    displayImage(buf);
+    displayImage(preview);
   }
 }
 
