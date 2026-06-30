@@ -19,6 +19,8 @@
 
 ### Contributors
 
+- @atinux
+- @piotrjoniec
 - @ctate
 
 <!-- release:end -->

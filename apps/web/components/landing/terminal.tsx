@@ -65,7 +65,7 @@ const scenes: readonly scene[] = [
       { tone: "muted", text: "Playing audio  ▁▂▃▅▇▆▄▃▂▁" },
       { tone: "plain", text: "" },
       { tone: "input", text: "$ ai audio transcribe meeting.mp3" },
-      { tone: "ok", text: "Saved to /Users/you/transcript.txt" },
+      { tone: "ok", text: "Saved to /Users/you/resp_transcript.txt" },
     ],
   },
 ];

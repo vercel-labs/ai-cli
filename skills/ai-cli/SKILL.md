@@ -1,11 +1,11 @@
 ---
 name: ai-cli
-description: Generate text, images, and video from the terminal using AI models.
+description: Generate text, images, video, and audio from the terminal using AI models.
 ---
 
 # ai-cli
 
-Generate text, images, and video from the terminal using AI models.
+Generate text, images, video, and audio from the terminal using AI models.
 
 ## When to Use
 
@@ -13,6 +13,7 @@ Use when you need to:
 - Generate images from text prompts or existing images
 - Generate video from text prompts or images
 - Generate text (summaries, explanations, code reviews) from prompts or piped content
+- Generate speech from text or transcribe audio files and streams
 - Compare outputs across multiple models side-by-side
 - Build composable media pipelines by chaining commands via stdin/stdout
 
@@ -26,7 +27,9 @@ Requires `AI_GATEWAY_API_KEY` or a provider-specific key (e.g. `OPENAI_API_KEY`)
 ai text "explain this code"              # generate text
 ai image "a sunset over mountains"       # generate an image
 ai video "a spinning triangle"           # generate a video
-ai models --type image                   # list available models
+ai audio speak "hello"                   # generate speech
+ai audio transcribe recording.mp3        # transcribe audio
+ai models --type audio                   # list speech and transcription models
 ```
 
 ## Key Flags
@@ -53,6 +56,10 @@ ai image "a dragon" | ai video "animate this"
 
 # Image editing via stdin
 cat photo.png | ai image "make it a watercolor"
+
+# Audio workflows
+echo "Ship the changelog" | ai audio speak -o changelog.mp3
+cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
 ## Structured Output
@@ -74,7 +81,7 @@ Returns:
       "model": "openai/gpt-image-2",
       "elapsed_ms": 3420,
       "success": true,
-      "file": "/path/to/output.png"
+      "file": "/path/to/resp_abc123.png"
     }
   ]
 }
@@ -92,12 +99,17 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 - **Piped (non-TTY)**: writes raw content to stdout for chaining
 - **`-o <dir>`**: saves inside directory with auto-generated names
 
-**Important for agents**: Always use `-o` to save to a file when generating images or video. Without `-o` in a non-TTY context, raw binary data is written to stdout, which wastes context and is not useful for agents. Use `-o output.png` (or a directory) and read the file path from `--json` output instead.
+When the CLI chooses a filename, it uses a response ID when available and falls back to a random 8-character ID, such as `resp_abc123.png` or `7f3a9c1d.mp3`.
+
+**Important for agents**: Always use `-o` to save to a file when generating images, video, or speech audio. Without `-o` in a non-TTY context, raw binary data is written to stdout, which wastes context and is not useful for agents. Use `-o output.png`, `-o speech.mp3`, or an output directory and read the file path from `--json` output instead.
 
 ## Timeouts
 
-- text/image: 120 seconds
+- text: 120 seconds
+- image: 300 seconds
 - video: 300 seconds
+- audio speak: 120 seconds
+- audio transcribe: 120 seconds
 
 ## Exit Codes
 
