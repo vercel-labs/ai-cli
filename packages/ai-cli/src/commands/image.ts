@@ -113,6 +113,15 @@ export function registerImageCommand(program: Command) {
         );
       }
 
+      if (
+        opts.size &&
+        models.some((m) => gatewayModels.languageImageModelIds.has(m))
+      ) {
+        process.stderr.write(
+          "Warning: --size is ignored for language-image models (e.g. gemini image models); use --aspect-ratio instead\n"
+        );
+      }
+
       const jobs = buildJobs(models, countPerModel);
 
       const { total, failed } = await runJobs(
@@ -154,10 +163,10 @@ export function registerImageCommand(program: Command) {
               model: gateway(modelId),
               messages: [{ role: "user", content: messageContent }],
               abortSignal: abort,
-              providerOptions:
-                creator === "google"
-                  ? { google: { responseModalities: ["IMAGE", "TEXT"] } }
-                  : undefined,
+              providerOptions: buildLanguageImageProviderOptions(
+                creator,
+                aspectRatio
+              ),
             });
             const imageFile = result.files?.find((f) =>
               f.mediaType.startsWith("image/")
@@ -207,6 +216,21 @@ export function registerImageCommand(program: Command) {
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
     });
+}
+
+export function buildLanguageImageProviderOptions(
+  creator: string | undefined,
+  aspectRatio: `${number}:${number}` | undefined
+) {
+  if (creator !== "google") return undefined;
+  // Gemini image models don't support `size`; aspect ratio is passed via
+  // imageConfig.aspectRatio (defaults to 1:1 when unset).
+  return {
+    google: {
+      responseModalities: ["IMAGE", "TEXT"],
+      ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}),
+    },
+  };
 }
 
 function buildProviderOptions(
