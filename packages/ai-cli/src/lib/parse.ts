@@ -10,10 +10,14 @@ export function parsePositiveInt(value: string, name: string): number {
 }
 
 function parseDecimal(value: string): number | null {
-  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) {
+  // Require a leading decimal number, then let parseFloat extract it, so
+  // values like "1.5s" coerce to 1.5 while "abc" (no leading number) is
+  // rejected. The regexp keeps parseFloat from being too permissive.
+  if (!/^\s*-?(?:\d+(?:\.\d*)?|\.\d+)/.test(value)) {
     return null;
   }
-  return Number(value);
+  const n = Number.parseFloat(value);
+  return Number.isNaN(n) ? null : n;
 }
 
 export function parseNonNegativeFloat(value: string, name: string): number {
