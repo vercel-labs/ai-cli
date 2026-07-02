@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest a new capability or change to existing behavior.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Pull requests are limited to collaborators; if this feature moves forward, a maintainer will own the implementation and pull request.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem would this solve?
+      placeholder: Describe the workflow, limitation, or user need.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What would you like this project to do?
+      placeholder: Describe the behavior, API, command shape, settings, or output you expect.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Any workarounds or alternate designs you considered.
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example usage
+      description: Optional examples, screenshots, commands, API calls, or expected output.
+      placeholder: |
+        Example input:
+        Expected output:
+  - type: dropdown
+    id: co_contributor_credit
+    attributes:
+      label: Co-contributor credit
+      description: If maintainers create and merge a pull request as a result of this issue, would you like to be listed as a co-contributor?
+      options:
+        - "Yes, credit my GitHub username"
+        - "No, do not credit me"
+      default: 0
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues for duplicates.
+          required: true
+        - label: I understand pull requests are limited to collaborators and maintainers will handle implementation.
+          required: true

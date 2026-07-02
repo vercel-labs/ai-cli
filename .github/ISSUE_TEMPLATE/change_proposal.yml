@@ -1,0 +1,63 @@
+name: Change proposal
+description: Propose a specific code or behavior change for maintainers to implement internally.
+title: "[Proposal]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when you have a concrete implementation idea that would otherwise have been a pull request. Pull requests are limited to collaborators; maintainers will review proposals and own any resulting PR.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What change are you proposing?
+      placeholder: Describe the proposed code or behavior change.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why should this change be made?
+      placeholder: Explain the bug, user need, or maintenance concern this addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Implementation notes
+      description: Share any technical details, affected files, API changes, or compatibility concerns.
+      placeholder: Include enough detail for maintainers to evaluate and implement the change internally.
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Testing notes
+      description: How should maintainers validate this change?
+      placeholder: Suggested tests, commands, fixtures, or manual checks.
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks or tradeoffs
+      placeholder: Compatibility, behavior changes, security concerns, or migration risks.
+  - type: dropdown
+    id: co_contributor_credit
+    attributes:
+      label: Co-contributor credit
+      description: If maintainers create and merge a pull request as a result of this issue, would you like to be listed as a co-contributor?
+      options:
+        - "Yes, credit my GitHub username"
+        - "No, do not credit me"
+      default: 0
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues for duplicates.
+          required: true
+        - label: I understand pull requests are limited to collaborators and maintainers will handle implementation.
+          required: true

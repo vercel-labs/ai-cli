@@ -1,0 +1,88 @@
+name: Bug report
+description: Report broken or unexpected behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please do not include API keys, tokens, credentials, private data, or other sensitive information.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+      placeholder: Describe the broken or unexpected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include exact steps, commands, inputs, or links where relevant.
+      placeholder: |
+        1. ...
+        2. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What happened instead? Include logs or error output if useful.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: If relevant, include the package/app version, release, or commit SHA.
+      placeholder: "v0.0.0 or commit SHA"
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include relevant runtime, browser, device, or platform details.
+      placeholder: "Runtime, browser, device, or platform"
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      placeholder: Anything else that would help us investigate.
+  - type: dropdown
+    id: co_contributor_credit
+    attributes:
+      label: Co-contributor credit
+      description: If maintainers create and merge a pull request as a result of this issue, would you like to be listed as a co-contributor?
+      options:
+        - "Yes, credit my GitHub username"
+        - "No, do not credit me"
+      default: 0
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues for duplicates.
+          required: true
+        - label: I have removed API keys, tokens, credentials, and private data from this report.
+          required: true
