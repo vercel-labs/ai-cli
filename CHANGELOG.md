@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.1
+
+<!-- release:start -->
+
+### Bug Fixes
+
+- **Aspect ratio for language-image models** - `--aspect-ratio` is now forwarded to Google language-image models like `google/gemini-2.5-flash-image`, which previously always generated 1:1 output; `--size` now warns when passed to these models instead of being silently ignored (#72)
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
 ## 0.4.0
 
 <!-- release:start -->
