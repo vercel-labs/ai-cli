@@ -1,12 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.4.2
 
 <!-- release:start -->
 
 ### New Features
 
-- **Model info** - `ai models <model>` shows a detail card for any gateway model: context window, max output, pricing (input, output, cache read/write, web search), release date and per-provider latency, throughput and uptime; supports `--json`
+- **Model info** - `ai models <model>` shows a detail card for any gateway model: context window, max output, pricing (input, output, cache read/write, web search), release date and per-provider latency, throughput and uptime; supports `--json` (#75)
 
 ### Contributors
 
