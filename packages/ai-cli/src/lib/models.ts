@@ -11,6 +11,32 @@ const DEFAULTS: Record<Modality, string> = {
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const GATEWAY_TIMEOUT_MS = 5_000;
 
+export interface ModelEndpoint {
+  provider_name?: string;
+  context_length?: number;
+  max_completion_tokens?: number;
+  pricing?: {
+    prompt?: string;
+    completion?: string;
+    input_cache_read?: string;
+    input_cache_write?: string;
+    web_search?: string;
+    [key: string]: unknown;
+  };
+  tags?: string[];
+  uptime_last_1d?: number;
+  latency_last_1h?: { p50?: number; p95?: number };
+  throughput_last_1h?: { p50?: number; p95?: number };
+}
+
+export interface ModelEndpointsInfo {
+  id: string;
+  name?: string;
+  description?: string;
+  released?: number;
+  endpoints: ModelEndpoint[];
+}
+
 export interface ModelPricing {
   input?: string;
   output?: string;
@@ -25,6 +51,10 @@ export interface ModelEntry {
   creator: string;
   capabilities: Modality[];
   pricing?: ModelPricing;
+  contextWindow?: number;
+  maxTokens?: number;
+  released?: number;
+  tags?: string[];
 }
 
 export interface GatewayModels {
@@ -33,7 +63,11 @@ export interface GatewayModels {
   video: ModelEntry[];
   speech: ModelEntry[];
   transcription: ModelEntry[];
+  /** Models with a modality the CLI can generate with. */
   all: ModelEntry[];
+  /** Every gateway model, including types the CLI cannot generate with
+   * (embedding, realtime, reranking, ...). */
+  lookup: ModelEntry[];
   languageImageModelIds: Set<string>;
 }
 
@@ -44,6 +78,9 @@ interface RawGatewayModel {
   owned_by?: string;
   type?: string;
   tags?: string[];
+  context_window?: number;
+  max_tokens?: number;
+  released?: number;
   pricing?: {
     [key: string]: unknown;
   };
@@ -73,6 +110,7 @@ async function doFetch(): Promise<GatewayModels> {
     speech: [],
     transcription: [],
     all: [],
+    lookup: [],
     languageImageModelIds: new Set(),
   };
 
@@ -109,7 +147,7 @@ async function doFetch(): Promise<GatewayModels> {
           capabilities.push("transcription");
           break;
         default:
-          continue;
+          break;
       }
 
       const creator =
@@ -125,6 +163,10 @@ async function doFetch(): Promise<GatewayModels> {
         creator,
         capabilities,
         pricing,
+        contextWindow: m.context_window,
+        maxTokens: m.max_tokens,
+        released: m.released,
+        tags: tags.length > 0 ? tags : undefined,
       };
 
       entryMap.set(m.id, entry);
@@ -141,13 +183,33 @@ async function doFetch(): Promise<GatewayModels> {
       }
     }
 
-    result.all = [...entryMap.values()];
+    result.lookup = [...entryMap.values()];
+    result.all = result.lookup.filter((e) => e.capabilities.length > 0);
   } catch {
     cached = null;
     process.stderr.write("Warning: could not fetch models from AI Gateway\n");
   }
 
   return result;
+}
+
+export async function fetchModelEndpoints(
+  modelId: string
+): Promise<ModelEndpointsInfo | null> {
+  try {
+    const res = await fetch(`${GATEWAY_MODELS_URL}/${modelId}/endpoints`, {
+      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = (await res.json()) as { data?: ModelEndpointsInfo };
+    if (!json.data) return null;
+    return { ...json.data, endpoints: json.data.endpoints ?? [] };
+  } catch {
+    process.stderr.write(
+      "Warning: could not fetch provider endpoints from AI Gateway\n"
+    );
+    return null;
+  }
 }
 
 function normalizePricing(
@@ -177,7 +239,7 @@ export function resolveModels(
   return models.length > 0 ? models : [DEFAULTS[modality]];
 }
 
-function expandModelId(
+export function expandModelId(
   input: string,
   knownModels?: Pick<ModelEntry, "id">[]
 ): string {

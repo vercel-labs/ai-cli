@@ -64,6 +64,35 @@ ai models --json                   # JSON with descriptions
 
 In human mode, models are grouped by creator and display short names. Use `--json` for machine-readable output with full IDs and descriptions.
 
+## Model info
+
+Pass a model ID (or short name) to `ai models` to see its details — context window, max output tokens, pricing (input, output, cache read/write, web search), release date and per-provider latency, throughput and uptime:
+
+```bash
+ai models claude-opus-4.6                    # detail card
+ai models anthropic/claude-opus-4.6 --json   # machine-readable, includes raw pricing and endpoints
+```
+
+```
+Claude Opus 4.6  anthropic/claude-opus-4.6
+Released 2026-02-05 · tool-use · reasoning · vision · web-search
+
+  Context      1M
+  Max output   128K
+  Input        $5/M
+  Output       $25/M
+  Cache read   $0.5/M
+  Cache write  $6.25/M
+  Web search   $10/K + input costs
+
+Providers
+  provider   context  latency  throughput  uptime
+  anthropic  1M       1.4s     49tps       99.9%
+  bedrock    1M       1.4s     56tps       99.9%
+```
+
+Latency (time to first token) and throughput are p50 over the last hour; uptime covers the last day.
+
 ## Providers
 
 All models are accessed through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway):

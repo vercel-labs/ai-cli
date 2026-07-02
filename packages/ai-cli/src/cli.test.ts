@@ -129,4 +129,28 @@ describe("cli integration", () => {
     expect(exitCode).toBe(1);
     expect(stderr).toContain("must be one of");
   });
+
+  test("models --help documents the model argument", async () => {
+    const { exitCode, stdout } = await run("models", "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("[model]");
+    expect(stdout).toContain("detailed info");
+  });
+
+  test("models with unknown model exits 1", async () => {
+    const { exitCode, stderr } = await run("models", "no-such/model-xyz");
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("model not found: no-such/model-xyz");
+  });
+
+  test("models rejects filters combined with a model argument", async () => {
+    const { exitCode, stderr } = await run(
+      "models",
+      "openai/gpt-5.5",
+      "--type",
+      "text"
+    );
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("cannot be used with a model argument");
+  });
 });

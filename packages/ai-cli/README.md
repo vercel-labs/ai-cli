@@ -164,12 +164,35 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
 ### models
 
 ```
+[model]                  Show detailed info for a model (e.g. anthropic/claude-opus-4.6)
 --type <type>            Filter by type: text, image, video, audio, speech, transcription
 --creator <name>         Filter by creator (e.g. openai, google)
 --json                   Output as JSON (includes descriptions)
 ```
 
 All model types (text, image, video, speech, transcription) are fetched live from the AI Gateway.
+
+Pass a model ID (or short name) to see its context window, max output, pricing, release date and per-provider latency, throughput and uptime:
+
+```
+$ ai models claude-opus-4.6
+
+Claude Opus 4.6  anthropic/claude-opus-4.6
+Released 2026-02-05 · tool-use · reasoning · vision · web-search
+
+  Context      1M
+  Max output   128K
+  Input        $5/M
+  Output       $25/M
+  Cache read   $0.5/M
+  Cache write  $6.25/M
+  Web search   $10/K + input costs
+
+Providers
+  provider   context  latency  throughput  uptime
+  anthropic  1M       1.4s     49tps       99.9%
+  bedrock    1M       1.4s     56tps       99.9%
+```
 
 ### Multi-Model Comparison
 
