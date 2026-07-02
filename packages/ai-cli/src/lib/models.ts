@@ -63,7 +63,11 @@ export interface GatewayModels {
   video: ModelEntry[];
   speech: ModelEntry[];
   transcription: ModelEntry[];
+  /** Models with a modality the CLI can generate with. */
   all: ModelEntry[];
+  /** Every gateway model, including types the CLI cannot generate with
+   * (embedding, realtime, reranking, ...). */
+  lookup: ModelEntry[];
   languageImageModelIds: Set<string>;
 }
 
@@ -106,6 +110,7 @@ async function doFetch(): Promise<GatewayModels> {
     speech: [],
     transcription: [],
     all: [],
+    lookup: [],
     languageImageModelIds: new Set(),
   };
 
@@ -142,7 +147,7 @@ async function doFetch(): Promise<GatewayModels> {
           capabilities.push("transcription");
           break;
         default:
-          continue;
+          break;
       }
 
       const creator =
@@ -178,7 +183,8 @@ async function doFetch(): Promise<GatewayModels> {
       }
     }
 
-    result.all = [...entryMap.values()];
+    result.lookup = [...entryMap.values()];
+    result.all = result.lookup.filter((e) => e.capabilities.length > 0);
   } catch {
     cached = null;
     process.stderr.write("Warning: could not fetch models from AI Gateway\n");

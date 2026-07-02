@@ -193,8 +193,16 @@ describe("fetchGatewayModels", () => {
       transcription_duration_cost_per_second: "0.000006",
     });
 
-    // embedding type is excluded
+    // embedding type is excluded from generation lists but stays in lookup
     expect(result.all).toHaveLength(5);
+    expect(result.lookup).toHaveLength(6);
+    const embedding = result.lookup.find(
+      (m) => m.id === "openai/text-embedding-3"
+    );
+    expect(embedding?.capabilities).toEqual([]);
+    expect(result.all.some((m) => m.id === "openai/text-embedding-3")).toBe(
+      false
+    );
   });
 
   test("language models with image-generation tag appear in both text and image", async () => {
@@ -399,9 +407,7 @@ describe("fetchModelEndpoints", () => {
       ],
     };
     const fetchMock = mock((_url: string) =>
-      Promise.resolve(
-        new Response(JSON.stringify({ data }), { status: 200 })
-      )
+      Promise.resolve(new Response(JSON.stringify({ data }), { status: 200 }))
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 

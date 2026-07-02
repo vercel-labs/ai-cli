@@ -43,8 +43,8 @@ function pricingString(pricing: ModelEntry["pricing"], key: string) {
 
 async function showModelInfo(input: string, json: boolean): Promise<void> {
   const gatewayModels = await fetchGatewayModels();
-  const id = expandModelId(input, gatewayModels.all);
-  const entry = gatewayModels.all.find((m) => m.id === id);
+  const id = expandModelId(input, gatewayModels.lookup);
+  const entry = gatewayModels.lookup.find((m) => m.id === id);
   if (!entry) {
     process.stderr.write(
       `Error: model not found: ${input}\nRun "ai models" to list available models\n`
