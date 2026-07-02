@@ -3,6 +3,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
   resolveModels,
   fetchGatewayModels,
+  fetchModelEndpoints,
   resetGatewayCache,
 } from "./models.js";
 
@@ -327,6 +328,43 @@ describe("fetchGatewayModels", () => {
     expect(result.text[0].pricing).toBeUndefined();
   });
 
+  test("surfaces context window, max tokens, released, and tags", async () => {
+    mockGateway([
+      {
+        id: "anthropic/claude-opus-4.6",
+        name: "Claude Opus 4.6",
+        owned_by: "anthropic",
+        type: "language",
+        tags: ["reasoning", "tool-use"],
+        context_window: 1_000_000,
+        max_tokens: 128_000,
+        released: 1_770_249_600,
+        pricing: {
+          input: "0.000005",
+          output: "0.000025",
+          input_cache_read: "0.0000005",
+          input_cache_write: "0.00000625",
+          web_search: "10",
+        },
+      },
+    ]);
+
+    const result = await fetchGatewayModels();
+    const entry = result.text[0];
+
+    expect(entry.contextWindow).toBe(1_000_000);
+    expect(entry.maxTokens).toBe(128_000);
+    expect(entry.released).toBe(1_770_249_600);
+    expect(entry.tags).toEqual(["reasoning", "tool-use"]);
+    expect(entry.pricing).toEqual({
+      input: "0.000005",
+      output: "0.000025",
+      input_cache_read: "0.0000005",
+      input_cache_write: "0.00000625",
+      web_search: "10",
+    });
+  });
+
   test("falls back to parsing creator from id when owned_by is absent", async () => {
     mockGateway([
       {
@@ -339,5 +377,67 @@ describe("fetchGatewayModels", () => {
 
     const result = await fetchGatewayModels();
     expect(result.text[0].creator).toBe("openai");
+  });
+});
+
+describe("fetchModelEndpoints", () => {
+  test("returns endpoint data for a model", async () => {
+    const data = {
+      id: "anthropic/claude-opus-4.6",
+      name: "Claude Opus 4.6",
+      released: 1_770_249_600,
+      endpoints: [
+        {
+          provider_name: "anthropic",
+          context_length: 1_000_000,
+          max_completion_tokens: 128_000,
+          pricing: { prompt: "0.000005", completion: "0.000025" },
+          uptime_last_1d: 99.99,
+          latency_last_1h: { p50: 1433.5, p95: 1936.2 },
+          throughput_last_1h: { p50: 48.5, p95: 49.9 },
+        },
+      ],
+    };
+    const fetchMock = mock((_url: string) =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data }), { status: 200 })
+      )
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await fetchModelEndpoints("anthropic/claude-opus-4.6");
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://ai-gateway.vercel.sh/v1/models/anthropic/claude-opus-4.6/endpoints"
+    );
+    expect(result?.id).toBe("anthropic/claude-opus-4.6");
+    expect(result?.endpoints).toHaveLength(1);
+    expect(result?.endpoints[0].provider_name).toBe("anthropic");
+    expect(result?.endpoints[0].latency_last_1h?.p50).toBe(1433.5);
+  });
+
+  test("defaults endpoints to an empty array", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: { id: "openai/gpt-5" } }), {
+          status: 200,
+        })
+      )
+    ) as unknown as typeof fetch;
+
+    const result = await fetchModelEndpoints("openai/gpt-5");
+    expect(result?.endpoints).toEqual([]);
+  });
+
+  test("returns null on network error", async () => {
+    mockGatewayError();
+    expect(await fetchModelEndpoints("openai/gpt-5")).toBeNull();
+  });
+
+  test("returns null on non-200 response", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response("Not Found", { status: 404 }))
+    ) as unknown as typeof fetch;
+    expect(await fetchModelEndpoints("openai/nope")).toBeNull();
   });
 });

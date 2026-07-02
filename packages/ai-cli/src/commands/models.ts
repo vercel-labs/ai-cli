@@ -1,7 +1,19 @@
 import type { Command } from "commander";
 
 import {
+  formatLatency,
+  formatPerUnitPrice,
+  formatPricePerMillion,
+  formatReleaseDate,
+  formatThroughput,
+  formatTokenCount,
+  formatUptime,
+  formatWebSearchPrice,
+} from "../lib/format.js";
+import {
+  expandModelId,
   fetchGatewayModels,
+  fetchModelEndpoints,
   type Modality,
   type ModelEntry,
 } from "../lib/models.js";
@@ -24,10 +36,129 @@ function modelName(id: string): string {
   return slash !== -1 ? id.slice(slash + 1) : id;
 }
 
+function pricingString(pricing: ModelEntry["pricing"], key: string) {
+  const value = pricing?.[key];
+  return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+async function showModelInfo(input: string, json: boolean): Promise<void> {
+  const gatewayModels = await fetchGatewayModels();
+  const id = expandModelId(input, gatewayModels.all);
+  const entry = gatewayModels.all.find((m) => m.id === id);
+  if (!entry) {
+    process.stderr.write(
+      `Error: model not found: ${input}\nRun "ai models" to list available models\n`
+    );
+    process.exit(1);
+  }
+
+  const endpointsInfo = await fetchModelEndpoints(entry.id);
+
+  if (json) {
+    const output = {
+      id: entry.id,
+      ...(entry.name ? { name: entry.name } : {}),
+      ...(entry.description ? { description: entry.description } : {}),
+      creator: entry.creator,
+      capabilities: entry.capabilities,
+      ...(entry.tags ? { tags: entry.tags } : {}),
+      ...(entry.contextWindow != null
+        ? { contextWindow: entry.contextWindow }
+        : {}),
+      ...(entry.maxTokens != null ? { maxTokens: entry.maxTokens } : {}),
+      ...(entry.released != null ? { released: entry.released } : {}),
+      ...(entry.pricing ? { pricing: entry.pricing } : {}),
+      ...(endpointsInfo && endpointsInfo.endpoints.length > 0
+        ? { endpoints: endpointsInfo.endpoints }
+        : {}),
+    };
+    process.stdout.write(JSON.stringify(output, null, 2) + "\n");
+    return;
+  }
+
+  process.stdout.write(
+    entry.name ? `\n${entry.name}  ${entry.id}\n` : `\n${entry.id}\n`
+  );
+
+  const meta: string[] = [];
+  if (entry.released != null)
+    meta.push(`Released ${formatReleaseDate(entry.released)}`);
+  if (entry.tags) meta.push(...entry.tags);
+  if (meta.length > 0) process.stdout.write(`${meta.join(" · ")}\n`);
+  if (entry.description) process.stdout.write(`\n${entry.description}\n`);
+
+  const rows: [string, string][] = [];
+  if (entry.contextWindow)
+    rows.push(["Context", formatTokenCount(entry.contextWindow)]);
+  if (entry.maxTokens)
+    rows.push(["Max output", formatTokenCount(entry.maxTokens)]);
+
+  const tokenPrices: [string, string][] = [
+    ["Input", "input"],
+    ["Output", "output"],
+    ["Cache read", "input_cache_read"],
+    ["Cache write", "input_cache_write"],
+  ];
+  for (const [label, key] of tokenPrices) {
+    const value = pricingString(entry.pricing, key);
+    if (value) rows.push([label, formatPricePerMillion(value)]);
+  }
+  const webSearch = pricingString(entry.pricing, "web_search");
+  if (webSearch && Number.parseFloat(webSearch) > 0)
+    rows.push(["Web search", formatWebSearchPrice(webSearch)]);
+  const imagePrice = pricingString(entry.pricing, "image");
+  if (imagePrice) rows.push(["Image", formatPerUnitPrice(imagePrice, "image")]);
+
+  if (rows.length > 0) {
+    const width = Math.max(...rows.map(([label]) => label.length));
+    process.stdout.write("\n");
+    for (const [label, value] of rows) {
+      process.stdout.write(`  ${label.padEnd(width + 2)}${value}\n`);
+    }
+  }
+
+  const endpoints = endpointsInfo?.endpoints ?? [];
+  if (endpoints.length > 0) {
+    const table: string[][] = [
+      ["provider", "context", "latency", "throughput", "uptime"],
+    ];
+    for (const ep of endpoints) {
+      table.push([
+        ep.provider_name ?? "unknown",
+        ep.context_length ? formatTokenCount(ep.context_length) : "—",
+        ep.latency_last_1h?.p50 != null
+          ? formatLatency(ep.latency_last_1h.p50)
+          : "—",
+        ep.throughput_last_1h?.p50 != null
+          ? formatThroughput(ep.throughput_last_1h.p50)
+          : "—",
+        ep.uptime_last_1d != null ? formatUptime(ep.uptime_last_1d) : "—",
+      ]);
+    }
+    const widths = table[0].map((_, col) =>
+      Math.max(...table.map((row) => row[col].length))
+    );
+    process.stdout.write("\nProviders\n");
+    for (const row of table) {
+      const line = row
+        .map((cell, col) => cell.padEnd(widths[col] + 2))
+        .join("")
+        .trimEnd();
+      process.stdout.write(`  ${line}\n`);
+    }
+  }
+
+  process.stdout.write("\n");
+}
+
 export function registerModelsCommand(program: Command) {
   program
     .command("models")
     .description("List available models from AI Gateway")
+    .argument(
+      "[model]",
+      "Show detailed info for a model (e.g. anthropic/claude-opus-4.6)"
+    )
     .option(
       "--type <type>",
       "Filter by type: text, image, video, audio, speech, transcription"
@@ -35,7 +166,20 @@ export function registerModelsCommand(program: Command) {
     .option("--creator <name>", "Filter by creator (e.g. openai, google)")
     .option("--json", "Output as JSON (includes descriptions)")
     .action(
-      async (opts: { type?: string; creator?: string; json?: boolean }) => {
+      async (
+        model: string | undefined,
+        opts: { type?: string; creator?: string; json?: boolean }
+      ) => {
+        if (model) {
+          if (opts.type || opts.creator) {
+            process.stderr.write(
+              "Error: --type and --creator cannot be used with a model argument\n"
+            );
+            process.exit(1);
+          }
+          await showModelInfo(model, opts.json ?? false);
+          return;
+        }
         const validTypes = [
           "text",
           "image",

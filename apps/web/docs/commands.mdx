@@ -242,22 +242,34 @@ cat recording.mp3 | ai audio transcribe
 
 ## models
 
-List available models from the AI Gateway.
+List available models from the AI Gateway, or show detailed info for one model.
 
 ```bash
 ai models
 ai models --type image
 ai models --creator openai --json
+ai models claude-opus-4.6
+ai models anthropic/claude-opus-4.6 --json
 ```
+
+### Arguments
+
+<Properties>
+  <Property name="[model]" type="string">
+    Model ID or short name. Shows a detail card with context window, max
+    output, pricing (input, output, cache read/write, web search), release
+    date and per-provider latency, throughput and uptime.
+  </Property>
+</Properties>
 
 ### Options
 
 <Properties>
   <Property name="--type" type="text | image | video | audio | speech | transcription">
-    Filter by modality.
+    Filter by modality (list mode only).
   </Property>
   <Property name="--creator" type="string">
-    Filter by creator (e.g. `openai`, `google`).
+    Filter by creator (e.g. `openai`, `google`) (list mode only).
   </Property>
   <Property name="--json" type="boolean">
     Output as JSON with descriptions.
