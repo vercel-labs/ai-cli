@@ -78,6 +78,8 @@ cat input.png | ai image -i style.png "combine the subject with this style"
 
 Reference-image support is model-dependent; unsupported models may reject image inputs.
 
+Gemini image models (e.g. `google/gemini-2.5-flash-image`) don't support `--size`; use `--aspect-ratio` instead.
+
 ### video
 
 ```
