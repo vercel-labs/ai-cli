@@ -284,7 +284,7 @@ Models are fetched live from the AI Gateway.
 
 Requests that exceed the per-command timeout are aborted automatically:
 
-| Command | Timeout |
+| Command | Default timeout |
 | --- | --- |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
@@ -293,6 +293,14 @@ Requests that exceed the per-command timeout are aborted automatically:
 | `audio transcribe` | 120 seconds |
 
 Image and video generation use a longer timeout because models typically need more processing time.
+
+Override the default with `--timeout <seconds>`. Useful for complex prompts where the default is too tight:
+
+```bash
+ai image "complex sprite atlas with 72 cells..." --timeout 600
+ai text "long structured response..." --timeout 300
+ai video "extended scene..." --timeout 900
+```
 
 ## Exit codes
 

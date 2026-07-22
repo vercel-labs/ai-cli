@@ -23,7 +23,7 @@ Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across
 
 Requests are aborted if they exceed the per-command timeout:
 
-| Command | Timeout |
+| Command | Default timeout |
 | --- | --- |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
@@ -31,7 +31,13 @@ Requests are aborted if they exceed the per-command timeout:
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
 
-If you're consistently hitting timeouts, try a faster model variant (e.g. `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
+Two ways to handle them:
+
+1. Bump the timeout per command with `--timeout <seconds>`:
+   ```bash
+   ai image "complex sprite atlas..." --timeout 600
+   ```
+2. Try a faster model variant (e.g. `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
 
 ## `--quality` / `--style` warning
 
