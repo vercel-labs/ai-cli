@@ -26,6 +26,9 @@ After generating an image, it appears directly in the terminal output:
 ai image "a mountain landscape"
 ```
 
+The original image format is preserved in the saved file. JPEG and WebP
+responses are converted to PNG automatically for the Kitty graphics preview.
+
 ## Video preview
 
 Video previews extract and decode an H.264 keyframe from the midpoint of the generated video using [openh264](https://github.com/cisco/openh264) compiled to WebAssembly. No native dependencies are required.

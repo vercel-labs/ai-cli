@@ -66,7 +66,7 @@ Saves to a file and prints the path to stderr:
 
 ```bash
 ai text "hello"         # → saves <id>.md, prints "Saved to /path/<id>.md"
-ai image "a cat"        # → saves <id>.png
+ai image "a cat"        # → saves <id>.<format>
 ai video "ocean"        # → saves <id>.mp4
 ai audio speak "hello"  # → saves <id>.mp3
 ```
@@ -98,7 +98,7 @@ The `AI_CLI_OUTPUT_DIR` environment variable sets a default output directory:
 
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output
-ai image "a sunset"    # → saves to ~/ai-output/<id>.png
+ai image "a sunset"    # → saves to ~/ai-output/<id>.<format>
 ```
 
 ## JSON metadata
@@ -119,7 +119,7 @@ ai image "a sunset" --json
       "model": "openai/gpt-image-2",
       "elapsed_ms": 3420,
       "success": true,
-      "file": "/Users/you/resp_abc123.png"
+      "file": "/Users/you/resp_abc123.<format>"
     }
   ]
 }

@@ -193,4 +193,32 @@ describe("runJobs", () => {
       ]);
     });
   });
+
+  test("preserves the generated image format when saving a single output", async () => {
+    await withTempCwd(async (dir) => {
+      let savedFile: string | null = null;
+
+      await runJobs(
+        buildJobs(["meta/muse-image-1.0"], 1),
+        async () => ({
+          data: Buffer.from([1, 2, 3]),
+          id: "image_123",
+          mediaType: "image/webp",
+        }),
+        {
+          noun: "image",
+          format: "image",
+          outputPath: dir,
+          quiet: true,
+          concurrency: 1,
+          afterOutputs: (outputs) => {
+            savedFile = outputs[0]?.file ?? null;
+          },
+        }
+      );
+
+      expect(savedFile).not.toBeNull();
+      expect(basename(savedFile!)).toBe("image_123.webp");
+    });
+  });
 });

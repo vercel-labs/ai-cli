@@ -36,14 +36,26 @@ export async function displayVideoFrame(buf: Buffer): Promise<void> {
     const frame = await decodeIDR(kf.sps, kf.pps, kf.sliceData);
     if (!frame) return;
     const png = encodePNG(frame.yuv, frame.width, frame.height);
-    displayImage(png);
+    await displayImage(png);
   } catch {
     // Preview is best-effort; skip silently on any failure
   }
 }
 
-export function displayImage(buf: Buffer): void {
-  const encoded = buf.toString("base64");
+export async function displayImage(buf: Buffer): Promise<void> {
+  let preview = buf;
+  const isPng = hasPngSignature(buf);
+  if (!isPng) {
+    try {
+      const { default: sharp } = await import("sharp");
+      preview = await sharp(buf).png().toBuffer();
+    } catch {
+      // Preview is best-effort; skip unsupported or invalid image formats.
+      return;
+    }
+  }
+
+  const encoded = preview.toString("base64");
   for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
     const chunk = encoded.slice(i, i + CHUNK_SIZE);
     const isLast = i + CHUNK_SIZE >= encoded.length;
@@ -52,4 +64,18 @@ export function displayImage(buf: Buffer): void {
     process.stderr.write(`\x1b_G${control};${chunk}\x1b\\`);
   }
   process.stderr.write("\n");
+}
+
+function hasPngSignature(buf: Buffer): boolean {
+  return (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  );
 }

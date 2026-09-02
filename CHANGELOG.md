@@ -6,6 +6,10 @@
 
 - **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
 
+### Bug Fixes
+
+- **Non-PNG image previews** - image models that return JPEG or WebP data now display correctly in Kitty-compatible terminals while preserving the original format in saved files
+
 ## 0.4.3
 
 <!-- release:start -->

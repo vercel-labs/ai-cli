@@ -13,8 +13,8 @@ interface row {
 const multimodelrows: readonly row[] = [
   { tone: "cmd", text: '$ ai image "a sunset" -m "gpt-image-2,flux-2-pro"' },
   { tone: "dim", text: "" },
-  { tone: "code", text: "Saved to /Users/you/resp_img_a-1.png (3.2s)" },
-  { tone: "code", text: "Saved to /Users/you/resp_img_b-2.png (4.7s)" },
+  { tone: "code", text: "Saved to /Users/you/resp_img_a-1.<format> (3.2s)" },
+  { tone: "code", text: "Saved to /Users/you/resp_img_b-2.<format> (4.7s)" },
 ];
 
 const pipingrows: readonly row[] = [

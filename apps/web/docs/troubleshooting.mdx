@@ -82,3 +82,8 @@ If a command exits with code 0 but produces no visible output, it likely wrote t
 ```bash
 ai image "a sunset" --json
 ```
+
+If an image is saved but does not appear inline, confirm that the terminal
+supports the Kitty graphics protocol and that `AI_CLI_PREVIEW` is not set to
+`0`. Image models can return JPEG or WebP data; ai-cli preserves that format
+in the saved file and converts it to PNG for Kitty previews automatically.

@@ -52,7 +52,7 @@ Combine with `-n` to generate multiple per model:
 ai image "a sunset" -n 2 -m "openai/gpt-image-1,bfl/flux-2-pro"
 ```
 
-This produces 4 images total (2 per model), saved with generated filename stems and numeric suffixes, such as `resp_abc-1.png` through `resp_def-4.png`.
+This produces 4 images total (2 per model), saved with generated filename stems and numeric suffixes, such as `resp_abc-1.<format>` through `resp_def-4.<format>`. The extension matches the format returned by each model when it is reported.
 
 ## Listing models
 

@@ -94,4 +94,39 @@ describe("writeOutput", () => {
       expect(readFileSync(path!)).toEqual(Buffer.from([1, 2, 3]));
     });
   });
+
+  test("uses the generated image media type for directory filenames", async () => {
+    await withTempDir(async (dir) => {
+      const path = await writeOutput({
+        data: Buffer.from([1, 2, 3]),
+        format: "image",
+        outputPath: dir,
+        outputId: "resp_123",
+        mediaType: "image/jpeg",
+        quiet: true,
+        display: false,
+      });
+
+      expect(path).not.toBeNull();
+      expect(basename(path!)).toBe("resp_123.jpg");
+    });
+  });
+
+  test("prefers an explicit image extension over the media type", async () => {
+    await withTempDir(async (dir) => {
+      const path = await writeOutput({
+        data: Buffer.from([1, 2, 3]),
+        format: "image",
+        extension: ".png",
+        outputPath: dir,
+        outputId: "resp_123",
+        mediaType: "image/jpeg",
+        quiet: true,
+        display: false,
+      });
+
+      expect(path).not.toBeNull();
+      expect(basename(path!)).toBe("resp_123.png");
+    });
+  });
 });
