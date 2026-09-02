@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.4.4
+
+<!-- release:start -->
 
 ### New Features
 
@@ -9,6 +11,13 @@
 ### Bug Fixes
 
 - **Non-PNG image previews** - image models that return JPEG or WebP data now display correctly in Kitty-compatible terminals while preserving the original format in saved files
+
+### Contributors
+
+- @Railly
+- @ctate
+
+<!-- release:end -->
 
 ## 0.4.3
 
