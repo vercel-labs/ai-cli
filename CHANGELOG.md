@@ -21,8 +21,6 @@
 
 ## 0.4.3
 
-<!-- release:start -->
-
 ### New Features
 
 - **Configurable request timeouts** - `--timeout <seconds>` lets text, image, video and audio requests run longer than their per-command defaults, with validation for invalid or overflowing values (#79)
@@ -40,11 +38,7 @@
 - @Railly
 - @ctate
 
-<!-- release:end -->
-
 ## 0.4.2
-
-<!-- release:start -->
 
 ### New Features
 
@@ -54,11 +48,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.4.1
-
-<!-- release:start -->
 
 ### Bug Fixes
 
@@ -68,11 +58,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.4.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -93,11 +79,7 @@
 - @piotrjoniec
 - @ctate
 
-<!-- release:end -->
-
 ## 0.3.1
-
-<!-- release:start -->
 
 ### New Features
 
@@ -112,11 +94,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.3.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -127,11 +105,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.2.1
-
-<!-- release:start -->
 
 ### Bug Fixes
 
@@ -145,11 +119,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.2.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -181,11 +151,7 @@
 - @ctate
 - @dancer
 
-<!-- release:end -->
-
 ## 0.1.1
-
-<!-- release:start -->
 
 ### Improvements
 
@@ -194,8 +160,6 @@
 ### Contributors
 
 - @ctate
-
-<!-- release:end -->
 
 ## 0.1.0
 
@@ -206,5 +170,3 @@
 - H.264 keyframe decoding via OpenH264 WASM — no native dependencies required
 - Stdin piping support for chaining commands
 - Shell completions for bash, zsh, and fish
-
-<!-- release:end -->

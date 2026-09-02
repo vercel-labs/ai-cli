@@ -35,6 +35,16 @@ When making any user-facing change (new command, new flag, changed behavior, ren
 
 A user-facing change without matching README and website/docs updates is incomplete.
 
+## Releasing
+
+Releases are prepared in a single PR by bumping `packages/ai-cli/package.json` and
+adding the changelog entry at the top of `CHANGELOG.md`.
+
+Only the latest changelog entry should be wrapped in `<!-- release:start -->` and
+`<!-- release:end -->` markers. The release workflow extracts the content between
+those markers for the matching GitHub release, so remove the markers from the
+previous release when preparing a new one.
+
 ## Type Checking
 
 Run the type checker after every agent turn:

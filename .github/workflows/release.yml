@@ -104,6 +104,19 @@ jobs:
       - name: Extract changelog entry
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
+
+          START_MARKERS=$(grep -c '^<!-- release:start -->$' CHANGELOG.md || true)
+          END_MARKERS=$(grep -c '^<!-- release:end -->$' CHANGELOG.md || true)
+          if [ "$START_MARKERS" -ne 1 ] || [ "$END_MARKERS" -ne 1 ]; then
+            echo "Error: CHANGELOG.md must contain exactly one release marker pair for the latest release"
+            exit 1
+          fi
+
+          if ! grep -q "^## $VERSION$" CHANGELOG.md; then
+            echo "Error: CHANGELOG.md does not contain a heading for version $VERSION"
+            exit 1
+          fi
+
           awk '/<!-- release:start -->/{found=1; next} /<!-- release:end -->/{found=0} found{print}' CHANGELOG.md > /tmp/release-notes.md
 
           LINES=$(wc -l < /tmp/release-notes.md | tr -d ' ')
