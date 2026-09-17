@@ -172,6 +172,14 @@ Question IDs are for your code and are not instructions to Jev. Questions in one
 call are independent; use follow-up calls for dependencies. Use `ai text` when
 you need prose, explanations, or code. Typed output does not guarantee correct judgments.
 
+Supply the context each question needs, including a reference date for questions
+about "today"; the CLI does not add the current date. Keep exact arithmetic,
+counting, age cutoffs, and date comparisons in code. TypeSafe documents
+[numeric and date limitations in Jev 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13).
+Adding context can clarify a question without making the model a reliable calculator.
+Validate questions and probability thresholds against positive and negative examples,
+including quotations and negations. A high probability can still be a wrong judgment.
+
 Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
 the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
 `typesafe-ai/jev`. Discover models with `ai models --type evaluation`.

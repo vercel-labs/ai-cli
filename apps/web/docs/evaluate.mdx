@@ -176,6 +176,36 @@ Use `ai text` for prose, explanations, or code generation. Jev returns answers
 within the supplied types and choices; that constraint does not guarantee a
 correct judgment.
 
+### Dates, arithmetic, and missing context
+
+The CLI sends the supplied state and questions to the evaluation model. It does
+not add the current date or other unstated context. When a question refers to
+"today", include a reference date in the state or instructions.
+
+For example, "I'm born in 1985" with "Older than 40 years?" leaves the reference
+date unstated and asks the model to calculate an age. Supplying a reference date
+removes missing context, but exact age cutoffs should still be computed in code
+from the birth date and reference date.
+
+TypeSafe documents [numeric and date limitations in Jev 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13),
+including unreliable arithmetic, counting, and date comparisons. Keep those
+operations in code and use the model for focused semantic judgments. Extra
+context can improve an answer without guaranteeing a correct calculation.
+
+### Validate the question and its threshold
+
+Test representative positive and negative examples before using a probability
+threshold in automation. Include boundary cases, negations, and quoted content.
+A security-training message that quotes a phishing attempt, for example, needs
+to be distinguished from a sender actually attempting to steal credentials.
+Make the intended subject and scope explicit in the instructions; use criteria
+in a question file to describe ambiguous true and false cases.
+
+`probability` is the model's estimate of P(true). It does not establish that an
+answer is correct, and even a high probability can accompany a false positive.
+Choose thresholds using labeled examples from the actual task. Recheck them
+when changing instructions, criteria, or models.
+
 ## Options
 
 ```text
