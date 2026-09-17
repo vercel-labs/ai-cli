@@ -1,7 +1,7 @@
 {
   "name": "ai-cli",
   "version": "0.4.4",
-  "description": "A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs",
+  "description": "An agent-native CLI for generating media and text, and filtering, ranking, and selecting records with AI",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -43,8 +43,8 @@
     "prepack": "bun run typecheck && bun run build"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "4.0.3",
-    "ai": "7.0.3",
+    "@ai-sdk/gateway": "4.0.85",
+    "ai": "7.0.105",
     "sharp": "0.35.4"
   },
   "devDependencies": {

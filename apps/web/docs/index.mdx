@@ -1,10 +1,10 @@
 ---
 title: Introduction
-description: Generate text, images, video, and audio from the terminal.
+description: Generate media and text, and filter, rank, and select records from the terminal.
 order: 1
 ---
 
-ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio with dead-simple commands. It uses the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
+ai-cli is an agent-native CLI for generating text, images, video, and audio, and evaluating records with composable commands. It uses the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
 
 ## What it does
 
@@ -14,6 +14,7 @@ ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio
   <Card title="Text generation" description="Generate text from prompts with any language model." />
   <Card title="Audio generation" description="Generate speech or transcribe audio files and streams." />
   <Card title="Multi-model comparison" description="Run the same prompt across multiple models in parallel." />
+  <Card title="Semantic decisions" description="Filter by meaning, rank by a rubric, and pick an original record with Jev." href="/docs/decisions" />
   <Card title="Stdin piping" description="Pipe any content in and out for composable workflows." />
   <Card title="Inline preview" description="See generated images, video frames, and speech playback directly in your terminal." />
 </Cards>
@@ -55,6 +56,7 @@ ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio
   <Card title="video" description="Generate video from a prompt or image." href="/docs/commands#video" />
   <Card title="text" description="Generate text from a prompt." href="/docs/commands#text" />
   <Card title="audio" description="Generate speech or transcribe audio." href="/docs/commands#audio" />
+  <Card title="filter / rank / pick" description="Evaluate records from stdin and return selected records." href="/docs/decisions" />
   <Card title="models" description="List available models from the gateway." href="/docs/commands#models" />
 </Cards>
 

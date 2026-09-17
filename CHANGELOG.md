@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- **Semantic record commands** - `ai filter`, `ai rank`, and `ai pick` evaluate lines, JSON arrays, and JSONL with Jev through AI Gateway, preserving selected records and exposing probabilities, scores, usage, and timing with `--json`
+- **Evaluation model discovery** - `ai models --type evaluation` lists evaluation models; `AI_CLI_EVALUATION_MODEL` configures the decision-command default
+
+### Bug Fixes
+
+- **Slow stdin pipelines** - commands wait for upstream output through EOF instead of discarding input if the first byte arrives after one second
+
 ## 0.4.4
 
 <!-- release:start -->

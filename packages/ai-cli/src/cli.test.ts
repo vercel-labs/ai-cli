@@ -31,7 +31,16 @@ describe("cli integration", () => {
   test("--help exits 0 and lists subcommands", async () => {
     const { exitCode, stdout } = await run("--help");
     expect(exitCode).toBe(0);
-    for (const sub of ["text", "image", "video", "audio", "models"]) {
+    for (const sub of [
+      "text",
+      "image",
+      "video",
+      "audio",
+      "models",
+      "filter",
+      "rank",
+      "pick",
+    ]) {
       expect(stdout).toContain(sub);
     }
   });
@@ -274,6 +283,42 @@ describe("cli integration", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("[model]");
     expect(stdout).toContain("detailed info");
+    expect(stdout).toContain("evaluation");
+  });
+
+  test.each(["filter", "rank", "pick"])(
+    "%s documents its record interface",
+    async (command) => {
+      const { exitCode, stdout } = await run(command, "--help");
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("<criterion>");
+      expect(stdout).toContain("--context");
+      expect(stdout).toContain("--input");
+      expect(stdout).toContain("--json");
+      expect(stdout).toContain("typesafe-ai/jev");
+      expect(stdout).not.toContain("--count");
+    }
+  );
+
+  test.each(["filter", "rank", "pick"])(
+    "%s requires a criterion",
+    async (command) => {
+      const result = await run(command);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("criterion is required");
+    }
+  );
+
+  test("decision flags reject invalid values before requesting a model", async () => {
+    for (const args of [
+      ["filter", "bug", "--threshold", "0.5"],
+      ["filter", "bug", "--on-uncertain", "guess"],
+      ["rank", "bug", "--top", "0"],
+      ["pick", "bug", "--input", "yaml"],
+      ["filter", "bug", "-m", "typesafe-ai/jev,typesafe-ai/jev"],
+    ]) {
+      expect((await run(...args)).exitCode).toBe(1);
+    }
   });
 
   test("models with unknown model exits 1", async () => {

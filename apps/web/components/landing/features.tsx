@@ -17,6 +17,16 @@ const multimodelrows: readonly row[] = [
   { tone: "code", text: "Saved to /Users/you/resp_img_b-2.<format> (4.7s)" },
 ];
 
+const decisionrows: readonly row[] = [
+  { tone: "cmd", text: '$ git log --oneline | ai filter "concurrency fixes"' },
+  { tone: "code", text: "a1b2c3d Prevent overlapping session refreshes" },
+  { tone: "dim", text: "" },
+  { tone: "cmd", text: '$ ai rank "sign-in impact" --top 5 < issues.json' },
+  { tone: "dim", text: "" },
+  { tone: "cmd", text: '$ ai pick "matches the failure" --context failure.log' },
+  { tone: "dim", text: "  < issues.jsonl" },
+];
+
 const pipingrows: readonly row[] = [
   { tone: "cmd", text: '$ git diff | ai text "explain these changes"' },
   { tone: "dim", text: "" },
@@ -144,9 +154,21 @@ export function Features() {
           />
 
           <Spotlight
+            tone="slate"
+            title="Filter by meaning."
+            description="Use Jev to filter, rank, and select original records from stdin. Compose structured decisions with the commands and agent workflows you already use."
+            bullets={[
+              "plain lines, JSON arrays, and JSONL",
+              "explicit no-match and uncertain outcomes",
+              "original records, probabilities, and usage in JSON mode",
+            ]}
+            window={<Panel rows={decisionrows} />}
+          />
+
+          <Spotlight
             tone="ash"
             title="Pipe everything."
-            description="Pipe text in as context, pipe images into video generation, turn text into speech, or transcribe piped audio. Raw output on stdout when piped, file saves when interactive."
+            description="Pipe text in as context, chain record filtering and ranking, turn images into video, or transcribe audio. Decision commands return records directly; generation commands produce content and artifacts."
             bullets={[
               "text stdin becomes prompt context",
               "binary stdin for image, video, and audio workflows",
@@ -159,7 +181,7 @@ export function Features() {
           <Spotlight
             tone="iron"
             title="Hundreds of models, one key."
-            description="Access text, image, video, speech, and transcription models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, and more through Vercel AI Gateway."
+            description="Access text, image, video, speech, transcription, and evaluation models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, and more through Vercel AI Gateway."
             bullets={[
               "short names resolve automatically: flux-2-pro, gpt-5.5, tts-1",
               "live model listing from the gateway",

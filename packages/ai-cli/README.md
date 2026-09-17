@@ -1,6 +1,6 @@
 # ai
 
-A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs. Uses [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
+An agent-native CLI for generating media and text, and filtering, ranking, and selecting records with AI. Composable commands, stdin support, and predictable outputs. Uses [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
 
 ## Install
 
@@ -18,6 +18,9 @@ ai video "a spinning triangle"
 ai text "explain quantum computing"
 ai audio speak "Thanks for trying ai-cli"
 ai audio transcribe recording.mp3
+git log --oneline | ai filter "describes a concurrency fix"
+ai rank "impact on signing in" --top 5 < issues.json
+ai pick "most relevant to this failure" --context failure.log < issues.jsonl
 ai models                          # list available models
 ```
 
@@ -38,7 +41,7 @@ cat recording.mp3 | ai audio transcribe
 
 ### Common Options
 
-All commands support:
+Generation commands support:
 
 ```
 -m, --model <id>         Model ID (creator/model-name), comma-separated for multi-model
@@ -61,6 +64,59 @@ ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 ```
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
+
+### filter, rank, and pick
+
+Evaluate records with Jev through AI Gateway:
+
+```bash
+git log --oneline | ai filter "describes a concurrency fix"
+ai rank "impact on signing in" --top 5 < issues.json
+ai pick "most relevant to this failure" --context failure.log < issues.jsonl
+```
+
+- `filter` keeps records whose match probability is at least `--threshold`
+  (default `0.8`). Probabilities at or below `1 - threshold` are rejected.
+  Values between those bounds are uncertain: the default fails without emitting
+  records; `--on-uncertain skip` drops them and `keep` includes them.
+- `rank` scores each record on the same ordered rubric, highest first.
+  `--top <n>` limits the output; ties retain input order.
+- `pick` chooses one existing record and independently checks that a match exists.
+  Both the existence probability and winning choice probability must meet
+  `--threshold`. No match exits `3`; uncertainty exits `4`.
+
+```text
+-m, --model <id>        One evaluation model (default: typesafe-ai/jev)
+--input <format>       auto, lines, json, or jsonl (default: auto)
+--context <path>       UTF-8 file supplying context
+-p, --concurrency <n>  Parallel evaluation requests (default: 4)
+--timeout <seconds>    Timeout per request, including retries (default: 30)
+-q, --quiet            Suppress progress and outcome diagnostics
+--json                 Records, decisions, probabilities, usage, and timing
+--threshold <p>        filter/pick only: greater than 0.5 and at most 1
+--on-uncertain <mode>  filter only: error, skip, or keep (default: error)
+--top <n>              rank only: return the highest-ranked n records
+--rubric <path>        rank/pick: JSON array of labels, lowest to highest
+```
+
+Input is buffered through EOF. Auto detection tries a complete JSON value, then
+JSONL, then nonempty text lines. Use `--input lines` for bracketed logs or other
+JSON-looking text. Lines and JSONL preserve selected line contents; JSON input
+produces a JSON array, including for a single selected record. Blank lines are
+ignored. Decisions always print records to stdout, including in a TTY.
+`--json` instead emits an envelope with `status`, `count`, `input_count`,
+`calls`, `usage`, and `results` containing original records, one-based input
+indices, selection flags, and probabilities or scores. It does not create files.
+
+The default rubric has five levels from no match (`0`) to an exceptional match
+(`4`). A custom rubric must contain 2–255 nonempty string labels. `pick` uses
+the rubric only when there are more than 255 records: it scores every record
+in batches, shortlists the top 32, and chooses from that shortlist. Shortlisting
+is approximate; use `--json` to inspect the scores and final selection.
+
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override the
+default with `AI_CLI_EVALUATION_MODEL` or `-m`. Decision commands accept one
+evaluation model per invocation.
 
 ### image
 
@@ -171,12 +227,12 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
 
 ```
 [model]                  Show detailed info for a model (e.g. anthropic/claude-opus-4.6)
---type <type>            Filter by type: text, image, video, audio, speech, transcription
+--type <type>            Filter by type: text, image, video, audio, speech, transcription, evaluation
 --creator <name>         Filter by creator (e.g. openai, google)
 --json                   Output as JSON (includes descriptions)
 ```
 
-All model types (text, image, video, speech, transcription) are fetched live from the AI Gateway.
+All supported model types (text, image, video, speech, transcription, evaluation) are fetched live from the AI Gateway.
 
 Pass a model ID (or short name) to see its context window, max output, pricing, release date and per-provider latency, throughput and uptime:
 
@@ -220,6 +276,7 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 ### Output Behavior
 
+- **filter/rank/pick**: selected records on stdout in both TTY and pipes; `--json` returns inline decision metadata
 - **text**: saves to `<id>.md` (interactive), stdout when piped
 - **image/video**: saves to `<id>.<format>` / `<id>.mp4` (interactive), preserving the image format returned by the model, raw binary stdout when piped
 - **audio speak**: saves to `<id>.mp3` (interactive), raw binary stdout when piped
@@ -239,6 +296,7 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |
 | `AI_CLI_SPEECH_MODEL` | Default speech model (overrides `openai/tts-1`) |
 | `AI_CLI_TRANSCRIPTION_MODEL` | Default transcription model (overrides `openai/whisper-1`) |
+| `AI_CLI_EVALUATION_MODEL` | Default evaluation model (overrides `typesafe-ai/jev`) |
 | `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
 | `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
 | `NO_COLOR` | Disable ANSI color output |
@@ -252,21 +310,24 @@ Requests that exceed the timeout are aborted automatically:
 
 | Command | Timeout |
 |---|---|
+| `filter`, `rank`, `pick` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
 | `video` | 300 seconds |
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
 
-Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, or `audio transcribe`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
+Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, `audio transcribe`, `filter`, `rank`, or `pick`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
 
 ### Exit Codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Success |
-| `1` | All generations failed |
-| `2` | Partial failure (some succeeded, some failed) |
+| `1` | Invalid input or request failure; all generations failed |
+| `2` | Partial generation failure (some succeeded, some failed) |
+| `3` | `pick` found no matching record |
+| `4` | `pick` is uncertain, or `filter` is uncertain with `--on-uncertain error` |
 
 ## License
 

@@ -35,6 +35,7 @@ describe("resolveModels", () => {
     expect(resolveModels("video")[0]).toContain("/");
     expect(resolveModels("speech")[0]).toContain("/");
     expect(resolveModels("transcription")[0]).toContain("/");
+    expect(resolveModels("evaluation")[0]).toContain("/");
   });
 
   test("returns fully-qualified model as-is", () => {
@@ -117,6 +118,17 @@ describe("resolveModels multi", () => {
 });
 
 describe("fetchGatewayModels", () => {
+  test("evaluation models are discoverable and short names resolve", async () => {
+    mockGateway([
+      { id: "typesafe-ai/jev", type: "evaluation", owned_by: "typesafe-ai" },
+    ]);
+    const models = await fetchGatewayModels();
+    expect(models.evaluation[0].capabilities).toEqual(["evaluation"]);
+    expect(models.all.map((model) => model.id)).toEqual(["typesafe-ai/jev"]);
+    expect(resolveModels("evaluation", "jev", models.evaluation)).toEqual([
+      "typesafe-ai/jev",
+    ]);
+  });
   test("partitions models by type with enriched fields", async () => {
     mockGateway([
       {

@@ -56,9 +56,24 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
+### Decisions
+
+`filter`, `rank`, and `pick` read finite record collections through EOF.
+They accept lines, JSON arrays, and JSONL, and print the selected records
+directly in both terminals and pipes. JSON input produces a JSON array;
+lines and JSONL retain selected line contents. `--json` emits inline decision
+metadata and original records without writing files.
+
+```bash
+git log --oneline | ai filter "describes a concurrency fix"
+ai rank "impact on signing in" --top 5 < issues.json
+```
+
+See [Filter, Rank & Pick](/docs/decisions) for uncertainty handling and format flags.
+
 ## Stdout
 
-Output behavior changes based on whether stdout is a TTY (interactive terminal) or a pipe:
+For generation commands, output behavior changes based on whether stdout is a TTY (interactive terminal) or a pipe:
 
 ### Interactive (TTY)
 
@@ -94,7 +109,7 @@ ai audio transcribe call.mp3 -o call.txt   # transcript file
 
 When `-o` points to a directory, files use response IDs when available and random 8-character names otherwise.
 
-The `AI_CLI_OUTPUT_DIR` environment variable sets a default output directory:
+The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. Decision commands always use stdout and do not use this setting:
 
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output

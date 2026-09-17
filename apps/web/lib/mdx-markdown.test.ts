@@ -92,7 +92,7 @@ const value = 1;
       .filter((filename) => filename.endsWith(".mdx"))
       .toSorted();
 
-    expect(filenames).toHaveLength(8);
+    expect(filenames).toContain("decisions.mdx");
     for (const filename of filenames) {
       const output = mdxToMarkdown(docBody(filename));
       expect(output, filename).not.toMatch(/<[A-Z][A-Za-z]*/);

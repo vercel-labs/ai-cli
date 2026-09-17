@@ -1,0 +1,123 @@
+---
+title: Filter, Rank & Pick
+description: Filter by meaning, rank by a rubric, and select original records with Jev.
+order: 3.5
+---
+
+Use evaluation models to make structured decisions about records from stdin.
+The default model is `typesafe-ai/jev`. Set `AI_GATEWAY_API_KEY` with access
+to TypeSafe, or select another supported evaluation model with `--model`.
+
+## Compose decisions
+
+```bash
+gh issue list --limit 200 --json number,title,body |
+  ai filter "describes a problem signing in" --on-uncertain skip |
+  ai rank "impact on ability to sign in" --top 5 |
+  ai text "write a triage brief, citing issue numbers"
+```
+
+## Commands
+
+Evaluate records with Jev through AI Gateway:
+
+```bash
+git log --oneline | ai filter "describes a concurrency fix"
+ai rank "impact on signing in" --top 5 < issues.json
+ai pick "most relevant to this failure" --context failure.log < issues.jsonl
+```
+
+- `filter` keeps records whose match probability is at least `--threshold`
+  (default `0.8`). Probabilities at or below `1 - threshold` are rejected.
+  Values between those bounds are uncertain: the default fails without emitting
+  records; `--on-uncertain skip` drops them and `keep` includes them.
+- `rank` scores each record on the same ordered rubric, highest first.
+  `--top <n>` limits the output; ties retain input order.
+- `pick` chooses one existing record and independently checks that a match exists.
+  Both the existence probability and winning choice probability must meet
+  `--threshold`. No match exits `3`; uncertainty exits `4`.
+
+```text
+-m, --model <id>        One evaluation model (default: typesafe-ai/jev)
+--input <format>       auto, lines, json, or jsonl (default: auto)
+--context <path>       UTF-8 file supplying context
+-p, --concurrency <n>  Parallel evaluation requests (default: 4)
+--timeout <seconds>    Timeout per request, including retries (default: 30)
+-q, --quiet            Suppress progress and outcome diagnostics
+--json                 Records, decisions, probabilities, usage, and timing
+--threshold <p>        filter/pick only: greater than 0.5 and at most 1
+--on-uncertain <mode>  filter only: error, skip, or keep (default: error)
+--top <n>              rank only: return the highest-ranked n records
+--rubric <path>        rank/pick: JSON array of labels, lowest to highest
+```
+
+Input is buffered through EOF. Auto detection tries a complete JSON value, then
+JSONL, then nonempty text lines. Use `--input lines` for bracketed logs or other
+JSON-looking text. Lines and JSONL preserve selected line contents; JSON input
+produces a JSON array, including for a single selected record. Blank lines are
+ignored. Decisions always print records to stdout, including in a TTY.
+`--json` instead emits an envelope with `status`, `count`, `input_count`,
+`calls`, `usage`, and `results` containing original records, one-based input
+indices, selection flags, and probabilities or scores. It does not create files.
+
+The default rubric has five levels from no match (`0`) to an exceptional match
+(`4`). A custom rubric must contain 2–255 nonempty string labels. `pick` uses
+the rubric only when there are more than 255 records: it scores every record
+in batches, shortlists the top 32, and chooses from that shortlist. Shortlisting
+is approximate; use `--json` to inspect the scores and final selection.
+
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override the
+default with `AI_CLI_EVALUATION_MODEL` or `-m`. Decision commands accept one
+evaluation model per invocation.
+
+
+## Custom scoring
+
+Save an ordered rubric to `severity.json`:
+
+```json
+[
+  "Unrelated to signing in",
+  "Cosmetic issue on the sign-in page",
+  "Sign-in is degraded but a workaround exists",
+  "Sign-in is completely blocked"
+]
+```
+
+```bash
+ai rank "impact on signing in" --rubric severity.json --top 5 < issues.json
+```
+
+Scores range from zero to the index of the highest rubric level. Score
+probabilities describe the distribution across those levels. Choice
+probabilities compare the supplied candidates; they are not a guarantee that
+any candidate meets the criterion. `pick` also evaluates existence for this reason.
+
+## Output and automation
+
+Successful `filter` and `rank` calls exit zero even if the selected collection is
+empty. `pick` exits `3` on empty input or a confident no-match, and `4` when
+existence or the winning choice is uncertain. API and input errors exit `1`.
+
+If `filter` fails on uncertainty, it emits no records, including confident matches.
+Use `--json` to inspect all evaluations, or explicitly choose `--on-uncertain skip`
+or `keep`. For `pick`, missing choice probabilities are also treated as uncertain.
+
+`--json` is an inspection envelope rather than a record stream. Extract the
+selected records before piping it to another decision command:
+
+```bash
+ai rank "impact on signing in" --top 5 --json < issues.json |
+  jq '[.results[] | select(.selected) | .record]'
+```
+
+## Batching
+
+Filtering and scoring use up to 64 record questions per request, with
+`--concurrency 4` by default. Every question identifies its record explicitly
+and shares the batch state and optional context. Ranking uses the same rubric
+across all batches. Output order is independent of request completion order.
+
+These commands process finite input through EOF; they are not live log followers.
+Each request has a 30-second timeout covering SDK retries, configurable with
+`--timeout`. A failed batch fails the command without producing partial records.

@@ -1,11 +1,11 @@
 ---
 name: ai-cli
-description: Generate text, images, video, and audio from the terminal using AI models.
+description: Generate media and text, and filter, rank, and select records from the terminal using AI models.
 ---
 
 # ai-cli
 
-Generate text, images, video, and audio from the terminal using AI models.
+Generate media and text, and filter, rank, and select records from the terminal using AI models.
 
 ## When to Use
 
@@ -15,6 +15,7 @@ Use when you need to:
 - Generate text (summaries, explanations, code reviews) from prompts or piped content
 - Generate speech from text or transcribe audio files and streams
 - Compare outputs across multiple models side-by-side
+- Filter records by meaning, rank them by a rubric, or pick an existing record using Jev
 - Build composable media pipelines by chaining commands via stdin/stdout
 
 ## Prerequisites
@@ -71,6 +72,59 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
+## Decisions
+
+Evaluate records with Jev through AI Gateway:
+
+```bash
+git log --oneline | ai filter "describes a concurrency fix"
+ai rank "impact on signing in" --top 5 < issues.json
+ai pick "most relevant to this failure" --context failure.log < issues.jsonl
+```
+
+- `filter` keeps records whose match probability is at least `--threshold`
+  (default `0.8`). Probabilities at or below `1 - threshold` are rejected.
+  Values between those bounds are uncertain: the default fails without emitting
+  records; `--on-uncertain skip` drops them and `keep` includes them.
+- `rank` scores each record on the same ordered rubric, highest first.
+  `--top <n>` limits the output; ties retain input order.
+- `pick` chooses one existing record and independently checks that a match exists.
+  Both the existence probability and winning choice probability must meet
+  `--threshold`. No match exits `3`; uncertainty exits `4`.
+
+```text
+-m, --model <id>        One evaluation model (default: typesafe-ai/jev)
+--input <format>       auto, lines, json, or jsonl (default: auto)
+--context <path>       UTF-8 file supplying context
+-p, --concurrency <n>  Parallel evaluation requests (default: 4)
+--timeout <seconds>    Timeout per request, including retries (default: 30)
+-q, --quiet            Suppress progress and outcome diagnostics
+--json                 Records, decisions, probabilities, usage, and timing
+--threshold <p>        filter/pick only: greater than 0.5 and at most 1
+--on-uncertain <mode>  filter only: error, skip, or keep (default: error)
+--top <n>              rank only: return the highest-ranked n records
+--rubric <path>        rank/pick: JSON array of labels, lowest to highest
+```
+
+Input is buffered through EOF. Auto detection tries a complete JSON value, then
+JSONL, then nonempty text lines. Use `--input lines` for bracketed logs or other
+JSON-looking text. Lines and JSONL preserve selected line contents; JSON input
+produces a JSON array, including for a single selected record. Blank lines are
+ignored. Decisions always print records to stdout, including in a TTY.
+`--json` instead emits an envelope with `status`, `count`, `input_count`,
+`calls`, `usage`, and `results` containing original records, one-based input
+indices, selection flags, and probabilities or scores. It does not create files.
+
+The default rubric has five levels from no match (`0`) to an exceptional match
+(`4`). A custom rubric must contain 2–255 nonempty string labels. `pick` uses
+the rubric only when there are more than 255 records: it scores every record
+in batches, shortlists the top 32, and chooses from that shortlist. Shortlisting
+is approximate; use `--json` to inspect the scores and final selection.
+
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override the
+default with `AI_CLI_EVALUATION_MODEL` or `-m`. Decision commands accept one
+evaluation model per invocation.
+
 ## Structured Output
 
 Use `--json` to get machine-readable results:
@@ -104,7 +158,8 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 
 ## Output Behavior
 
-- **Interactive (TTY)**: saves to file, prints path to stderr
+- **Decision commands**: selected records on stdout in both terminals and pipes; `--json` includes inline records and evaluation metadata
+- **Generation, interactive (TTY)**: saves to file, prints path to stderr
 - **Piped (non-TTY)**: writes raw content to stdout for chaining
 - **`-o <dir>`**: saves inside directory with auto-generated names
 
@@ -114,6 +169,7 @@ When the CLI chooses a filename, it uses a response ID when available and falls 
 
 ## Timeouts
 
+- filter/rank/pick: 30 seconds per evaluation request
 - text: 120 seconds
 - image: 300 seconds
 - video: 300 seconds
@@ -131,5 +187,7 @@ The value is in seconds, not milliseconds, and is capped at 2147483.
 ## Exit Codes
 
 - `0` — success
-- `1` — all generations failed
-- `2` — partial failure (some succeeded)
+- `1` — invalid input or request failure; all generations failed
+- `2` — partial generation failure (some succeeded)
+- `3` — pick found no matching record
+- `4` — pick is uncertain, or filter is uncertain with --on-uncertain error

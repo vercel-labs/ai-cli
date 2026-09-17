@@ -1,24 +1,14 @@
-export async function readStdin(): Promise<Uint8Array | null> {
-  if (process.stdin.isTTY) return null;
+import type { Readable } from "node:stream";
 
-  const first = await Promise.race([
-    new Promise<Uint8Array | null>((resolve) => {
-      process.stdin.once("data", (chunk) => resolve(toBytes(chunk)));
-      process.stdin.once("end", () => resolve(null));
-      process.stdin.once("error", () => resolve(null));
-    }),
-    new Promise<"timeout">((resolve) =>
-      setTimeout(() => resolve("timeout"), 1000)
-    ),
-  ]);
+export async function readStdin(
+  input: Readable & { isTTY?: boolean } = process.stdin
+): Promise<Uint8Array | null> {
+  if (input.isTTY) return null;
 
-  if (first === "timeout" || first === null) {
-    process.stdin.destroy();
-    return null;
-  }
-
-  const chunks: Uint8Array[] = [first];
-  for await (const chunk of process.stdin) {
+  // A preceding evaluation or generation command may take several seconds
+  // before producing its first byte. EOF, not a timer, terminates a pipe.
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of input) {
     chunks.push(toBytes(chunk));
   }
 

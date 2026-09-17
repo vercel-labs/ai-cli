@@ -13,7 +13,7 @@ const items: readonly item[] = [
   {
     id: "002",
     title: "Agent-native output",
-    body: "Predictable behavior for scripts and agents. Raw stdout when piped, file saves when interactive. JSON metadata mode for CI pipelines.",
+    body: "Predictable behavior for scripts and agents. Selected records on stdout, generated artifacts in files or pipes, and JSON metadata for automation.",
   },
   {
     id: "003",
@@ -82,8 +82,8 @@ export function Bento() {
           </div>
           <div className="md:pt-2">
             <p className="max-w-md text-pretty text-base leading-relaxed text-[#777]">
-              Not a chatbot. A generation tool that fits into any workflow —
-              scripts, CI pipelines, agent toolchains, or just your terminal.
+              Generate content and make structured decisions in scripts, CI
+              pipelines, agent toolchains, or your terminal.
             </p>
             <div className="mt-6">
               <div className="inline-flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 font-mono text-sm text-white/60">

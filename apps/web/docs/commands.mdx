@@ -264,6 +264,43 @@ cat recording.mp3 | ai audio transcribe
 
 ---
 
+## filter
+
+Keep records matching a natural-language criterion.
+
+```bash
+git log --oneline | ai filter "describes a concurrency fix"
+ai filter "describes a bug" --on-uncertain skip < issues.json
+```
+
+## rank
+
+Score records against a shared rubric and return them highest first.
+
+```bash
+ai rank "impact on signing in" --top 5 < issues.json
+ai rank "severity" --rubric severity.json < issues.jsonl
+```
+
+## pick
+
+Select one existing record, with separate no-match and uncertain outcomes.
+
+```bash
+ai pick "most relevant to this failure" --context failure.log < issues.jsonl
+```
+
+All three accept `--model`, `--input auto|lines|json|jsonl`, `--context`,
+`--concurrency`, `--timeout`, `--quiet`, and `--json`. `filter` and `pick`
+accept `--threshold` (default `0.8`). `filter` also accepts
+`--on-uncertain error|skip|keep` (default `error`). `rank` accepts `--top`;
+`rank` and `pick` accept `--rubric`.
+
+See [Filter, Rank & Pick](/docs/decisions) for input formats, complete flag
+semantics, probability thresholds, custom rubrics, batching, and metadata output.
+
+---
+
 ## models
 
 List available models from the AI Gateway, or show detailed info for one model.
@@ -271,6 +308,7 @@ List available models from the AI Gateway, or show detailed info for one model.
 ```bash
 ai models
 ai models --type image
+ai models --type evaluation
 ai models --creator openai --json
 ai models claude-opus-4.6
 ai models anthropic/claude-opus-4.6 --json
@@ -289,7 +327,7 @@ ai models anthropic/claude-opus-4.6 --json
 ### Options
 
 <Properties>
-  <Property name="--type" type="text | image | video | audio | speech | transcription">
+  <Property name="--type" type="text | image | video | audio | speech | transcription | evaluation">
     Filter by modality (list mode only).
   </Property>
   <Property name="--creator" type="string">
@@ -310,6 +348,7 @@ Requests that exceed the per-command timeout are aborted automatically:
 
 | Command | Timeout |
 | --- | --- |
+| `filter`, `rank`, `pick` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
 | `video` | 300 seconds |
@@ -329,5 +368,7 @@ ai image --timeout 600 "a detailed sprite atlas"
 | Code | Meaning |
 | --- | --- |
 | `0` | Success |
-| `1` | All generations failed |
-| `2` | Partial failure (some succeeded, some failed) |
+| `1` | Invalid input or request failure; all generations failed |
+| `2` | Partial generation failure (some succeeded, some failed) |
+| `3` | `pick` found no matching record |
+| `4` | `pick` is uncertain, or `filter` is uncertain with `--on-uncertain error` |

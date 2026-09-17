@@ -2,6 +2,7 @@
 
 import pkg from "../package.json";
 import { registerAudioCommand } from "./commands/audio.js";
+import { registerDecisionCommands } from "./commands/decisions.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerTextCommand } from "./commands/text.js";
@@ -13,7 +14,7 @@ const program = new Command();
 program
   .name("ai")
   .description(
-    "A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs"
+    "An agent-native CLI for generating media and text, and filtering, ranking, and selecting records with AI"
   )
   .version(pkg.version);
 
@@ -21,6 +22,7 @@ registerTextCommand(program);
 registerImageCommand(program);
 registerVideoCommand(program);
 registerAudioCommand(program);
+registerDecisionCommands(program);
 registerModelsCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
