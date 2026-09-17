@@ -1,0 +1,205 @@
+---
+title: Evaluate
+description: Use AI SDK evaluation models with typed shell flags and SDK-shaped JSON results.
+order: 3.5
+---
+
+`ai evaluate` brings AI SDK evaluation to the terminal. Ask typed questions about
+shared text or JSON, then use the SDK result in your scripts. The default model
+is `typesafe-ai/jev`, accessed through AI Gateway.
+
+## One input, several questions
+
+```bash
+cat ticket.txt |
+  ai evaluate \
+    --boolean "refund=Refund requested?" \
+    --choice "team=Which team?" \
+    --choices "team=billing,support" \
+    --score "tone=How positive?" \
+    --levels "tone=angry,neutral,happy"
+```
+
+Each question has an explicit type and a unique ID. `--choices` and `--levels`
+bind to that ID regardless of flag order. Repeat any question flag to ask more
+questions in the same request. A single question works the same way:
+
+```bash
+ai evaluate --boolean "refund=Is the customer requesting money back?" < ticket.txt
+```
+
+Inline choices use each comma-separated label as both the option name and its
+description. Levels are ordered from lowest to highest; there is no default
+rubric. Labels must be nonempty and unique. Use a question file for descriptions
+that contain commas, separate option names and descriptions, or structured content.
+
+## AI SDK in the shell
+
+The command calls AI SDK's `experimental_evaluate`. Stdin becomes its `state`,
+and each named flag builds an entry in `questions`:
+
+| CLI | AI SDK |
+| --- | --- |
+| `--boolean id=question` | `{ type: "boolean", instructions: question }` |
+| `--choice` with `--choices` | `{ type: "choice", instructions, criteria: { ... } }` |
+| `--score` with `--levels` | `{ type: "score", instructions, criteria: [...] }` |
+| `--questions questions.json` | The SDK's full named question map |
+| `--provider-options options.json` | The SDK's `providerOptions` |
+
+The flags are shell conveniences for the SDK schema. Use a JSON file when you
+need structured instructions or richer criteria. Evaluation works with supported
+evaluation models through AI Gateway; Jev is the default model. Model-specific
+limits and capabilities are enforced by the SDK and provider.
+
+## Question files
+
+Save a named question map to `triage.json`:
+
+```json
+{
+  "refund": {
+    "type": "boolean",
+    "instructions": "Is the customer requesting money back?",
+    "criteria": {
+      "true": "An explicit request to return a payment",
+      "false": "No request to return a payment"
+    }
+  },
+  "team": {
+    "type": "choice",
+    "instructions": "Which team should handle this request?",
+    "criteria": {
+      "billing": "Payments, charges, and refunds",
+      "support": "Other requests"
+    }
+  },
+  "impact": {
+    "type": "score",
+    "instructions": "How much is the customer prevented from using the product?",
+    "criteria": [
+      "Cosmetic issue; all functions work",
+      "A function is unavailable but a workaround exists",
+      "The product is unusable and no workaround exists"
+    ]
+  }
+}
+```
+
+```bash
+ai evaluate --questions triage.json < ticket.json
+```
+
+Instructions can be strings, JSON objects, or arrays. Criteria descriptions can
+also be structured content or `null`. Boolean criteria are optional and may
+describe `true` and `false`. Choice criteria are a nonempty option map; Score
+criteria contain at least two ordered levels. Providers may impose additional
+limits; the CLI does not hard-code a model-specific choice or level count.
+
+You can combine a question file with inline questions. Reusing a question ID
+across the file and flags is an error; no question is silently overwritten.
+Question fields are `type`, `instructions`, and `criteria`; unknown fields fail
+validation. The type must be explicit. The Gateway Boolean type corresponds to
+TypeSafe's Noul primitive.
+
+## Input and requests
+
+Stdin is buffered through EOF and sent as one shared state. JSON objects and
+arrays keep their shape; an array is one state, not a batch of separate calls.
+Text retains whitespace and line breaks. Put any additional context in the state.
+
+`--input auto` tries a complete JSON value and otherwise treats input as text.
+Malformed JSON-looking input fails; use `--input text` for bracketed logs or
+other literal text. `--input json` requires a JSON string, object, or array.
+Scalar numbers, booleans, and null are not JSON states. Empty stdin is an error;
+an explicit empty JSON object, array, or string is valid. Binary input is rejected.
+To use JSONL as an array, convert it explicitly:
+
+```bash
+jq -s . tickets.jsonl | ai evaluate --questions triage.json
+```
+
+All questions are sent together without automatic splitting, shortlisting, or
+truncation. Jev evaluates them independently against the shared state. A question
+cannot refer to another answer from the same call. Use a follow-up call when
+later questions need newly retrieved state or earlier answers. Provider context
+limits still apply to the state and questions.
+
+## Output and probabilities
+
+Output is always JSON on stdout, in terminals and pipes. No `--json` flag is
+needed. Output is the JSON-serialized SDK result: `answers`, `usage`, `warnings`,
+`response`, and optional `rounding` and `providerMetadata`. Field names and values
+are preserved. The CLI does not add a separate result envelope.
+
+- Boolean answers contain `type: "boolean"` and `probability`: P(true), from 0 to 1.
+  A value near zero is a strong no; 0.5 is an uncertain answer.
+- Choice answers contain `type: "choice"`, the selected `choice`, and a
+  `probabilities` map when supplied by the model.
+- Score answers contain `type: "score"`, a fractional `score` from zero to the
+  last level's index, and `probabilities` keyed by those indices when supplied.
+  Jev's score is the probability-weighted mean, not a percentage.
+
+Score indices refer to the ordered criteria supplied in your question.
+Native confidence is distinct from an option's probability; inspect the
+provider's metadata rather than substituting the winning probability.
+Distributions and confidence are never invented when a provider omits them.
+Usage uses the SDK names `inputTokens`, `outputTokens`, and `totalTokens`.
+Unknown values are omitted during JSON serialization; known zero counts remain
+zero. `response` retains model information and any provider response headers or
+body. Its timestamp is serialized as an ISO string. Use shell `time` if you need
+elapsed command time.
+
+Thresholds, sorting, routing, and side effects belong in your code. For example,
+extract an answer or apply your own refund threshold:
+
+```bash
+ai evaluate --questions triage.json < ticket.json | jq '.answers.team'
+ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+  jq -e '.answers.refund.probability >= 0.9'
+```
+
+Every valid evaluation exits `0`, including false and uncertain answers. In the
+second example, `jq -e` determines the pipeline's exit status. Invalid input,
+provider failures, timeouts, and invalid or incomplete answers exit `1` with a
+diagnostic on stderr and no partial JSON on stdout. There is no automatic
+abstention or probability threshold.
+
+## Writing useful questions
+
+Jev is designed for small, focused judgments. Ask about one property per question,
+spell out the task in the instructions, and provide meaningful option or level
+descriptions. Question IDs are for your code and are not instructions to Jev.
+Several atomic questions can share one request; combine the answers in code.
+Evaluate quality and choose thresholds with examples from your actual task.
+
+Use `ai text` for prose, explanations, or code generation. Jev returns answers
+within the supplied types and choices; that constraint does not guarantee a
+correct judgment.
+
+## Options
+
+```text
+--boolean <id=question>    P(true) question (repeatable)
+--choice <id=question>     Categorical question (repeatable)
+--choices <id=a,b,...>     Choices for the named question (repeatable)
+--score <id=question>      Ordered-score question (repeatable)
+--levels <id=low,...,high> Score levels for the named question (repeatable)
+--questions <path>        JSON file of named typed questions
+-m, --model <id>          One evaluation model (default: typesafe-ai/jev)
+--input <format>          auto, text, or json (default: auto)
+--provider-options <path> JSON object of provider names to option objects
+--max-retries <n>         Transient-error retries, including 0 (default: 2)
+--timeout <seconds>       Evaluation deadline including retries (default: 30)
+```
+
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
+the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
+`typesafe-ai/jev`. Discover supported models with `ai models --type evaluation`.
+
+Provider options use the SDK's provider namespaces. For example, save
+`{"gateway":{"order":["typesafe-ai"]}}` in a file and pass it with
+`--provider-options`. Support for individual options depends on the provider.
+
+The 30-second deadline covers evaluation and SDK retries after stdin has reached
+EOF. Successful calls contain an answer for every question. Stdin is finite input,
+not a live log subscription.

@@ -264,40 +264,34 @@ cat recording.mp3 | ai audio transcribe
 
 ---
 
-## filter
+## evaluate
 
-Keep records matching a natural-language criterion.
-
-```bash
-git log --oneline | ai filter "describes a concurrency fix"
-ai filter "describes a bug" --on-uncertain skip < issues.json
-```
-
-## rank
-
-Score records against a shared rubric and return them highest first.
+Ask named Boolean, Choice, and Score questions against shared stdin:
 
 ```bash
-ai rank "impact on signing in" --top 5 < issues.json
-ai rank "severity" --rubric severity.json < issues.jsonl
+cat ticket.txt |
+  ai evaluate \
+    --boolean "refund=Refund requested?" \
+    --choice "team=Which team?" \
+    --choices "team=billing,support" \
+    --score "tone=How positive?" \
+    --levels "tone=angry,neutral,happy"
+
+ai evaluate --questions triage.json < ticket.json
 ```
 
-## pick
+Output is the SDK evaluation result as JSON, including named typed answers,
+probabilities, usage, provider metadata, and response information. Repeat question
+flags to ask more questions in one request.
+Text, JSON objects, and arrays remain one shared state.
 
-Select one existing record, with separate no-match and uncertain outcomes.
+Use `--questions` for structured instructions and criteria, `--input auto|text|json`
+to control parsing, `--model` to choose one evaluation model, `--provider-options`
+for the SDK’s provider-specific settings, and `--max-retries` or `--timeout` for request controls.
 
-```bash
-ai pick "most relevant to this failure" --context failure.log < issues.jsonl
-```
-
-All three accept `--model`, `--input auto|lines|json|jsonl`, `--context`,
-`--concurrency`, `--timeout`, `--quiet`, and `--json`. `filter` and `pick`
-accept `--threshold` (default `0.8`). `filter` also accepts
-`--on-uncertain error|skip|keep` (default `error`). `rank` accepts `--top`;
-`rank` and `pick` accept `--rubric`.
-
-See [Filter, Rank & Pick](/docs/decisions) for input formats, complete flag
-semantics, probability thresholds, custom rubrics, batching, and metadata output.
+See [Evaluate](/docs/evaluate) for every flag, the question-file schema, probability
+semantics, and examples of using the answers in scripts. Valid evaluations exit
+zero even for false or uncertain answers; your code owns thresholds and routing.
 
 ---
 
@@ -348,7 +342,7 @@ Requests that exceed the per-command timeout are aborted automatically:
 
 | Command | Timeout |
 | --- | --- |
-| `filter`, `rank`, `pick` | 30 seconds per evaluation request |
+| `evaluate` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
 | `video` | 300 seconds |
@@ -370,5 +364,3 @@ ai image --timeout 600 "a detailed sprite atlas"
 | `0` | Success |
 | `1` | Invalid input or request failure; all generations failed |
 | `2` | Partial generation failure (some succeeded, some failed) |
-| `3` | `pick` found no matching record |
-| `4` | `pick` is uncertain, or `filter` is uncertain with `--on-uncertain error` |

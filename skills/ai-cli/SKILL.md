@@ -1,11 +1,11 @@
 ---
 name: ai-cli
-description: Generate media and text, and filter, rank, and select records from the terminal using AI models.
+description: Use the AI SDK from the terminal to generate media and text and evaluate typed questions.
 ---
 
 # ai-cli
 
-Generate media and text, and filter, rank, and select records from the terminal using AI models.
+Use the AI SDK from the terminal to generate media and text and evaluate typed questions.
 
 ## When to Use
 
@@ -15,7 +15,7 @@ Use when you need to:
 - Generate text (summaries, explanations, code reviews) from prompts or piped content
 - Generate speech from text or transcribe audio files and streams
 - Compare outputs across multiple models side-by-side
-- Filter records by meaning, rank them by a rubric, or pick an existing record using Jev
+- Ask Boolean, Choice, and Score questions using AI SDK evaluation models
 - Build composable media pipelines by chaining commands via stdin/stdout
 
 ## Prerequisites
@@ -42,6 +42,8 @@ ai video "a cinematic landscape" --resolution 1920x1080
 ```
 
 ## Key Flags
+
+Generation commands support:
 
 ```
 -m, --model <id>       Model ID (provider/name or short name), comma-separated for multi-model
@@ -72,64 +74,124 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
-## Decisions
+## Evaluate
 
-Evaluate records with Jev through AI Gateway:
+Evaluate named Boolean, Choice, and Score questions using AI SDK evaluation models:
 
 ```bash
-git log --oneline | ai filter "describes a concurrency fix"
-ai rank "impact on signing in" --top 5 < issues.json
-ai pick "most relevant to this failure" --context failure.log < issues.jsonl
+cat ticket.txt |
+  ai evaluate \
+    --boolean "refund=Refund requested?" \
+    --choice "team=Which team?" \
+    --choices "team=billing,support" \
+    --score "tone=How positive?" \
+    --levels "tone=angry,neutral,happy"
 ```
 
-- `filter` keeps records whose match probability is at least `--threshold`
-  (default `0.8`). Probabilities at or below `1 - threshold` are rejected.
-  Values between those bounds are uncertain: the default fails without emitting
-  records; `--on-uncertain skip` drops them and `keep` includes them.
-- `rank` scores each record on the same ordered rubric, highest first.
-  `--top <n>` limits the output; ties retain input order.
-- `pick` chooses one existing record and independently checks that a match exists.
-  Both the existence probability and winning choice probability must meet
-  `--threshold`. No match exits `3`; uncertainty exits `4`.
+All questions share one unchanged input. Text keeps its line breaks; JSON objects
+and arrays keep their shape. Each question has an explicit type and a unique ID.
+Choices and levels bind to that ID regardless of flag order. Repeat the flags to
+ask more questions in the same request.
+
+- Boolean returns `probability`: P(true) from 0 to 1, including strong no answers near zero.
+- Choice returns one supplied option and its distribution when available.
+- Score returns a fractional position on ordered levels, starting at zero, and
+  a distribution when available. Jev uses the probability-weighted mean.
+
+The command calls AI SDK's `experimental_evaluate`: stdin maps to `state`,
+and typed flags build its named `questions`. `--choices` creates a Choice
+`criteria` map; `--levels` creates a Score `criteria` array. The file form uses
+the SDK question schema directly. Jev is the default evaluation model; other
+supported evaluation models use the same interface.
+
+For richer criteria, save a named question map to `triage.json`:
+
+```json
+{
+  "refund": {
+    "type": "boolean",
+    "instructions": "Is the customer requesting money back?"
+  },
+  "team": {
+    "type": "choice",
+    "instructions": "Which team should handle this request?",
+    "criteria": {
+      "billing": "Payments, charges, and refunds",
+      "support": "Other requests"
+    }
+  },
+  "impact": {
+    "type": "score",
+    "instructions": "How much is the customer prevented from using the product?",
+    "criteria": ["Cosmetic issue", "A workaround exists", "Unusable; no workaround"]
+  }
+}
+```
+
+```bash
+ai evaluate --questions triage.json < ticket.json
+ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+  jq -e '.answers.refund.probability >= 0.9'
+```
+
+Question files support string, JSON object, or array instructions and descriptions;
+descriptions may also be `null`. Boolean criteria optionally describe `true` and
+`false`; Choice criteria are an option map; Score criteria are ordered levels.
+There is no implicit rubric. Model-specific limits are enforced by the SDK and provider.
+Inline comma-separated choices use each label as its name and description.
+Use a file for labels containing commas or separate names and descriptions.
+Files and inline questions can be combined; duplicate IDs are errors.
 
 ```text
--m, --model <id>        One evaluation model (default: typesafe-ai/jev)
---input <format>       auto, lines, json, or jsonl (default: auto)
---context <path>       UTF-8 file supplying context
--p, --concurrency <n>  Parallel evaluation requests (default: 4)
---timeout <seconds>    Timeout per request, including retries (default: 30)
--q, --quiet            Suppress progress and outcome diagnostics
---json                 Records, decisions, probabilities, usage, and timing
---threshold <p>        filter/pick only: greater than 0.5 and at most 1
---on-uncertain <mode>  filter only: error, skip, or keep (default: error)
---top <n>              rank only: return the highest-ranked n records
---rubric <path>        rank/pick: JSON array of labels, lowest to highest
+--boolean <id=question>    P(true) question (repeatable)
+--choice <id=question>     Categorical question (repeatable)
+--choices <id=a,b,...>     Choices for the named question (repeatable)
+--score <id=question>      Ordered-score question (repeatable)
+--levels <id=low,...,high> Score levels for the named question (repeatable)
+--questions <path>        JSON file of named typed questions
+-m, --model <id>          One evaluation model (default: typesafe-ai/jev)
+--input <format>          auto, text, or json (default: auto)
+--provider-options <path> JSON object of provider names to option objects
+--max-retries <n>         Transient-error retries, including 0 (default: 2)
+--timeout <seconds>       Evaluation deadline including retries (default: 30)
 ```
 
-Input is buffered through EOF. Auto detection tries a complete JSON value, then
-JSONL, then nonempty text lines. Use `--input lines` for bracketed logs or other
-JSON-looking text. Lines and JSONL preserve selected line contents; JSON input
-produces a JSON array, including for a single selected record. Blank lines are
-ignored. Decisions always print records to stdout, including in a TTY.
-`--json` instead emits an envelope with `status`, `count`, `input_count`,
-`calls`, `usage`, and `results` containing original records, one-based input
-indices, selection flags, and probabilities or scores. It does not create files.
+Output is always JSON on stdout; no `--json` flag is needed and no files are
+created. Output is the JSON-serialized SDK result: `answers`, `usage`, `warnings`,
+`response`, and optional `rounding` and `providerMetadata`. Fields and values
+are preserved; score indices refer to your supplied criteria.
+Native confidence is distinct from option probability and stays in provider
+metadata. Missing distributions or confidence are not synthesized.
+Usage has `inputTokens`, `outputTokens`, and `totalTokens`; unknown values
+are omitted, and known zeros remain zero. `response` retains model information,
+provider headers and body when available, and an ISO timestamp. Use shell `time`
+for elapsed command time.
 
-The default rubric has five levels from no match (`0`) to an exceptional match
-(`4`). A custom rubric must contain 2–255 nonempty string labels. `pick` uses
-the rubric only when there are more than 255 records: it scores every record
-in batches, shortlists the top 32, and chooses from that shortlist. Shortlisting
-is approximate; use `--json` to inspect the scores and final selection.
-If a filtering or scoring batch fails, pending batches are not started,
-in-flight siblings are cancelled, and no partial records are emitted.
+Stdin is buffered through EOF. Auto mode tries one complete JSON value, then
+text. Malformed JSON-looking input fails; use `--input text` for literal logs.
+JSON state must be a string, object, or array. Empty stdin and binary input fail;
+explicit empty JSON objects, arrays, and strings are valid. To read JSONL as a
+shared array, use `jq -s . tickets.jsonl | ai evaluate --questions triage.json`.
+Provider context limits apply; input and questions are never silently split or truncated.
 
-Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override the
-default with `AI_CLI_EVALUATION_MODEL` or `-m`. Decision commands accept one
-evaluation model per invocation.
+Valid evaluations exit `0`, including false and uncertain answers. Input errors,
+provider failures, timeouts, and invalid answers exit `1` with no partial JSON.
+Apply thresholds, sorting, and routing in your code; `jq -e` above owns its exit status.
+
+Ask small, focused questions with complete instructions and meaningful criteria.
+Question IDs are for your code and are not instructions to Jev. Questions in one
+call are independent; use follow-up calls for dependencies. Use `ai text` when
+you need prose, explanations, or code. Typed output does not guarantee correct judgments.
+
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
+the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
+`typesafe-ai/jev`. Discover models with `ai models --type evaluation`.
+
+See [Evaluate](https://ai-cli.dev/docs/evaluate) for the complete interface.
 
 ## Structured Output
 
-Use `--json` to get machine-readable results:
+Generation commands use `--json` to get machine-readable results; `evaluate` always returns JSON:
 
 ```bash
 ai image "a sunset" --json
@@ -160,7 +222,7 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 
 ## Output Behavior
 
-- **Decision commands**: selected records on stdout in both terminals and pipes; `--json` includes inline records and evaluation metadata
+- **evaluate**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
 - **Generation, interactive (TTY)**: saves to file, prints path to stderr
 - **Piped (non-TTY)**: writes raw content to stdout for chaining
 - **`-o <dir>`**: saves inside directory with auto-generated names
@@ -171,7 +233,7 @@ When the CLI chooses a filename, it uses a response ID when available and falls 
 
 ## Timeouts
 
-- filter/rank/pick: 30 seconds per evaluation request
+- evaluate: 30 seconds including evaluation retries
 - text: 120 seconds
 - image: 300 seconds
 - video: 300 seconds
@@ -191,5 +253,3 @@ The value is in seconds, not milliseconds, and is capped at 2147483.
 - `0` — success
 - `1` — invalid input or request failure; all generations failed
 - `2` — partial generation failure (some succeeded)
-- `3` — pick found no matching record
-- `4` — pick is uncertain, or filter is uncertain with --on-uncertain error

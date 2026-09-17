@@ -13,14 +13,14 @@ export function Hero() {
             className="landing-fade-up text-5xl font-semibold tracking-tighter text-white sm:text-6xl md:text-7xl leading-[1.03]"
             style={{ animationDelay: "30ms" }}
           >
-            Generate anything from your terminal.
+            The AI SDK for your terminal.
           </h1>
           <p
             className="landing-fade-up mt-5 text-base text-[#888] leading-relaxed"
             style={{ animationDelay: "90ms" }}
           >
-            Generate text, images, video, and audio. Filter records by meaning,
-            rank them by a rubric, and pick what matters. Composable commands
+            Generate text, images, video, and audio. Evaluate typed questions.
+            Composable commands, shell pipelines, and hundreds of models
             for people and agents.
           </p>
         </div>

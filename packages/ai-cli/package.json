@@ -1,7 +1,7 @@
 {
   "name": "ai-cli",
   "version": "0.5.0",
-  "description": "An agent-native CLI for generating media and text, and filtering, ranking, and selecting records with AI",
+  "description": "The AI SDK for your terminal: generate text and media, and evaluate typed questions",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {

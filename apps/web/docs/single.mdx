@@ -56,20 +56,20 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
-### Decisions
+### Evaluate
 
-`filter`, `rank`, and `pick` read finite record collections through EOF.
-They accept lines, JSON arrays, and JSONL, and print the selected records
-directly in both terminals and pipes. JSON input produces a JSON array;
-lines and JSONL retain selected line contents. `--json` emits inline decision
-metadata and original records without writing files.
+`evaluate` reads finite input through EOF and evaluates named typed questions together.
+Text keeps whitespace; JSON objects and arrays remain one shared state. It always
+prints JSON answers and metadata in terminals and pipes, without writing files.
 
 ```bash
-git log --oneline | ai filter "describes a concurrency fix"
-ai rank "impact on signing in" --top 5 < issues.json
+ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+  jq '.answers.refund.probability'
+ai evaluate --questions triage.json < ticket.json
 ```
 
-See [Filter, Rank & Pick](/docs/decisions) for uncertainty handling and format flags.
+Use `--input text` for literal JSON-looking text, or `--input json` to require JSON.
+See [Evaluate](/docs/evaluate) for question types, probability semantics, and format flags.
 
 ## Stdout
 
@@ -109,7 +109,7 @@ ai audio transcribe call.mp3 -o call.txt   # transcript file
 
 When `-o` points to a directory, files use response IDs when available and random 8-character names otherwise.
 
-The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. Decision commands always use stdout and do not use this setting:
+The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. `evaluate` always uses stdout and does not use this setting:
 
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output
@@ -118,7 +118,7 @@ ai image "a sunset"    # → saves to ~/ai-output/<id>.<format>
 
 ## JSON metadata
 
-Use `--json` to get structured metadata on stdout instead of raw output:
+Generation commands use `--json` to get structured metadata on stdout instead of raw output:
 
 ```bash
 ai image "a sunset" --json

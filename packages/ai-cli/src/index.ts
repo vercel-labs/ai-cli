@@ -2,7 +2,7 @@
 
 import pkg from "../package.json";
 import { registerAudioCommand } from "./commands/audio.js";
-import { registerDecisionCommands } from "./commands/decisions.js";
+import { registerEvaluateCommand } from "./commands/evaluate.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerTextCommand } from "./commands/text.js";
@@ -14,7 +14,7 @@ const program = new Command();
 program
   .name("ai")
   .description(
-    "An agent-native CLI for generating media and text, and filtering, ranking, and selecting records with AI"
+    "The AI SDK for your terminal: generate text and media, and evaluate typed questions"
   )
   .version(pkg.version);
 
@@ -22,7 +22,7 @@ registerTextCommand(program);
 registerImageCommand(program);
 registerVideoCommand(program);
 registerAudioCommand(program);
-registerDecisionCommands(program);
+registerEvaluateCommand(program);
 registerModelsCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

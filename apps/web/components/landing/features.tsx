@@ -17,14 +17,14 @@ const multimodelrows: readonly row[] = [
   { tone: "code", text: "Saved to /Users/you/resp_img_b-2.<format> (4.7s)" },
 ];
 
-const decisionrows: readonly row[] = [
-  { tone: "cmd", text: '$ git log --oneline | ai filter "concurrency fixes"' },
-  { tone: "code", text: "a1b2c3d Prevent overlapping session refreshes" },
-  { tone: "dim", text: "" },
-  { tone: "cmd", text: '$ ai rank "sign-in impact" --top 5 < issues.json' },
-  { tone: "dim", text: "" },
-  { tone: "cmd", text: '$ ai pick "matches the failure" --context failure.log' },
-  { tone: "dim", text: "  < issues.jsonl" },
+const evaluationrows: readonly row[] = [
+  { tone: "dim", text: "$ cat ticket.txt |" },
+  { tone: "cmd", text: "  ai evaluate \\" },
+  { tone: "cmd", text: '    --boolean "refund=Refund requested?" \\' },
+  { tone: "cmd", text: '    --choice "team=Which team?" \\' },
+  { tone: "cmd", text: '    --choices "team=billing,support" \\' },
+  { tone: "cmd", text: '    --score "tone=How positive?" \\' },
+  { tone: "cmd", text: '    --levels "tone=angry,neutral,happy"' },
 ];
 
 const pipingrows: readonly row[] = [
@@ -155,20 +155,20 @@ export function Features() {
 
           <Spotlight
             tone="slate"
-            title="Filter by meaning."
-            description="Use Jev to filter, rank, and select original records from stdin. Compose structured decisions with the commands and agent workflows you already use."
+            title="One input. Many judgments."
+            description="Use AI SDK evaluation models to ask focused questions about the same input in one call. Get typed answers and probabilities your scripts can use directly."
             bullets={[
-              "plain lines, JSON arrays, and JSONL",
-              "explicit no-match and uncertain outcomes",
-              "original records, probabilities, and usage in JSON mode",
+              "Boolean, Choice, and Score questions together",
+              "text, JSON objects, and arrays as shared state",
+              "SDK results with probabilities, metadata, and usage",
             ]}
-            window={<Panel rows={decisionrows} />}
+            window={<Panel rows={evaluationrows} />}
           />
 
           <Spotlight
             tone="ash"
             title="Pipe everything."
-            description="Pipe text in as context, chain record filtering and ranking, turn images into video, or transcribe audio. Decision commands return records directly; generation commands produce content and artifacts."
+            description="Pipe text in as context, turn images into video, transcribe audio, or send typed judgments to jq. Compose AI with the commands you already use."
             bullets={[
               "text stdin becomes prompt context",
               "binary stdin for image, video, and audio workflows",

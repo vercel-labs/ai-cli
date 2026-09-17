@@ -37,9 +37,7 @@ describe("cli integration", () => {
       "video",
       "audio",
       "models",
-      "filter",
-      "rank",
-      "pick",
+      "evaluate",
     ]) {
       expect(stdout).toContain(sub);
     }
@@ -286,38 +284,50 @@ describe("cli integration", () => {
     expect(stdout).toContain("evaluation");
   });
 
-  test.each(["filter", "rank", "pick"])(
-    "%s documents its record interface",
-    async (command) => {
-      const { exitCode, stdout } = await run(command, "--help");
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain("<criterion>");
-      expect(stdout).toContain("--context");
-      expect(stdout).toContain("--input");
-      expect(stdout).toContain("--json");
-      expect(stdout).toContain("typesafe-ai/jev");
-      expect(stdout).not.toContain("--count");
+  test("evaluate documents its typed interface", async () => {
+    const { exitCode, stdout } = await run("evaluate", "--help");
+    expect(exitCode).toBe(0);
+    for (const flag of [
+      "--boolean",
+      "--choice",
+      "--choices",
+      "--score",
+      "--levels",
+      "--questions",
+      "--input",
+      "--provider-options",
+      "--max-retries",
+    ]) {
+      expect(stdout).toContain(flag);
     }
-  );
+    expect(stdout).toContain("typesafe-ai/jev");
+    expect(stdout).not.toContain("--count");
+  });
 
-  test.each(["filter", "rank", "pick"])(
-    "%s requires a criterion",
+  test.each(["filter", "rank", "pick", "judge"])(
+    "%s is not a command",
     async (command) => {
       const result = await run(command);
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("criterion is required");
+      expect(result.stderr).toContain("unknown command");
     }
   );
 
-  test("decision flags reject invalid values before requesting a model", async () => {
+  test("evaluate requires explicit typed questions", async () => {
+    const result = await run("evaluate");
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("named question is required");
+  });
+
+  test("evaluate validates flags before requesting a model", async () => {
     for (const args of [
-      ["filter", "bug", "--threshold", "0.5"],
-      ["filter", "bug", "--on-uncertain", "guess"],
-      ["rank", "bug", "--top", "0"],
-      ["pick", "bug", "--input", "yaml"],
-      ["filter", "bug", "-m", "typesafe-ai/jev,typesafe-ai/jev"],
+      ["--boolean", "missing-id"],
+      ["--choice", "team=Which team?"],
+      ["--choices", "team=billing,support"],
+      ["--input", "yaml"],
+      ["--max-retries", "-1"],
     ]) {
-      expect((await run(...args)).exitCode).toBe(1);
+      expect((await run("evaluate", ...args)).exitCode).toBe(1);
     }
   });
 
