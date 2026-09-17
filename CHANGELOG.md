@@ -10,6 +10,7 @@
 ### Bug Fixes
 
 - **Slow stdin pipelines** - commands wait for upstream output through EOF instead of discarding input if the first byte arrives after one second
+- **Fail-fast record evaluation** - decision commands stop pending batches and cancel in-flight evaluation requests after the first batch failure
 
 ## 0.4.4
 

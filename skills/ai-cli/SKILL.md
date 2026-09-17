@@ -120,6 +120,8 @@ The default rubric has five levels from no match (`0`) to an exceptional match
 the rubric only when there are more than 255 records: it scores every record
 in batches, shortlists the top 32, and chooses from that shortlist. Shortlisting
 is approximate; use `--json` to inspect the scores and final selection.
+If a filtering or scoring batch fails, pending batches are not started,
+in-flight siblings are cancelled, and no partial records are emitted.
 
 Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override the
 default with `AI_CLI_EVALUATION_MODEL` or `-m`. Decision commands accept one

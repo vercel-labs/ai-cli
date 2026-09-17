@@ -120,4 +120,5 @@ across all batches. Output order is independent of request completion order.
 
 These commands process finite input through EOF; they are not live log followers.
 Each request has a 30-second timeout covering SDK retries, configurable with
-`--timeout`. A failed batch fails the command without producing partial records.
+`--timeout`. A failed batch stops pending work, cancels in-flight sibling
+requests, and fails the command without producing partial records.

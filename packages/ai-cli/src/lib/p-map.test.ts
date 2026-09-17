@@ -26,6 +26,29 @@ describe("pMap", () => {
     expect(results[2]).toEqual({ status: "fulfilled", value: 3 });
   });
 
+  test("can stop scheduling new items after a rejection", async () => {
+    const started: number[] = [];
+    const results = await pMap(
+      [1, 2, 3, 4, 5],
+      async (x) => {
+        started.push(x);
+        if (x === 1) {
+          await Promise.resolve();
+          throw new Error("fail");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return x;
+      },
+      2,
+      { stopOnError: true }
+    );
+
+    expect(started).toEqual([1, 2]);
+    expect(results).toHaveLength(2);
+    expect(results[0].status).toBe("rejected");
+    expect(results[1]).toEqual({ status: "fulfilled", value: 2 });
+  });
+
   test("handles empty input", async () => {
     const results = await pMap([], async (x: number) => x, 4);
     expect(results).toEqual([]);

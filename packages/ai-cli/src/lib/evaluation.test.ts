@@ -220,6 +220,30 @@ describe("evaluating records", () => {
     );
   });
 
+  test("provider failures stop pending batches and abort in-flight requests", async () => {
+    const many = parseRecords(
+      JSON.stringify(Array.from({ length: 320 }, (_, id) => ({ id })))
+    ).records;
+    const { options, calls } = harness(async (call) => {
+      if (Object.hasOwn(call.questions, "record_65")) {
+        await Promise.resolve();
+        throw new Error("provider failed");
+      }
+      return new Promise<Response["answers"]>((_, reject) => {
+        const signal = call.abortSignal!;
+        const abort = () => reject(signal.reason);
+        if (signal.aborted) abort();
+        else signal.addEventListener("abort", abort, { once: true });
+      });
+    });
+
+    await expect(
+      evaluateRecords("rank", many, { ...options, concurrency: 2 })
+    ).rejects.toThrow("provider failed");
+    expect(calls).toHaveLength(2);
+    expect(calls[0].abortSignal?.aborted).toBe(true);
+  });
+
   test("SDK rejects invented candidate IDs", async () => {
     const { options } = harness(() => ({
       choice: { type: "choice", choice: "invented" },
