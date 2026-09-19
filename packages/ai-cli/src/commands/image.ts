@@ -246,14 +246,65 @@ export function registerImageCommand(program: Command) {
 }
 
 export function extractSvgImage(text: string): string | undefined {
-  const start = text.search(/<svg(?:\s|>)/i);
+  const start = text.search(/<svg(?=[\s/>])/i);
   if (start === -1) return undefined;
 
-  const svg = text.slice(start);
-  const closingTag = /<\/svg\s*>/i.exec(svg);
-  if (!closingTag) return undefined;
+  let depth = 0;
+  let cursor = start;
+  while (cursor < text.length) {
+    const tagStart = text.indexOf("<", cursor);
+    if (tagStart === -1) return undefined;
 
-  return svg.slice(0, closingTag.index + closingTag[0].length);
+    if (text.startsWith("<!--", tagStart)) {
+      const commentEnd = text.indexOf("-->", tagStart + 4);
+      if (commentEnd === -1) return undefined;
+      cursor = commentEnd + 3;
+      continue;
+    }
+
+    if (text.startsWith("<![CDATA[", tagStart)) {
+      const cdataEnd = text.indexOf("]]>", tagStart + 9);
+      if (cdataEnd === -1) return undefined;
+      cursor = cdataEnd + 3;
+      continue;
+    }
+
+    const tagEnd = findMarkupEnd(text, tagStart + 1);
+    if (tagEnd === -1) return undefined;
+
+    const tag = text.slice(tagStart, tagEnd + 1);
+    if (/^<svg(?=[\s/>])/i.test(tag)) {
+      if (/\/\s*>$/.test(tag)) {
+        if (depth === 0) return text.slice(start, tagEnd + 1);
+      } else {
+        depth++;
+      }
+    } else if (/^<\/svg\s*>$/i.test(tag)) {
+      depth--;
+      if (depth === 0) return text.slice(start, tagEnd + 1);
+      if (depth < 0) return undefined;
+    }
+
+    cursor = tagEnd + 1;
+  }
+
+  return undefined;
+}
+
+function findMarkupEnd(text: string, start: number): number {
+  let quote: '"' | "'" | undefined;
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+    if (quote) {
+      if (char === quote) quote = undefined;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === ">") {
+      return i;
+    }
+  }
+
+  return -1;
 }
 
 export function generatedImageMediaType(

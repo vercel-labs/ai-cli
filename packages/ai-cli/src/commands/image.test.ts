@@ -18,6 +18,13 @@ describe("SVG image models", () => {
     ).toBe('<svg viewBox="0 0 10 10">\n  <path />\n</svg>');
   });
 
+  test("extracts the complete document when SVG elements are nested", () => {
+    const svg =
+      '<svg viewBox="0 0 10 10"><svg x="1" y="1"><path /></svg><rect /></svg>';
+
+    expect(extractSvgImage(`Here is the image:\n${svg}\nDone.`)).toBe(svg);
+  });
+
   test("rejects text without a complete SVG document", () => {
     expect(extractSvgImage("Here is your logo.")).toBeUndefined();
     expect(extractSvgImage("<svg><path />")).toBeUndefined();
