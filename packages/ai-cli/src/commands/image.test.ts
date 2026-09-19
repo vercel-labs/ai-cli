@@ -32,6 +32,13 @@ describe("SVG image models", () => {
     expect(extractSvgImage(response)).toBe(svg);
   });
 
+  test("skips a balanced SVG mention before a complete document", () => {
+    const svg = '<svg viewBox="0 0 10 10"><path /></svg>';
+    const response = `Wrap the output in \`<svg></svg>\` tags.\n\`\`\`svg\n${svg}\n\`\`\``;
+
+    expect(extractSvgImage(response)).toBe(svg);
+  });
+
   test("rejects text without a complete SVG document", () => {
     expect(extractSvgImage("Here is your logo.")).toBeUndefined();
     expect(extractSvgImage("<svg><path />")).toBeUndefined();

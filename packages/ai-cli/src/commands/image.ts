@@ -247,12 +247,17 @@ export function registerImageCommand(program: Command) {
 
 export function extractSvgImage(text: string): string | undefined {
   const svgStart = /<svg(?=[\s/>])/gi;
+  let bestMatch: string | undefined;
   for (let match = svgStart.exec(text); match; match = svgStart.exec(text)) {
     const svg = extractSvgImageAt(text, match.index);
-    if (svg) return svg;
+    if (!svg) continue;
+
+    if (!bestMatch || svg.length > bestMatch.length) bestMatch = svg;
+    // Nested SVG elements are already included in this candidate.
+    svgStart.lastIndex = match.index + svg.length;
   }
 
-  return undefined;
+  return bestMatch;
 }
 
 function extractSvgImageAt(text: string, start: number): string | undefined {
