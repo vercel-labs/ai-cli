@@ -57,6 +57,7 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
   "image/jpg": ".jpg",
   "image/jpeg": ".jpg",
   "image/png": ".png",
+  "image/svg+xml": ".svg",
   "image/tiff": ".tiff",
   "image/webp": ".webp",
 };

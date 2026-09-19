@@ -4,6 +4,36 @@ import sharp from "sharp";
 
 import { displayImage } from "./kitty.js";
 
+async function capturePreview(buf: Buffer): Promise<{
+  output: string;
+  png: Buffer;
+}> {
+  const originalWrite = process.stderr.write;
+  let output = "";
+  (process.stderr as { write: (chunk: string) => boolean }).write = (chunk) => {
+    output += chunk;
+    return true;
+  };
+
+  try {
+    await displayImage(buf);
+  } finally {
+    (process.stderr as { write: typeof originalWrite }).write = originalWrite;
+  }
+
+  const payload = output
+    .split("\x1b_G")
+    .slice(1)
+    .map((chunk) => {
+      const payloadStart = chunk.indexOf(";") + 1;
+      const payloadEnd = chunk.indexOf("\x1b\\");
+      return chunk.slice(payloadStart, payloadEnd);
+    })
+    .join("");
+
+  return { output, png: Buffer.from(payload, "base64") };
+}
+
 describe("displayImage", () => {
   test("converts non-PNG images to PNG before sending Kitty data", async () => {
     const jpeg = await sharp({
@@ -16,23 +46,8 @@ describe("displayImage", () => {
     })
       .jpeg()
       .toBuffer();
-    const originalWrite = process.stderr.write;
-    let output = "";
-    (process.stderr as { write: (chunk: string) => boolean }).write = (
-      chunk
-    ) => {
-      output += chunk;
-      return true;
-    };
+    const { output, png } = await capturePreview(jpeg);
 
-    try {
-      await displayImage(jpeg);
-    } finally {
-      (process.stderr as { write: typeof originalWrite }).write = originalWrite;
-    }
-
-    const payload = output.split(";")[1]!.split("\x1b\\", 1)[0]!;
-    const png = Buffer.from(payload, "base64");
     expect(png.subarray(0, 8)).toEqual(
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     );
@@ -50,24 +65,27 @@ describe("displayImage", () => {
     })
       .png()
       .toBuffer();
-    const originalWrite = process.stderr.write;
-    let output = "";
-    (process.stderr as { write: (chunk: string) => boolean }).write = (
-      chunk
-    ) => {
-      output += chunk;
-      return true;
-    };
+    const preview = await capturePreview(png);
 
-    try {
-      await displayImage(png);
-    } finally {
-      (process.stderr as { write: typeof originalWrite }).write = originalWrite;
-    }
+    expect(preview.output).toContain("a=T,f=100,m=0;");
+    expect(preview.png).toEqual(png);
+  });
 
-    expect(output).toContain("a=T,f=100,m=0;");
-    expect(
-      Buffer.from(output.split(";")[1]!.split("\x1b\\", 1)[0]!, "base64")
-    ).toEqual(png);
+  test("renders SVG previews larger on an opaque white background", async () => {
+    const svg = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="8" viewBox="0 0 16 8">
+        <rect x="6" y="2" width="4" height="4" fill="black" />
+      </svg>
+    `);
+
+    const { png } = await capturePreview(svg);
+    const rendered = await sharp(png)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    expect(rendered.info.width).toBe(512);
+    expect(rendered.info.height).toBe(256);
+    expect([...rendered.data.subarray(0, 4)]).toEqual([255, 255, 255, 255]);
   });
 });

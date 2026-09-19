@@ -112,6 +112,23 @@ describe("writeOutput", () => {
     });
   });
 
+  test("uses an svg extension for generated SVG images", async () => {
+    await withTempDir(async (dir) => {
+      const path = await writeOutput({
+        data: '<svg xmlns="http://www.w3.org/2000/svg" />',
+        format: "image",
+        outputPath: dir,
+        outputId: "resp_123",
+        mediaType: "image/svg+xml",
+        quiet: true,
+        display: false,
+      });
+
+      expect(path).not.toBeNull();
+      expect(basename(path!)).toBe("resp_123.svg");
+    });
+  });
+
   test("prefers an explicit image extension over the media type", async () => {
     await withTempDir(async (dir) => {
       const path = await writeOutput({

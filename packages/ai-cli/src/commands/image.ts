@@ -15,6 +15,15 @@ import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 300_000;
+const SVG_IMAGE_MODEL_IDS = new Set([
+  "quiverai/arrow-1.1",
+  "quiverai/arrow-2",
+  "quiverai/arrow-2-telos",
+]);
+const SVG_LANGUAGE_IMAGE_MODEL_IDS = new Set([
+  "quiverai/arrow-2",
+  "quiverai/arrow-2-telos",
+]);
 
 interface ImageOptions {
   model?: string;
@@ -98,6 +107,10 @@ export function registerImageCommand(program: Command) {
 
       const gatewayModels = await fetchGatewayModels();
       const models = resolveModels("image", opts.model, gatewayModels.image);
+      const languageImageModelIds = new Set([
+        ...gatewayModels.languageImageModelIds,
+        ...SVG_LANGUAGE_IMAGE_MODEL_IDS,
+      ]);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -116,10 +129,7 @@ export function registerImageCommand(program: Command) {
         );
       }
 
-      if (
-        opts.size &&
-        models.some((m) => gatewayModels.languageImageModelIds.has(m))
-      ) {
+      if (opts.size && models.some((m) => languageImageModelIds.has(m))) {
         process.stderr.write(
           "Warning: --size is not supported by language image models; use --aspect-ratio instead\n"
         );
@@ -132,7 +142,7 @@ export function registerImageCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
 
-          if (gatewayModels.languageImageModelIds.has(modelId)) {
+          if (languageImageModelIds.has(modelId)) {
             const messageContent: Array<
               | { type: "text"; text: string }
               | { type: "image"; image: ImageReference }
@@ -174,15 +184,26 @@ export function registerImageCommand(program: Command) {
             const imageFile = result.files?.find((f) =>
               f.mediaType.startsWith("image/")
             );
-            if (!imageFile) {
+            if (imageFile) {
+              return {
+                data: Buffer.from(imageFile.uint8Array),
+                id: result.response.id,
+                mediaType: imageFile.mediaType,
+              };
+            }
+
+            const svg = SVG_IMAGE_MODEL_IDS.has(modelId)
+              ? extractSvgImage(result.text)
+              : undefined;
+            if (!svg) {
               throw new Error(
                 `Model ${modelId} did not return an image in the response`
               );
             }
             return {
-              data: Buffer.from(imageFile.uint8Array),
+              data: svg,
               id: result.response.id,
-              mediaType: imageFile.mediaType,
+              mediaType: "image/svg+xml",
             };
           }
 
@@ -203,7 +224,7 @@ export function registerImageCommand(program: Command) {
           return {
             data: Buffer.from(result.image.uint8Array),
             id: responseIdFromHeaders(result.responses[0]?.headers),
-            mediaType: result.image.mediaType,
+            mediaType: generatedImageMediaType(modelId, result.image.mediaType),
           };
         },
         {
@@ -222,6 +243,24 @@ export function registerImageCommand(program: Command) {
       if (failed > 0) process.exit(2);
     }
   );
+}
+
+export function extractSvgImage(text: string): string | undefined {
+  const start = text.search(/<svg(?:\s|>)/i);
+  if (start === -1) return undefined;
+
+  const svg = text.slice(start);
+  const closingTag = /<\/svg\s*>/i.exec(svg);
+  if (!closingTag) return undefined;
+
+  return svg.slice(0, closingTag.index + closingTag[0].length);
+}
+
+export function generatedImageMediaType(
+  modelId: string,
+  reportedMediaType: string
+): string {
+  return SVG_IMAGE_MODEL_IDS.has(modelId) ? "image/svg+xml" : reportedMediaType;
 }
 
 export function languageImageProviderOptions(

@@ -9,6 +9,10 @@
 - **AI SDK evaluation** - `ai evaluate` exposes AI SDK’s evaluation API with typed shell flags or a full JSON question map. Boolean, Choice, and Score questions share intact text or JSON state. Output preserves the SDK result, including probabilities, usage, provider metadata, and response information. Jev is the default evaluation model.
 - **Evaluation model discovery** - `ai models --type evaluation` lists evaluation models; `AI_CLI_EVALUATION_MODEL` configures the evaluate default
 
+### Bug Fixes
+
+- **Quiver Arrow SVG output** - `ai image` now extracts SVG markup returned by Arrow 2 and Arrow 2 Telos, saves SVG output from all Arrow image models with the `.svg` extension, and displays larger SVG previews on a white background
+
 ### Contributors
 
 - @ctate

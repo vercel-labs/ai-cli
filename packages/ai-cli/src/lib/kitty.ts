@@ -28,6 +28,9 @@ import { extractKeyframe } from "./mp4.js";
 import { encodePNG } from "./png.js";
 
 const CHUNK_SIZE = 4096;
+const SVG_PREVIEW_SIZE = 512;
+const SVG_BASE_DENSITY = 72;
+const SVG_FALLBACK_DENSITY = 300;
 
 export async function displayVideoFrame(buf: Buffer): Promise<void> {
   try {
@@ -48,7 +51,29 @@ export async function displayImage(buf: Buffer): Promise<void> {
   if (!isPng) {
     try {
       const { default: sharp } = await import("sharp");
-      preview = await sharp(buf).png().toBuffer();
+      const image = sharp(buf);
+      const metadata = await image.metadata();
+      if (metadata.format === "svg") {
+        const longestSide = Math.max(metadata.width ?? 0, metadata.height ?? 0);
+        const density =
+          longestSide > 0
+            ? Math.max(
+                SVG_BASE_DENSITY,
+                Math.ceil((SVG_BASE_DENSITY * SVG_PREVIEW_SIZE) / longestSide)
+              )
+            : SVG_FALLBACK_DENSITY;
+        preview = await sharp(buf, { density })
+          .resize({
+            width: SVG_PREVIEW_SIZE,
+            height: SVG_PREVIEW_SIZE,
+            fit: "inside",
+          })
+          .flatten({ background: "#ffffff" })
+          .png()
+          .toBuffer();
+      } else {
+        preview = await image.png().toBuffer();
+      }
     } catch {
       // Preview is best-effort; skip unsupported or invalid image formats.
       return;

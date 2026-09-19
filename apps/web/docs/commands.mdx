@@ -56,8 +56,10 @@ ai image "edit this" < photo.png
 </Properties>
 
 Generated image files preserve the format returned by the selected model when
-the model reports one (for example, JPEG or WebP). In supported terminals,
-non-PNG images are converted to PNG for the inline Kitty graphics preview.
+the model reports one (for example, JPEG, WebP, or SVG). Quiver Arrow models
+are saved as SVG. In supported terminals, non-PNG images are converted to PNG
+for the inline Kitty graphics preview. SVG previews use a 512-pixel long edge
+and an opaque white background.
 
 ---
 
