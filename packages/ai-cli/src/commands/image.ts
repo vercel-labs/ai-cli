@@ -246,9 +246,16 @@ export function registerImageCommand(program: Command) {
 }
 
 export function extractSvgImage(text: string): string | undefined {
-  const start = text.search(/<svg(?=[\s/>])/i);
-  if (start === -1) return undefined;
+  const svgStart = /<svg(?=[\s/>])/gi;
+  for (let match = svgStart.exec(text); match; match = svgStart.exec(text)) {
+    const svg = extractSvgImageAt(text, match.index);
+    if (svg) return svg;
+  }
 
+  return undefined;
+}
+
+function extractSvgImageAt(text: string, start: number): string | undefined {
   let depth = 0;
   let cursor = start;
   while (cursor < text.length) {
