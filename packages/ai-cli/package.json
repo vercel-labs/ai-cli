@@ -1,6 +1,6 @@
 {
   "name": "ai-cli",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "The AI SDK for your terminal: generate text and media, and evaluate typed questions",
   "type": "module",
   "license": "Apache-2.0",
