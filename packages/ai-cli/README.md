@@ -375,10 +375,30 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | `AI_CLI_EVALUATION_MODEL` | Default evaluation model (overrides `typesafe-ai/jev`) |
 | `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
 | `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
+| `AI_CLI_CACHE` | Set to `1` to enable prompt caching |
+| `AI_CLI_CACHE_DIR` | Cache directory (default `~/.cache/ai-cli`, or `XDG_CACHE_HOME`) |
+| `AI_CLI_CACHE_TTL` | Cache TTL in seconds (default `604800` = 7 days) |
 | `NO_COLOR` | Disable ANSI color output |
 | `FORCE_COLOR` | Force color output even when not a TTY |
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
+
+### Prompt Caching
+
+Cache repeated prompts locally to skip Gateway calls:
+
+```bash
+ai text "summarize these changes" --cache
+AI_CLI_CACHE=1 ai text "hello"                # enabled via env
+ai text "hello" --cache --cache-ttl 3600      # custom TTL
+ai text "hello" --no-cache                    # bypass even if env enables
+ai cache status                               # show count + size
+ai cache clear                                # remove all entries
+ai cache prune --max-size 500M                # LRU eviction
+ai cache path                                 # print cache dir
+```
+
+Flags `--cache`, `--no-cache`, and `--cache-ttl <seconds>` are available on `text`, `image`, `video`, `audio speak`, `audio transcribe`, and `evaluate`. Cache keys include model, prompt, system prompt, temperature, and image hashes, and are isolated by API key. Failures are never cached.
 
 ### Timeouts
 

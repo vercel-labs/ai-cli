@@ -8,6 +8,14 @@ import { generateSpeech, transcribe } from "ai";
 
 import { previewAudioOutputs } from "../lib/audio-preview.js";
 import type { Command } from "../lib/command.js";
+import {
+  addCacheOptions,
+  cacheKey,
+  getCacheEntry,
+  resolveCacheTtl,
+  setCacheEntry,
+  shouldUseCache,
+} from "../lib/cache.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
@@ -42,6 +50,8 @@ interface SpeakOptions {
   json?: boolean;
   play?: boolean;
   waveform?: boolean;
+  cache?: boolean;
+  cacheTtl?: string;
   timeout: number;
 }
 
@@ -53,6 +63,8 @@ interface TranscribeOptions {
   concurrency?: string;
   quiet?: boolean;
   json?: boolean;
+  cache?: boolean;
+  cacheTtl?: string;
   timeout: number;
 }
 
@@ -84,6 +96,7 @@ export function registerAudioCommand(program: Command) {
     .option("--json", "Output metadata as JSON")
     .option("--no-play", "Disable audio playback after generation")
     .option("--no-waveform", "Disable accurate terminal waveform preview");
+  addCacheOptions(speak);
   addTimeoutOption(speak, DEFAULT_TIMEOUT_MS).action(
     async (rawText: string | undefined, opts: SpeakOptions) => {
       const text = rawText?.trim() || undefined;
@@ -109,10 +122,37 @@ export function registerAudioCommand(program: Command) {
         : 1;
       const jobs = buildJobs(models, countPerModel);
       const previewAudio = shouldPreviewAudio(opts);
+      const useCache = shouldUseCache(opts);
+      const cacheTtl = resolveCacheTtl(opts as { cacheTtl?: string });
+      const cacheSeq = new Map<string, number>();
 
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
+          const seq = cacheSeq.get(modelId) ?? 0;
+          cacheSeq.set(modelId, seq + 1);
+          const key = useCache
+            ? cacheKey({
+                command: "audio.speak",
+                model: modelId,
+                prompt: speechText,
+                extra: {
+                  voice: opts.voice ?? defaultVoiceForModel(modelId),
+                  outputFormat,
+                  instructions: opts.instructions,
+                  speed,
+                  language: opts.language,
+                  seq,
+                },
+              })
+            : undefined;
+          if (key) {
+            const cached = getCacheEntry(key, cacheTtl);
+            if (cached) {
+              if (!opts.quiet) process.stderr.write(`Cache hit for ${modelId}\n`);
+              return { data: cached.data as Buffer, id: cached.id, mediaType: cached.mediaType };
+            }
+          }
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateSpeech({
             headers: gatewayHeaders(),
@@ -125,10 +165,12 @@ export function registerAudioCommand(program: Command) {
             language: opts.language,
             abortSignal: abort,
           });
-          return {
+          const out = {
             data: Buffer.from(result.audio.uint8Array),
             id: responseIdFromHeaders(result.responses[0]?.headers),
           };
+          if (key) setCacheEntry(key, { ...out, mediaType: "audio" } as { data: Buffer | string; id?: string; mediaType?: string }, cacheTtl);
+          return out;
         },
         {
           noun: "audio",
@@ -175,6 +217,7 @@ export function registerAudioCommand(program: Command) {
     )
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON");
+  addCacheOptions(transcribeCommand);
   addTimeoutOption(transcribeCommand, DEFAULT_TIMEOUT_MS).action(
     async (rawAudio: string | undefined, opts: TranscribeOptions) => {
       const stdin = await readStdin();
@@ -205,10 +248,38 @@ export function registerAudioCommand(program: Command) {
         ? parsePositiveInt(opts.count, "count")
         : 1;
       const jobs = buildJobs(models, countPerModel);
+      const useCacheT = shouldUseCache(opts);
+      const cacheTtlT = resolveCacheTtl(opts as { cacheTtl?: string });
+      const cacheSeqT = new Map<string, number>();
 
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
+          // For transcribe, audio bytes hash is key. For URL, use string; for bytes, hash.
+          let audioHash: string | undefined;
+          if (audioInput instanceof Uint8Array) {
+            const { createHash } = await import("crypto");
+            audioHash = createHash("sha256").update(audioInput).digest("hex").slice(0, 16);
+          } else if (audioInput instanceof URL) {
+            audioHash = audioInput.toString();
+          }
+          const seq = cacheSeqT.get(modelId) ?? 0;
+          cacheSeqT.set(modelId, seq + 1);
+          const key = useCacheT
+            ? cacheKey({
+                command: "audio.transcribe",
+                model: modelId,
+                prompt: audioHash,
+                extra: { format, seq },
+              })
+            : undefined;
+          if (key) {
+            const cached = getCacheEntry(key, cacheTtlT);
+            if (cached) {
+              if (!opts.quiet) process.stderr.write(`Cache hit for ${modelId}\n`);
+              return { data: cached.data as string, id: cached.id };
+            }
+          }
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await transcribe({
             headers: gatewayHeaders(),
@@ -216,10 +287,12 @@ export function registerAudioCommand(program: Command) {
             audio: audioInput,
             abortSignal: abort,
           });
-          return {
+          const out = {
             data: result.text,
             id: responseIdFromHeaders(result.responses[0]?.headers),
           };
+          if (key) setCacheEntry(key, out, cacheTtlT);
+          return out;
         },
         {
           noun: "transcript",

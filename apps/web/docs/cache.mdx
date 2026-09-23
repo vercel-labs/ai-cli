@@ -1,0 +1,50 @@
+---
+title: Prompt Caching
+description: Cache repeated prompts locally to skip Gateway calls.
+order: 6
+---
+
+Repeated prompts hit the Gateway every time. `ai text`, `image`, `video`, `audio`, and `evaluate` can cache results on disk and return instantly on hit.
+
+## Usage
+
+Enable per-run:
+
+```bash
+ai text "summarize these changes" --cache
+ai text "hello" --cache --cache-ttl 3600
+ai text "hello" --no-cache
+```
+
+Enable globally:
+
+```bash
+export AI_CLI_CACHE=1
+ai text "hello"
+```
+
+Manage cache:
+
+```bash
+ai cache status
+ai cache status --json
+ai cache path
+ai cache clear
+ai cache prune --max-size 500M
+ai cache prune --ttl 86400
+```
+
+## Flags
+
+`--cache`, `--no-cache`, and `--cache-ttl <seconds>` are available on `text`, `image`, `video`, `audio speak`, `audio transcribe`, and `evaluate`.
+
+- `AI_CLI_CACHE=1` enables caching without a flag.
+- `AI_CLI_CACHE_DIR` overrides `XDG_CACHE_HOME/ai-cli` or `~/.cache/ai-cli`.
+- `AI_CLI_CACHE_TTL` sets default TTL in seconds (default 604800 = 7 days).
+
+Cache keys include model, prompt, system prompt, temperature, max tokens, image hashes, and relevant provider options. Keys are isolated by API key hash, so different keys do not share hits. Failures are never cached.
+
+## Notes
+
+- Binary outputs (image, video, audio) are stored separately to preserve media types.
+- Use `--no-cache` or `--cache-ttl 0` to bypass when you need fresh output.

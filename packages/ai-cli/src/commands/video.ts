@@ -14,6 +14,15 @@ import {
   parseNonNegativeFloat,
   parseSize,
 } from "../lib/parse.js";
+import {
+  addCacheOptions,
+  cacheKey,
+  getCacheEntry,
+  imagesHashForRefs,
+  resolveCacheTtl,
+  setCacheEntry,
+  shouldUseCache,
+} from "../lib/cache.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
@@ -33,6 +42,8 @@ interface VideoOptions {
   json?: boolean;
   concurrency?: string;
   preview?: boolean;
+  cache?: boolean;
+  cacheTtl?: string;
   timeout: number;
 }
 
@@ -66,6 +77,7 @@ export function registerVideoCommand(program: Command) {
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
     );
+  addCacheOptions(command);
   addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
     async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
@@ -114,10 +126,31 @@ export function registerVideoCommand(program: Command) {
       const generationOptions = videoGenerationOptions(opts);
 
       const jobs = buildJobs(models, countPerModel);
+      const useCache = shouldUseCache(opts);
+      const cacheTtl = resolveCacheTtl(opts as { cacheTtl?: string });
+      const cacheSeq = new Map<string, number>();
 
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
+          const seq = cacheSeq.get(modelId) ?? 0;
+          cacheSeq.set(modelId, seq + 1);
+          const key = useCache
+            ? cacheKey({
+                command: "video",
+                model: modelId,
+                prompt: videoPrompt,
+                imagesHash: images.length > 0 ? imagesHashForRefs(images) : undefined,
+                extra: { ...generationOptions, seq },
+              })
+            : undefined;
+          if (key) {
+            const cached = getCacheEntry(key, cacheTtl);
+            if (cached) {
+              if (!opts.quiet) process.stderr.write(`Cache hit for ${modelId}\n`);
+              return { data: cached.data as Buffer, id: cached.id };
+            }
+          }
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateVideo({
             headers: {
@@ -129,10 +162,12 @@ export function registerVideoCommand(program: Command) {
             abortSignal: abort,
             ...generationOptions,
           });
-          return {
+          const out = {
             data: Buffer.from(result.video.uint8Array),
             id: responseIdFromHeaders(result.responses[0]?.headers),
           };
+          if (key) setCacheEntry(key, out, cacheTtl);
+          return out;
         },
         {
           noun: "video",

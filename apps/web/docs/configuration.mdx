@@ -39,6 +39,15 @@ ai-cli is configured entirely through environment variables. There is no config 
   <Property name="AI_CLI_PREVIEW" type="0 | 1">
     `1` forces inline preview on, `0` disables it.
   </Property>
+  <Property name="AI_CLI_CACHE" type="0 | 1">
+    `1` enables prompt caching for all generation commands.
+  </Property>
+  <Property name="AI_CLI_CACHE_DIR" type="path">
+    Cache directory. Defaults to `XDG_CACHE_HOME/ai-cli` or `~/.cache/ai-cli`.
+  </Property>
+  <Property name="AI_CLI_CACHE_TTL" type="number">
+    Cache TTL in seconds. Defaults to `604800` (7 days).
+  </Property>
   <Property name="NO_COLOR" type="any">
     Disable ANSI color output.
   </Property>
@@ -52,6 +61,8 @@ ai-cli is configured entirely through environment variables. There is no config 
 - `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars.
 - `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 - `--no-preview` takes priority over `AI_CLI_PREVIEW`.
+- `--no-cache` takes priority over `AI_CLI_CACHE`.
+- `--cache-ttl` takes priority over `AI_CLI_CACHE_TTL`.
 
 ## Example shell profile
 

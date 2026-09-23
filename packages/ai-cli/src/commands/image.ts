@@ -6,6 +6,15 @@ import {
   loadImageReferences,
   type ImageReference,
 } from "../lib/image-references.js";
+import {
+  addCacheOptions,
+  cacheKey,
+  getCacheEntry,
+  imagesHashForRefs,
+  resolveCacheTtl,
+  setCacheEntry,
+  shouldUseCache,
+} from "../lib/cache.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
@@ -38,6 +47,8 @@ interface ImageOptions {
   json?: boolean;
   concurrency?: string;
   preview?: boolean;
+  cache?: boolean;
+  cacheTtl?: string;
   timeout: number;
 }
 
@@ -72,6 +83,7 @@ export function registerImageCommand(program: Command) {
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
     );
+  addCacheOptions(command);
   addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
     async (rawPrompt: string | undefined, opts: ImageOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
@@ -136,10 +148,32 @@ export function registerImageCommand(program: Command) {
       }
 
       const jobs = buildJobs(models, countPerModel);
+      const useCache = shouldUseCache(opts);
+      const cacheTtl = resolveCacheTtl(opts as { cacheTtl?: string });
+      const cacheSeq = new Map<string, number>();
 
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
+          const seq = cacheSeq.get(modelId) ?? 0;
+          cacheSeq.set(modelId, seq + 1);
+          const cacheImagesHash = images.length > 0 ? imagesHashForRefs(images) : undefined;
+          const key = useCache
+            ? cacheKey({
+                command: "image",
+                model: modelId,
+                prompt: imagePrompt,
+                imagesHash: cacheImagesHash,
+                extra: { size, aspectRatio, quality: opts.quality, style: opts.style, seq },
+              })
+            : undefined;
+          if (key) {
+            const cached = getCacheEntry(key, cacheTtl);
+            if (cached) {
+              if (!opts.quiet) process.stderr.write(`Cache hit for ${modelId}\n`);
+              return { data: cached.data as Buffer, id: cached.id, mediaType: cached.mediaType };
+            }
+          }
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
 
           if (languageImageModelIds.has(modelId)) {
@@ -185,11 +219,13 @@ export function registerImageCommand(program: Command) {
               f.mediaType.startsWith("image/")
             );
             if (imageFile) {
-              return {
+              const out = {
                 data: Buffer.from(imageFile.uint8Array),
                 id: result.response.id,
                 mediaType: imageFile.mediaType,
               };
+              if (key) setCacheEntry(key, out, cacheTtl);
+              return out;
             }
 
             const svg = SVG_IMAGE_MODEL_IDS.has(modelId)
@@ -200,11 +236,13 @@ export function registerImageCommand(program: Command) {
                 `Model ${modelId} did not return an image in the response`
               );
             }
-            return {
+            const svgOut = {
               data: svg,
               id: result.response.id,
               mediaType: "image/svg+xml",
             };
+            if (key) setCacheEntry(key, svgOut as unknown as { data: Buffer | string; id?: string; mediaType?: string }, cacheTtl);
+            return svgOut;
           }
 
           const result = await generateImage({
@@ -221,11 +259,13 @@ export function registerImageCommand(program: Command) {
             providerOptions:
               Object.keys(provOpts).length > 0 ? provOpts : undefined,
           });
-          return {
+          const out = {
             data: Buffer.from(result.image.uint8Array),
             id: responseIdFromHeaders(result.responses[0]?.headers),
             mediaType: generatedImageMediaType(modelId, result.image.mediaType),
           };
+          if (key) setCacheEntry(key, out, cacheTtl);
+          return out;
         },
         {
           noun: "image",

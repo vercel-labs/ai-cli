@@ -2,6 +2,7 @@
 
 import pkg from "../package.json";
 import { registerAudioCommand } from "./commands/audio.js";
+import { registerCacheCommand } from "./commands/cache.js";
 import { registerEvaluateCommand } from "./commands/evaluate.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerModelsCommand } from "./commands/models.js";
@@ -24,6 +25,7 @@ registerVideoCommand(program);
 registerAudioCommand(program);
 registerEvaluateCommand(program);
 registerModelsCommand(program);
+registerCacheCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (err instanceof CliUsageError) {

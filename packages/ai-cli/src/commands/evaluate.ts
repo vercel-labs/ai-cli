@@ -15,6 +15,14 @@ import {
   type InputFormat,
   type QuestionOptions,
 } from "../lib/evaluation.js";
+import {
+  addCacheOptions,
+  cacheKey,
+  getCacheEntry,
+  resolveCacheTtl,
+  setCacheEntry,
+  shouldUseCache,
+} from "../lib/cache.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { readStdin } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
@@ -25,6 +33,8 @@ interface EvaluateOptions extends QuestionOptions {
   input: InputFormat;
   providerOptions?: string;
   maxRetries: number;
+  cache?: boolean;
+  cacheTtl?: string;
   timeout: number;
 }
 
@@ -111,6 +121,7 @@ export function registerEvaluateCommand(program: Command) {
       parseMaxRetries,
       2
     );
+  addCacheOptions(command);
 
   addTimeoutOption(command, 30_000).action(
     async (_: undefined, options: EvaluateOptions) => {
@@ -132,6 +143,32 @@ export function registerEvaluateCommand(program: Command) {
         options.input
       );
       const model = await resolveEvaluationModel(options.model);
+      const useCache = shouldUseCache(options);
+      const cacheTtl = resolveCacheTtl(options as { cacheTtl?: string });
+      if (useCache) {
+        const key = cacheKey({
+          command: "evaluate",
+          model,
+          prompt: state,
+          extra: { questions, providerOptions, input: options.input },
+        });
+        const cached = getCacheEntry(key, cacheTtl);
+        if (cached) {
+          process.stderr.write(`Cache hit for ${model}\n`);
+          process.stdout.write((cached.data as string) + "\n");
+          return;
+        }
+        const result = await evaluateState(state, questions, {
+          model: gateway.evaluationModel(model),
+          timeoutMs: timeoutMs(options.timeout),
+          maxRetries: options.maxRetries,
+          providerOptions,
+        });
+        const serialized = JSON.stringify(result, null, 2);
+        setCacheEntry(key, { data: serialized }, cacheTtl);
+        process.stdout.write(serialized + "\n");
+        return;
+      }
       const result = await evaluateState(state, questions, {
         model: gateway.evaluationModel(model),
         timeoutMs: timeoutMs(options.timeout),

@@ -15,6 +15,15 @@ import {
 } from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
+import {
+  addCacheOptions,
+  cacheKey,
+  getCacheEntry,
+  imagesHashForRefs,
+  resolveCacheTtl,
+  setCacheEntry,
+  shouldUseCache,
+} from "../lib/cache.js";
 import type { OutputFormat } from "../lib/output.js";
 import { parsePositiveInt, parseTemperature } from "../lib/parse.js";
 import { readStdin, stdinAsText } from "../lib/stdin.js";
@@ -35,6 +44,8 @@ interface TextOptions {
   concurrency?: string;
   quiet?: boolean;
   json?: boolean;
+  cache?: boolean;
+  cacheTtl?: string;
   timeout: number;
 }
 
@@ -73,6 +84,7 @@ export function registerTextCommand(program: Command) {
     .option("-t, --temperature <n>", "Temperature (0-2)")
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON");
+  addCacheOptions(command);
   addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
     async (rawPrompt: string | undefined, opts: TextOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
@@ -117,10 +129,34 @@ export function registerTextCommand(program: Command) {
         : undefined;
 
       const jobs = buildJobs(models, countPerModel);
+      const useCache = shouldUseCache(opts);
+      const cacheTtl = resolveCacheTtl(opts as { cacheTtl?: string });
+      const cacheSeq = new Map<string, number>();
 
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
+          const seq = cacheSeq.get(modelId) ?? 0;
+          cacheSeq.set(modelId, seq + 1);
+          const key = useCache
+            ? cacheKey({
+                command: "text",
+                model: modelId,
+                prompt: textPrompt,
+                system: opts.system,
+                temperature,
+                maxTokens,
+                imagesHash: images.length > 0 ? imagesHashForRefs(images) : undefined,
+                extra: { format, seq },
+              })
+            : undefined;
+          if (key) {
+            const cached = getCacheEntry(key, cacheTtl);
+            if (cached) {
+              if (!opts.quiet) process.stderr.write(`Cache hit for ${modelId}\n`);
+              return { data: cached.data as string, id: cached.id };
+            }
+          }
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateText({
             headers: {
@@ -134,7 +170,9 @@ export function registerTextCommand(program: Command) {
             temperature,
             abortSignal: abort,
           });
-          return { data: result.text, id: result.response.id };
+          const generated = { data: result.text, id: result.response.id };
+          if (key) setCacheEntry(key, generated, cacheTtl);
+          return generated;
         },
         {
           noun: "text",

@@ -1,8 +1,20 @@
 # Changelog
 
-## 0.5.2
+## 0.5.3
 
 <!-- release:start -->
+
+### New Features
+
+- **Prompt caching** - `ai text`, `image`, `video`, `audio`, and `evaluate` now support `--cache` / `--no-cache` and `--cache-ttl <seconds>` with `AI_CLI_CACHE`, `AI_CLI_CACHE_DIR`, and `AI_CLI_CACHE_TTL` env vars; `ai cache status|clear|prune|path` manages the local cache under `~/.cache/ai-cli`
+
+### Contributors
+
+- @moah0911
+
+<!-- release:end -->
+
+## 0.5.2
 
 ### Bug Fixes
 
