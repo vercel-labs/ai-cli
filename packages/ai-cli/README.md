@@ -1,5 +1,11 @@
 # ai
 
+<p>
+  <a href="https://vercel.com/labs#active-experiments"><img alt="Vercel Labs Experiment" src="https://img.shields.io/badge/LABS-EXPERIMENT-0a0a0a.svg?style=for-the-badge&amp;logo=Vercel&amp;labelColor=000000" height="28"></a>
+  <a href="https://www.npmjs.com/package/ai-cli"><img alt="npm version: ai-cli" src="https://img.shields.io/npm/v/ai-cli.svg?style=for-the-badge&amp;labelColor=000000" height="28"></a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img alt="License: Apache-2.0" src="https://img.shields.io/npm/l/ai-cli.svg?style=for-the-badge&amp;labelColor=000000" height="28"></a>
+</p>
+
 The [Vercel AI SDK](https://sdk.vercel.ai) in your terminal. Generate text, images, video, and audio, and evaluate typed questions with composable commands, stdin support, and predictable outputs. Uses [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
 
 ## Install
