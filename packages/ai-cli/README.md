@@ -33,7 +33,7 @@ ai models                          # list available models
 ```bash
 ai image "a dragon" | ai video "animate this"
 ai video -i input.png "animate this"
-ai image --image reference.png "make a sticker in this style"
+ai image --images reference.png "make a sticker in this style"
 ai image -i sketch.png -i palette.jpg "render this product concept"
 ai text --image screenshot.png "what is broken in this UI?"
 cat photo.png | ai text "describe this image"
@@ -50,9 +50,10 @@ Generation commands support:
 ```
 -m, --model <id>         Model ID (creator/model-name), comma-separated for multi-model
 -o, --output <path>      Output file path or directory
--n, --count <n>          Number of generations per model (default: 1)
+-n, --n <n>              Image/video outputs per model (default: 1)
+-n, --count <n>          Text/audio generations per model (default: 1)
 -p, --concurrency <n>    Max parallel generations (default: 4, video: 2)
---timeout <seconds>      Request timeout in seconds (default: text/audio 120, image/video 300)
+--timeout <seconds>      Request timeout in seconds (default: text/audio 120, image 300, video 600)
 -q, --quiet              Suppress progress output
 --json                   Output metadata as JSON
 ```
@@ -194,52 +195,195 @@ See [Evaluate](https://ai-cli.dev/docs/evaluate) for the complete interface.
 
 ### image
 
-```
--i, --image <path-or-url> Reference image path or URL (repeatable)
---size <WxH>             Image size (e.g. 1024x1024)
---aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
---quality <level>        Quality (standard, hd)
---style <style>          Style (vivid, natural)
---no-preview             Disable inline image preview
+Image and video option names follow AI SDK keys in kebab case. Nested options use
+JSON files with the SDK's original camelCase keys.
+
+```text
+-i, --images <path-or-url>   prompt.images reference (repeatable)
+--mask <path-or-url>         prompt.mask for editing
+-n, --n <n>                 Number of images per model (default: 1)
+--max-images-per-call <n>    SDK batching limit
+--size <widthxheight>                Image size, e.g. 1024x1024
+--aspect-ratio <width:height>         Aspect ratio, e.g. 16:9
+--api <api>                 generateImage or generateText (default: model catalog)
+--generate-text-options <path> JSON generateText settings and provider tools
 ```
 
-Reference images can be local paths, `file://` URLs, `http(s)://` URLs or data URLs. You can repeat `--image` to pass multiple references, and you can still pipe one image through stdin:
+Reference images and masks accept local paths, `file://`, HTTP(S), and data URLs.
+Stdin supplies an additional reference image. A mask requires a reference image.
 
 ```bash
-cat input.png | ai image -i style.png "combine the subject with this style"
+ai image --images subject.png --images style.png "combine these"
+ai image --images photo.png --mask mask.png "replace the background"
+ai image "a sunset" --n 3 --max-images-per-call 2 --json -o ./renders/
 ```
 
-Reference-image support is model-dependent; unsupported models may reject image inputs.
+Both image and video generation support these request controls:
 
-Gemini image models (e.g. `google/gemini-2.5-flash-image`) don't support `--size`; use `--aspect-ratio` instead.
+```text
+--seed <integer>            SDK seed, including 0
+--provider-options <path>   JSON providerOptions, keyed by provider name
+--headers <path>            JSON object of HTTP headers
+--max-retries <n>            SDK maxRetries (default: 2; 0 disables retries)
+--base-url <url>             Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
+--team-id-or-slug <team>     Gateway teamIdOrSlug
+```
 
-Quiver Arrow image models generate SVG. Their output is saved as an `.svg` file; inline terminal previews are rasterized with a 512-pixel long edge on a white background.
+For example, `image-options.json` can contain:
+
+```json
+{
+  "openai": { "quality": "high", "outputFormat": "webp", "background": "transparent" },
+  "gateway": { "order": ["openai"] }
+}
+```
+
+```bash
+ai image "a transparent sticker" --provider-options image-options.json -o ./renders/
+```
+
+Provider options pass through unchanged, including nested routing, fallbacks,
+compression, fidelity, and model-specific controls. Supported keys and values
+depend on the provider/model; use the [AI SDK provider docs](https://ai-sdk.dev/providers/ai-sdk-providers)
+and [Gateway provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options).
+`--output` selects a filesystem destination; `outputFormat` selects an encoded format.
+
+Gemini image models use `generateText`. Set their resolution with
+`{"google":{"imageConfig":{"imageSize":"4K"}}}` in the provider-options file.
+`--aspect-ratio` merges into `google.imageConfig.aspectRatio` without removing
+`imageSize`. `--size`, `--mask`, `--max-images-per-call`, and `--n` other than 1
+are rejected for `generateText`; that API can still return multiple image files,
+which are all saved. Other language image models use provider-specific controls.
+
+`--api generateText` selects a language model explicitly; `--api generateImage`
+selects a dedicated image model. If discovery fails, automatic image routing
+stops with an error instead of silently switching APIs. Explicit `--api` and a
+full model ID allow generation without discovery.
+
+For OpenAI image generation through a language model, use
+`--generate-text-options text-image.json` (which selects `generateText`):
+
+```json
+{
+  "maxOutputTokens": 4096,
+  "tools": {
+    "image_generation": {
+      "type": "provider",
+      "id": "openai.image_generation",
+      "args": { "outputFormat": "webp", "quality": "high" }
+    }
+  }
+}
+```
+
+```bash
+ai image -m openai/gpt-5.5 "draw a lighthouse" --generate-text-options text-image.json --json -o ./renders/
+```
+
+The file also accepts SDK `system`, `temperature`, `topP`, `topK`,
+`presencePenalty`, `frequencyPenalty`, `stopSequences`, `reasoning`, `toolChoice`,
+and `activeTools`. Tools must be executed by the provider; JavaScript callbacks
+and local tool execution require using the SDK directly. Image-tool results,
+all returned image files, and accompanying text are retained. Quiver Arrow SVG
+output remains supported, including inline previews.
 
 ### video
 
-```
--i, --image <path-or-url>    Start frame image path or URL
---start-frame <path-or-url> Start frame image path or URL (same as --image)
---end-frame <path-or-url>   End frame image path or URL (requires a start frame)
---aspect-ratio <W:H>        Aspect ratio (e.g. 16:9)
---resolution <WxH>          Video resolution (e.g. 1920x1080 for 1080p)
---duration <seconds>        Duration in seconds
---no-preview                Disable inline video frame preview
+```text
+-i, --image <path-or-url>     prompt.image (or pipe one image through stdin)
+--frame-images <path>        JSON frameImages array
+--input-references <path>    JSON inputReferences array
+-n, --n <n>                  Number of videos per model (default: 1)
+--max-videos-per-call <n>     SDK batching limit
+--aspect-ratio <width:height|adaptive> SDK aspectRatio
+--resolution <widthxheight>           SDK resolution, e.g. 1920x1080
+--duration <seconds>         Positive duration, including fractional seconds
+--fps <number>               Positive frames per second
+--generate-audio             Request generated audio
+--no-generate-audio          Disable generated audio (unset uses provider default)
+--poll-interval-ms <ms>      SDK poll.intervalMs (default: 5000)
+--poll-timeout-ms <ms>       SDK poll.timeoutMs (default: --timeout in milliseconds)
+--download-max-bytes <bytes> SDK createDownload maxBytes (default: 2 GiB)
 ```
 
-Frame inputs can be local paths, `file://` URLs, `http(s)://` URLs or data URLs. Provide one start frame through `--start-frame`, `--image`, or piped stdin. Add `--end-frame` to guide the end of the clip:
+Use the SDK's exact frame roles in `frames.json`:
+
+```json
+[
+  { "image": "start.png", "frameType": "first_frame" },
+  { "image": "end.png", "frameType": "last_frame" }
+]
+```
 
 ```bash
-ai video -i input.png "animate this"
-cat input.png | ai video "animate this"
-ai video "transition between these frames" --start-frame start.png --end-frame end.png --duration 3
-ai video -i start.png --end-frame end.png "a smooth camera move"
-cat start.png | ai video --end-frame end.png "a smooth camera move"
+ai video "a smooth camera move" --frame-images frames.json --duration 5
+ai video --image scene.png "animate this" --aspect-ratio adaptive --generate-audio
 ```
 
-The text prompt is optional when a start frame is provided. Use only one start-frame source and one end frame per clip; repeated `--image` values are not a start/end pair. `--end-frame` requires a start frame.
+Either frame may be supplied alone. The prompt is optional when image, frame,
+or reference inputs are provided. Frame paths accept local paths, `file://`,
+HTTP(S), and data URLs. Paths inside JSON files are relative to the working
+directory. Use data URLs for inline base64 content.
 
-Start/end-frame generation, durations, and resolutions are model-dependent; unsupported inputs may be rejected by the selected video model. Frame inputs guide generation but do not guarantee exact frame matching.
+For reference-to-video generation, `references.json` can contain:
+
+```json
+[
+  "character.png",
+  { "data": "https://example.com/motion.mp4", "mediaType": "video/mp4" }
+]
+```
+
+```bash
+ai video "follow this motion" --input-references references.json --json -o ./clips/
+```
+
+Specify `mediaType` for video URLs. SDK precedence rules apply: `frameImages`
+replace `inputReferences`, and a `first_frame` replaces `prompt.image`; warnings
+are retained in JSON. Duplicate frame roles are rejected locally.
+
+Generation polls the SDK start/status API by default, avoiding a single long-lived
+video response. `--timeout` defaults to 600 seconds and bounds generation plus
+download; `--poll-timeout-ms` limits the polling stage. `--concurrency` limits
+parallel models; `n` and `maxVideosPerCall` control SDK batching within a model.
+
+To submit a job and return immediately:
+
+```bash
+ai video start "a scene" --n 2 --output operation.json
+ai video status operation.json
+ai video status operation.json --download --output ./clips/
+```
+
+`video start` accepts generation/request options and `--webhook-url <url>`.
+It prints `{ model, operation, warnings, providerMetadata, response }` as JSON
+and optionally saves that same object with `--output`. It accepts one model and
+one SDK operation; `n` must fit `maxVideosPerCall`. It does not take polling,
+download, preview, or concurrency flags. Keep the operation JSON private: provider
+metadata can contain a webhook signing secret. Reuse the same Gateway base URL,
+team, and authentication when checking it.
+
+`video status` performs one check and prints SDK `pending`, `completed`, or
+`error` status. By default it returns URLs/base64 data without downloading.
+`--download` saves completed videos and returns a manifest; `--output` requires
+`--download`. Request headers, retries, Gateway connection settings, timeout,
+and download limits can be set on status requests too. Provider errors exit 1;
+pending operations exit 0 and can be checked again later.
+
+Model support determines valid frame/reference combinations, durations,
+resolutions, FPS, and audio. Inspect `ai models <model> --json` for native
+`video_capabilities`, `modalities`, and `supported_specifications` when supplied
+by Gateway. For example, Seedance 2.0 currently advertises 4–15 second clips:
+1, 2, or 3 second sections require a different model or trimming. Frame inputs
+guide generation and do not guarantee exact frame matching.
+
+### Image/video migration
+
+- `--count` becomes `--n`; `-n` remains. Counts use SDK batching instead of separate one-output jobs.
+- Image `--image` becomes `--images`; `-i` remains. Video retains SDK `--image`.
+- Video `--start-frame` / `--end-frame` become `--frame-images` with `first_frame` / `last_frame` JSON entries.
+- Image `--quality` / `--style` move to their provider's JSON options. DALL·E's `standard`/`hd` and `vivid`/`natural` values are not universal image settings.
+- Image/video JSON uses `elapsedMs`, per-model results, `images`/`videos` artifact arrays, and SDK diagnostics. Multiple outputs always go to separate files, including when stdout is piped. Use `--json` for a machine-readable manifest.
 
 ### text
 
@@ -312,7 +456,10 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
 [model]                  Show detailed info for a model (e.g. anthropic/claude-opus-4.6)
 --type <type>            Filter by type: text, image, video, audio, speech, transcription, evaluation
 --creator <name>         Filter by creator (e.g. openai, google)
---json                   Output as JSON (includes descriptions)
+--json                   JSON including native Gateway capabilities and metadata
+--base-url <url>         Gateway baseURL
+--team-id-or-slug <team> Gateway teamIdOrSlug
+--headers <path>         JSON HTTP headers
 ```
 
 All supported model types (text, image, video, speech, transcription, evaluation) are fetched live from the AI Gateway.
@@ -361,7 +508,7 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 - **evaluate**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
 - **text**: saves to `<id>.md` (interactive), stdout when piped
-- **image/video**: saves to `<id>.<format>` / `<id>.mp4` (interactive), preserving the image format returned by the model, raw binary stdout when piped
+- **image/video**: saves every artifact using its returned media type (PNG, WebP, SVG, MP4, WebM, etc.). A single artifact writes raw bytes when piped; multiple artifacts always use separate files. `--json` includes all artifacts, accompanying text, usage, warnings, responses, and provider metadata when available
 - **audio speak**: saves to `<id>.mp3` (interactive), raw binary stdout when piped
 - **audio transcribe**: saves to `<id>.txt` (interactive), stdout when piped
 - **`-o <dir>`**: saves inside the directory with auto-generated names
@@ -373,6 +520,8 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | Variable | Description |
 |---|---|
 | `AI_GATEWAY_API_KEY` | AI Gateway authentication key |
+| `AI_GATEWAY_BASE_URL` | Gateway baseURL for image/video generation and model discovery; overridden by `--base-url` |
+| `AI_GATEWAY_TEAM_ID_OR_SLUG` | Gateway team for image/video and models; overridden by `--team-id-or-slug` |
 | `OPENAI_API_KEY` | Provider-specific key (or other provider keys) |
 | `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
 | `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
@@ -396,7 +545,7 @@ Requests that exceed the timeout are aborted automatically:
 | `evaluate` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
-| `video` | 300 seconds |
+| `video` | 600 seconds |
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
 

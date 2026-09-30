@@ -40,16 +40,17 @@ cat photo.png | ai image "make it a watercolor painting"
 
 ### Video
 
-Stdin is read as the binary starting image for image-to-video generation. Add
-`--end-frame` to guide the end of the clip on models that support start/end frames:
+Stdin supplies SDK `prompt.image`. Use `--frame-images frames.json` with
+`first_frame` / `last_frame` roles to guide endpoints, including last-frame-only
+requests. See [video options](/docs/commands#video) for the JSON format.
 
 ```bash
 ai image "a dragon" | ai video "animate this"
 cat scene.png | ai video "zoom out slowly"
-cat start.png | ai video --end-frame end.png "a smooth camera move"
 ```
 
-Use only one start-frame source: stdin, `--image`, or `--start-frame`.
+Use one prompt-image source: stdin or `--image`. A first frame in `frameImages`
+takes precedence over that image, as in the SDK.
 
 ### Audio
 
@@ -86,13 +87,16 @@ Saves to a file and prints the path to stderr:
 ```bash
 ai text "hello"         # → saves <id>.md, prints "Saved to /path/<id>.md"
 ai image "a cat"        # → saves <id>.<format>
-ai video "ocean"        # → saves <id>.mp4
+ai video "ocean"        # → saves <id>.<format>
 ai audio speak "hello"  # → saves <id>.mp3
 ```
 
 ### Piped (non-TTY)
 
-Writes raw output directly to stdout for composability:
+A single image/video artifact writes raw bytes to stdout. Multiple image/video
+artifacts always save to separate files; use `--json -o ./renders/` for a manifest.
+Accompanying image-generation text is printed to stderr (or retained in JSON).
+Other generation commands write raw output for composability:
 
 ```bash
 ai text "hello" | pbcopy                    # copy to clipboard
@@ -130,15 +134,15 @@ ai image "a sunset" --json
 
 ```json
 {
-  "elapsed_ms": 3420,
-  "count": 1,
+  "elapsedMs": 3420,
   "results": [
     {
-      "index": 1,
       "model": "openai/gpt-image-2",
-      "elapsed_ms": 3420,
+      "elapsedMs": 3420,
       "success": true,
-      "file": "/Users/you/resp_abc123.<format>"
+      "images": [{ "file": "/Users/you/resp_abc123.png", "mediaType": "image/png" }],
+      "warnings": [],
+      "calls": []
     }
   ]
 }
@@ -147,3 +151,11 @@ ai image "a sunset" --json
 <Callout type="tip">
   The `--json` flag is useful for scripts and CI pipelines that need to know where files were saved and whether generation succeeded.
 </Callout>
+
+Image/video manifests also retain SDK usage, provider metadata and response
+information. Image `calls` keep each response with its saved images, warnings,
+usage and provider metadata; artifacts stay in call order. Video outputs use
+`videos` instead of `images`. Errors include `name` and `message`, even with
+`--quiet`; exit 1 means total failure, exit 2 means some models failed.
+Validation errors use `{ "success": false, "error": { "name": "Error", "message": "..." } }`.
+Text/audio retain their existing JSON format.

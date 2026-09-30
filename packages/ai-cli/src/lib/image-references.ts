@@ -11,9 +11,12 @@ export function collectImageReference(
 }
 
 export async function loadImageReferences(
-  references: string[]
+  references: string[],
+  optionName = "image"
 ): Promise<ImageReference[]> {
-  return Promise.all(references.map(loadImageReference));
+  return Promise.all(
+    references.map((reference) => loadImageReference(reference, optionName))
+  );
 }
 
 export function isLikelyImage(data: Uint8Array): boolean {
@@ -43,10 +46,13 @@ export function isLikelyImage(data: Uint8Array): boolean {
   return false;
 }
 
-async function loadImageReference(reference: string): Promise<ImageReference> {
+async function loadImageReference(
+  reference: string,
+  optionName: string
+): Promise<ImageReference> {
   const trimmed = reference.trim();
   if (!trimmed) {
-    throw new Error("--image cannot be empty");
+    throw new Error(`--${optionName} cannot be empty`);
   }
 
   const url = parseReferenceUrl(trimmed);

@@ -1,265 +1,347 @@
-import { afterAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { describe, expect, test } from "bun:test";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { mediaFixture, png, pngBase64 } from "../test/media.js";
 import { videoGenerationOptions } from "./video.js";
 
-const directory = mkdtempSync(join(tmpdir(), "ai-cli-video-"));
-const preload = join(directory, "gateway.js");
-const startUrl = "https://example.com/start.png";
-const endUrl = "https://example.com/end.png";
-const png = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=",
-  "base64"
-);
-const imagePath = join(directory, "frame.png");
-writeFileSync(imagePath, png);
-writeFileSync(
-  preload,
-  `
-import { appendFileSync } from "node:fs";
-globalThis.fetch = async (url, init) => {
-  const body = init?.body ? JSON.parse(init.body) : null;
-  appendFileSync(process.env.TEST_REQUESTS, JSON.stringify({ url: String(url), body }) + '\\n');
-  if (String(url).endsWith('/models')) return Response.json({ data: [] });
-  if (!String(url).endsWith('/video-model')) throw new Error('Unexpected network request');
-  const result = { type: 'result', videos: [{ type: 'base64', data: 'dmlkZW8=', mediaType: 'video/mp4' }] };
-  return new Response('data: ' + JSON.stringify(result) + '\\n\\n', { headers: { 'content-type': 'text/event-stream' } });
-};
-`
-);
-afterAll(() => rmSync(directory, { recursive: true, force: true }));
-
-async function run(args: string[], input?: Uint8Array) {
-  const requestPath = join(directory, `requests-${crypto.randomUUID()}.jsonl`);
-  writeFileSync(requestPath, "");
-  const proc = Bun.spawn(
+const fixture = mediaFixture();
+const start = "https://example.com/start.png";
+const end = "https://example.com/end.png";
+const generate = (args: string[], mode?: string, input?: Uint8Array) =>
+  fixture.run(
     [
-      "bun",
-      "run",
-      "--preload",
-      preload,
-      "src/index.ts",
       "video",
       "--quiet",
       "--no-preview",
-      "--model",
-      "bytedance/seedance-2.0",
+      "--poll-interval-ms",
+      "1",
+      "--max-retries",
+      "0",
       ...args,
     ],
-    {
-      cwd: import.meta.dir + "/../..",
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        AI_GATEWAY_API_KEY: "test-key",
-        TEST_REQUESTS: requestPath,
-      },
-    }
+    { mode, input }
   );
-  if (input) proc.stdin.write(input);
-  proc.stdin.end();
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-  const requests = readFileSync(requestPath, "utf8")
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
-  const generations = requests
-    .filter(({ url }) => url.endsWith("/video-model"))
-    .map(({ body }) => body);
-  return { stdout, stderr, exitCode, requests, generations };
-}
 
-describe("video frame inputs", () => {
-  test("sends start/end frame roles through the SDK to Gateway", async () => {
-    const result = await run([
-      "transition between these frames",
-      "--start-frame",
-      startUrl,
-      "--end-frame",
-      endUrl,
-      "--duration",
-      "3",
+describe("SDK video generation", () => {
+  test("passes frame roles, adaptive ratio, seed zero, fps and audio through polling", async () => {
+    const frames = fixture.json([
+      { image: start, frameType: "first_frame" },
+      { image: end, frameType: "last_frame" },
+    ]);
+    const result = await generate(
+      [
+        "transition",
+        "--frame-images",
+        frames,
+        "--aspect-ratio",
+        "adaptive",
+        "--seed",
+        "0",
+        "--fps",
+        "24",
+        "--no-generate-audio",
+        "--duration",
+        "5",
+      ],
+      "poll"
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("video1");
+    const request = result.requests.find((item) =>
+      item.route.endsWith("/start")
+    );
+    expect(request.body).toMatchObject({
+      seed: 0,
+      fps: 24,
+      generateAudio: false,
+      duration: 5,
+      aspectRatio: "adaptive",
+      frameImages: [
+        { frameType: "first_frame", image: { type: "url", url: start } },
+        { frameType: "last_frame", image: { type: "url", url: end } },
+      ],
+    });
+    expect(
+      result.requests.filter((item) => item.route.endsWith("/status"))
+    ).toHaveLength(2);
+  });
+
+  test("accepts last-frame-only local/file/data URL inputs", async () => {
+    for (const image of [
+      fixture.image,
+      pathToFileURL(fixture.image).href,
+      `data:image/png;base64,${pngBase64}`,
+    ]) {
+      const result = await generate([
+        "--frame-images",
+        fixture.json([{ image, frameType: "last_frame" }]),
+      ]);
+      expect(result.exitCode).toBe(0);
+      expect(
+        result.requests.find((item) => item.route.endsWith("/start")).body
+          .frameImages
+      ).toEqual([
+        {
+          frameType: "last_frame",
+          image: { type: "file", mediaType: "image/png", data: pngBase64 },
+        },
+      ]);
+    }
+  });
+
+  test("accepts piped and explicit prompt.image", async () => {
+    const piped = await generate([], undefined, png);
+    const explicit = await generate(["--image", fixture.image]);
+    for (const result of [piped, explicit]) {
+      expect(result.exitCode).toBe(0);
+      expect(
+        result.requests.find((item) => item.route.endsWith("/start")).body.image
+          .data
+      ).toBe(pngBase64);
+    }
+  });
+
+  test("passes typed video and image inputReferences", async () => {
+    const result = await generate([
+      "--input-references",
+      fixture.json([
+        start,
+        { data: "https://example.com/source.mp4", mediaType: "video/mp4" },
+      ]),
+      "--generate-audio",
     ]);
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout).toBe("video");
-    expect(result.generations).toHaveLength(1);
-    expect(result.generations[0]).toMatchObject({
-      prompt: "transition between these frames",
-      duration: 3,
-      frameImages: [
-        { frameType: "first_frame", image: { type: "url", url: startUrl } },
-        { frameType: "last_frame", image: { type: "url", url: endUrl } },
+    expect(
+      result.requests.find((item) => item.route.endsWith("/start")).body
+    ).toMatchObject({
+      generateAudio: true,
+      inputReferences: [
+        { type: "url", url: start },
+        {
+          type: "url",
+          url: "https://example.com/source.mp4",
+          mediaType: "video/mp4",
+        },
       ],
     });
   });
 
-  test("accepts --image with an end frame and no text prompt", async () => {
-    const result = await run([
-      "-i",
-      imagePath,
-      "--end-frame",
-      pathToFileURL(imagePath).href,
+  test("uses native n/batching and saves every video with its media type", async () => {
+    const result = await generate([
+      "a scene",
+      "--n",
+      "3",
+      "--max-videos-per-call",
+      "2",
+      "--json",
+      "-o",
+      join(fixture.directory, "batch/"),
     ]);
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.generations[0].frameImages).toEqual(
-      ["first_frame", "last_frame"].map((frameType) => ({
-        frameType,
-        image: {
-          type: "file",
-          mediaType: "image/png",
-          data: png.toString("base64"),
-        },
-      }))
-    );
+    expect(
+      result.requests
+        .filter((item) => item.route.endsWith("/start"))
+        .map((item) => item.body.n)
+    ).toEqual([2, 1]);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.videos).toHaveLength(3);
+    expect(output.providerMetadata.gateway.cost).toBe("0.42");
+    for (const video of output.videos)
+      expect(video.file.endsWith(".webm")).toBe(true);
   });
 
-  test("accepts piped start bytes with a data URL end frame", async () => {
-    const result = await run(
-      ["--end-frame", `data:image/png;base64,${png.toString("base64")}`],
-      png
-    );
+  test("never concatenates multiple binary outputs without an output path", async () => {
+    const before = new Set(readdirSync(fixture.directory));
+    const result = await generate(["a scene", "--n", "2"]);
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.generations[0].frameImages).toEqual(
-      ["first_frame", "last_frame"].map((frameType) => ({
-        frameType,
-        image: {
-          type: "file",
-          mediaType: "image/png",
-          data: png.toString("base64"),
-        },
-      }))
+    expect(result.stdout).toBe("");
+    const files = readdirSync(fixture.directory).filter(
+      (name) => !before.has(name) && name.endsWith(".webm")
     );
+    expect(files).toHaveLength(2);
+    expect(
+      files
+        .map((name) => readFileSync(join(fixture.directory, name), "utf8"))
+        .sort()
+    ).toEqual(["video1", "video2"]);
   });
 
-  test.each(["--image", "--start-frame"])(
-    "%s alone preserves single-image generation",
-    async (flag) => {
-      const result = await run([flag, startUrl]);
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toBe("");
-      expect(result.generations[0].image).toEqual({
-        type: "url",
-        url: startUrl,
-      });
-      expect(result.generations[0]).not.toHaveProperty("frameImages");
+  test.each(["3garbage", "Infinity", "1e309", "0"])(
+    "rejects duration %s before network",
+    async (duration) => {
+      const result = await generate([
+        "scene",
+        "--duration",
+        duration,
+        "--json",
+      ]);
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout).error.message).toContain("--duration");
+      expect(result.requests).toHaveLength(0);
     }
   );
 
-  test("preserves text-only and stdin-only generation", async () => {
-    const text = await run(["a spinning triangle"]);
-    expect(text.exitCode).toBe(0);
-    expect(text.generations[0].prompt).toBe("a spinning triangle");
-    expect(text.generations[0]).not.toHaveProperty("image");
-    expect(text.generations[0]).not.toHaveProperty("frameImages");
+  test("rejects duplicate input and frame roles before network", async () => {
+    const duplicate = await generate(["--image", start, "--image", end]);
+    expect(duplicate.exitCode).toBe(1);
+    expect(duplicate.requests).toHaveLength(0);
+    const frames = await generate([
+      "--frame-images",
+      fixture.json([
+        { image: start, frameType: "last_frame" },
+        { image: end, frameType: "last_frame" },
+      ]),
+    ]);
+    expect(frames.exitCode).toBe(1);
+    expect(frames.requests).toHaveLength(0);
+  });
 
-    const stdin = await run([], png);
-    expect(stdin.exitCode).toBe(0);
-    expect(stdin.generations[0].image).toEqual({
-      type: "file",
-      mediaType: "image/png",
-      data: png.toString("base64"),
+  test("poll timeout is enforced and represented in JSON", async () => {
+    const result = await generate(
+      ["scene", "--poll-timeout-ms", "10", "--json"],
+      "pending"
+    );
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout).results[0].error.message).toContain(
+      "timed out"
+    );
+  });
+});
+
+describe("video routing and deadlines", () => {
+  test("bounds an in-flight status request by the poll deadline", async () => {
+    const result = await generate(
+      ["scene", "--poll-timeout-ms", "20", "--json"],
+      "stalled-status"
+    );
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout).results[0].error.message).toContain(
+      "timed out"
+    );
+  });
+
+  test("supports nested help and literal subcommand names after --", async () => {
+    const help = await fixture.run(["video", "help", "status"]);
+    expect(help.exitCode).toBe(0);
+    expect(help.stdout).toContain("<operation-file>");
+    expect(help.requests).toHaveLength(0);
+    const literal = await generate(["--", "start"]);
+    expect(literal.exitCode).toBe(0);
+    expect(
+      literal.requests.find((item) => item.route.endsWith("/start")).body.prompt
+    ).toBe("start");
+  });
+
+  test("validates the start destination before submitting a job", async () => {
+    const result = await fixture.run([
+      "video",
+      "start",
+      "scene",
+      "--output",
+      fixture.directory,
+    ]);
+    expect(result.exitCode).toBe(1);
+    expect(result.requests).toHaveLength(0);
+    expect(JSON.parse(result.stdout).error.message).toContain("JSON file");
+  });
+
+  test("rejects millisecond timer overflow before network", async () => {
+    const result = await generate([
+      "scene",
+      "--poll-timeout-ms",
+      "2147483648",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(1);
+    expect(result.requests).toHaveLength(0);
+  });
+});
+
+describe("video operation lifecycle", () => {
+  test("persists start operation, forwards webhook, retrieves without downloading, then downloads", async () => {
+    const path = join(fixture.directory, "operation.json");
+    const started = await fixture.run([
+      "video",
+      "start",
+      "scene",
+      "--webhook-url",
+      "https://example.com/hook",
+      "--output",
+      path,
+      "--max-retries",
+      "0",
+    ]);
+    expect(started.exitCode).toBe(0);
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(
+      JSON.parse(started.stdout)
+    );
+    expect(
+      started.requests.find((item) => item.route.endsWith("/start")).body
+        .callbackUrl
+    ).toBe("https://example.com/hook");
+    const status = await fixture.run(["video", "status", path], {
+      mode: "download",
     });
-    expect(stdin.generations[0]).not.toHaveProperty("frameImages");
+    expect(status.exitCode).toBe(0);
+    expect(JSON.parse(status.stdout).videos[0].url).toContain("movie.webm");
+    expect(status.requests).toHaveLength(1);
+    const downloaded = await fixture.run(
+      [
+        "video",
+        "status",
+        path,
+        "--download",
+        "--output",
+        join(fixture.directory, "download/"),
+      ],
+      { mode: "download" }
+    );
+    expect(downloaded.exitCode).toBe(0);
+    const file = JSON.parse(downloaded.stdout).results[0].videos[0].file;
+    expect(file.endsWith(".webm")).toBe(true);
+    expect(readFileSync(file, "utf8")).toBe("downloaded-video");
+    const limited = await fixture.run(
+      ["video", "status", path, "--download", "--download-max-bytes", "2"],
+      { mode: "download" }
+    );
+    expect(limited.exitCode).toBe(1);
+    expect(JSON.parse(limited.stdout).results[0].success).toBe(false);
   });
 
-  test.each([
-    ["--image", startUrl, "--image", endUrl],
-    ["--start-frame", startUrl, "--start-frame", endUrl],
-    ["--image", startUrl, "--start-frame", endUrl],
-  ])(
-    "rejects ambiguous start frames before network calls: %j",
-    async (firstFlag, firstUrl, secondFlag, secondUrl) => {
-      const result = await run([firstFlag, firstUrl, secondFlag, secondUrl]);
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("one start frame");
-      expect(result.stderr).toContain("--end-frame");
-      expect(result.requests).toEqual([]);
-    }
-  );
-
-  test.each(["--image", "--start-frame"])(
-    "rejects %s combined with a piped start frame",
-    async (flag) => {
-      const result = await run([flag, startUrl, "--end-frame", endUrl], png);
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("one start frame");
-      expect(result.requests).toEqual([]);
-    }
-  );
-
-  test("requires a start frame when an end frame is supplied", async () => {
-    const result = await run(["transition", "--end-frame", endUrl]);
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("--end-frame requires a start frame");
-    expect(result.requests).toEqual([]);
+  test("reports pending and provider errors", async () => {
+    const path = fixture.json({
+      model: "bytedance/seedance-2.0",
+      operation: { id: "job" },
+    });
+    const pending = await fixture.run(["video", "status", path], {
+      mode: "pending",
+    });
+    expect(JSON.parse(pending.stdout).status).toBe("pending");
+    const error = await fixture.run(["video", "status", path], {
+      mode: "status-error",
+    });
+    expect(error.exitCode).toBe(1);
+    expect(JSON.parse(error.stdout).error).toBe("provider failed");
   });
-
-  test("rejects repeated end frames", async () => {
-    const result = await run([
-      "--start-frame",
-      startUrl,
-      "--end-frame",
-      endUrl,
-      "--end-frame",
-      endUrl,
-    ]);
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("one end frame");
-    expect(result.requests).toEqual([]);
-  });
-
-  test.each(["--start-frame", "--end-frame"])(
-    "validates %s files and empty values before network calls",
-    async (flag) => {
-      for (const value of ["/missing/frame.png", " "]) {
-        const result = await run([
-          ...(flag === "--end-frame" ? ["--start-frame", startUrl] : []),
-          flag,
-          value,
-        ]);
-        expect(result.exitCode).toBe(1);
-        expect(result.stderr).toContain(
-          value.trim()
-            ? "could not read reference image"
-            : `${flag} cannot be empty`
-        );
-        expect(result.requests).toEqual([]);
-      }
-    }
-  );
 });
 
 describe("videoGenerationOptions", () => {
-  test("forwards parsed video generation options", () => {
+  test("parses SDK dimensions and adaptive ratio", () => {
     expect(
       videoGenerationOptions({
-        aspectRatio: "16:9",
+        aspectRatio: "adaptive",
         resolution: "1920x1080",
         duration: "5",
       })
-    ).toEqual({
-      aspectRatio: "16:9",
+    ).toMatchObject({
+      aspectRatio: "adaptive",
       resolution: "1920x1080",
       duration: 5,
     });
-  });
-
-  test("rejects invalid resolutions with the video flag name", () => {
     expect(() => videoGenerationOptions({ resolution: "1080p" })).toThrow(
-      "--resolution must be in WxH format"
+      "--resolution"
     );
   });
 });

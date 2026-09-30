@@ -35,7 +35,7 @@ Requests are aborted if they exceed the per-command timeout:
 | --- | --- |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
-| `video` | 300 seconds |
+| `video` | 600 seconds |
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
 
@@ -47,13 +47,16 @@ ai image --timeout 600 "a detailed sprite atlas"
 
 If you are consistently hitting timeouts, a faster model variant is often the better fix (for example `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
 
-## `--quality` / `--style` warning
+## Image and video option migration
 
-```
-Warning: --quality and --style only apply to OpenAI models
-```
+`--count` is now `--n` for image/video. Image references use `--images`;
+video frames use `--frame-images` with SDK role names. Image quality and style
+belong in `--provider-options` JSON, using values supported by the selected
+model. See the [migration reference](/docs/commands#media-migration).
 
-The `--quality` and `--style` flags are OpenAI-specific provider options. They're silently ignored by other providers. Remove these flags when using non-OpenAI image models.
+Video uses SDK polling by default. For long jobs, use `ai video start` and
+`ai video status` to persist an operation and check it later. Requested durations
+and frame modes must still be supported by the model; check `ai models <model> --json`.
 
 ## Version and upgrades
 
@@ -71,7 +74,7 @@ npm update -g ai-cli
 
 ## Gateway unreachable
 
-If the AI Gateway is unreachable, the `models` command will return an empty list and short-name resolution will be unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Generation commands will still work if you specify the full model ID with `-m`.
+If the AI Gateway is unreachable, the `models` command will return an empty list and short-name resolution will be unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Image generation also requires an explicit `--api generateImage` or `--api generateText` when discovery fails, so the selected API cannot change silently. Video and other generation commands can use full model IDs.
 
 Check your network connection and verify the gateway status at [vercel.com/status](https://www.vercel.com/status).
 

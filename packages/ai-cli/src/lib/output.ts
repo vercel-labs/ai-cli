@@ -43,13 +43,17 @@ function defaultFilename(
 }
 
 function defaultExtension(format: OutputFormat, mediaType?: string): string {
-  if (format !== "image" || !mediaType) return DEFAULT_EXTENSIONS[format];
+  if (!mediaType) return DEFAULT_EXTENSIONS[format];
 
-  const extension = IMAGE_EXTENSIONS[mediaType.toLowerCase().split(";", 1)[0]!];
+  const extension = MEDIA_EXTENSIONS[mediaType.toLowerCase().split(";", 1)[0]!];
   return extension ?? DEFAULT_EXTENSIONS[format];
 }
 
-const IMAGE_EXTENSIONS: Record<string, string> = {
+const MEDIA_EXTENSIONS: Record<string, string> = {
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/quicktime": ".mov",
+  "video/ogg": ".ogv",
   "image/avif": ".avif",
   "image/bmp": ".bmp",
   "image/gif": ".gif",
@@ -77,6 +81,7 @@ function sanitizeFilenameStem(outputId?: string): string | undefined {
 }
 
 function isDirectory(p: string): boolean {
+  if (p.endsWith("/") || p.endsWith("\\")) return true;
   try {
     return statSync(p).isDirectory();
   } catch {

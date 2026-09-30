@@ -180,8 +180,8 @@ describe("cli integration", () => {
     const { exitCode, stdout } = await run("video", "--help");
     expect(exitCode).toBe(0);
     expect(stdout).toContain("--image");
-    expect(stdout).toContain("--start-frame");
-    expect(stdout).toContain("--end-frame");
+    expect(stdout).toContain("--frame-images");
+    expect(stdout).toContain("--input-references");
     expect(stdout).toContain("--duration");
     expect(stdout).toContain("--aspect-ratio");
     expect(stdout).toContain("--resolution");
@@ -226,7 +226,7 @@ describe("cli integration", () => {
   test.each([
     [["text"], "120"],
     [["image"], "300"],
-    [["video"], "300"],
+    [["video"], "600"],
     [["audio", "speak"], "120"],
     [["audio", "transcribe"], "120"],
   ])("%s --help lists --timeout with its default", async (command, seconds) => {

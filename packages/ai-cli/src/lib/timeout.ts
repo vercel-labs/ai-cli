@@ -30,3 +30,10 @@ export function addTimeoutOption(
 export function timeoutMs(seconds: number): number {
   return seconds * 1000;
 }
+
+export function parseTimerMs(value: string, name: string): number {
+  const ms = parsePositiveInt(value, name);
+  if (ms > 2_147_483_647)
+    throw new Error(`--${name} must be at most 2147483647 milliseconds`);
+  return ms;
+}

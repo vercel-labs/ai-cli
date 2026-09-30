@@ -117,3 +117,11 @@ All models are accessed through [Vercel AI Gateway](https://vercel.com/docs/ai-g
   <Card title="Recraft" description="Recraft v2, v3, v4" />
   <Card title="Prodia" description="FLUX Fast Schnell" />
 </Cards>
+
+## Native Gateway metadata
+
+`ai models --json` and `ai models <id> --json` retain native catalog fields,
+including `video_capabilities`, `modalities`, `supported_specifications`, and
+future fields. Detailed capability metadata describes model-specific limits;
+not all providers support every SDK option. `--base-url`, `--team-id-or-slug`,
+and `--headers <json-file>` also apply to model discovery.

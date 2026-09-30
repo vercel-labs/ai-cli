@@ -1,12 +1,28 @@
-import { experimental_generateVideo as generateVideo, gateway } from "ai";
+import { mkdir, writeFile, rename, rm, stat } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+
+import {
+  createDownload,
+  experimental_generateVideo as generateVideo,
+  experimental_startVideo as startVideo,
+  experimental_getVideoStatus as getVideoStatus,
+  type JSONValue,
+} from "ai";
 
 import type { Command } from "../lib/command.js";
 import {
   collectImageReference,
   loadImageReferences,
-  type ImageReference,
 } from "../lib/image-references.js";
-import { buildJobs, runJobs } from "../lib/jobs.js";
+import { artifact, runMediaJobs } from "../lib/media-jobs.js";
+import {
+  addGatewayOptions,
+  addMediaOptions,
+  mediaSettings,
+  readJsonObject,
+  validateUrl,
+  type MediaOptions,
+} from "../lib/media-options.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import {
   parsePositiveInt,
@@ -16,189 +32,373 @@ import {
 } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
-import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
+import { addTimeoutOption, timeoutMs, parseTimerMs } from "../lib/timeout.js";
+import { readFrameImages, readInputReferences } from "../lib/video-inputs.js";
 
 const DEFAULT_CONCURRENCY = 2;
-const DEFAULT_TIMEOUT_MS = 300_000;
+const DEFAULT_TIMEOUT_MS = 600_000;
 
-interface VideoOptions {
-  model?: string;
-  output?: string;
+interface VideoOptions extends MediaOptions {
   image?: string[];
-  startFrame?: string[];
-  endFrame?: string[];
-  count?: string;
+  frameImages?: string;
+  inputReferences?: string;
+  maxVideosPerCall?: string;
   aspectRatio?: string;
   resolution?: string;
   duration?: string;
-  quiet?: boolean;
-  json?: boolean;
-  concurrency?: string;
-  preview?: boolean;
-  timeout: number;
+  fps?: string;
+  generateAudio?: boolean;
+  pollIntervalMs?: string;
+  pollTimeoutMs?: string;
+  downloadMaxBytes?: string;
+  webhookUrl?: string;
+}
+
+function generationCommand(command: Command, start = false) {
+  return addTimeoutOption(
+    addMediaOptions(
+      command.argument("[prompt]", "Video prompt"),
+      DEFAULT_CONCURRENCY,
+      start
+    )
+      .option(
+        "-i, --image <path-or-url>",
+        "SDK prompt.image (or pipe image bytes)",
+        collectImageReference,
+        []
+      )
+      .option(
+        "--frame-images <path>",
+        "JSON SDK frameImages array with first_frame / last_frame roles"
+      )
+      .option(
+        "--input-references <path>",
+        "JSON SDK inputReferences array; specify mediaType for video URLs"
+      )
+      .option(
+        "--max-videos-per-call <n>",
+        "SDK maxVideosPerCall batching limit"
+      )
+      .option("--aspect-ratio <W:H|adaptive>", "SDK aspectRatio")
+      .option("--resolution <WxH>", "SDK resolution (e.g. 1920x1080)")
+      .option("--duration <seconds>", "SDK duration in seconds")
+      .option("--fps <n>", "SDK frames per second")
+      .option("--generate-audio", "Request generated audio")
+      .option("--no-generate-audio", "Disable generated audio"),
+    DEFAULT_TIMEOUT_MS
+  );
+}
+
+async function generationInputs(
+  rawPrompt: string | undefined,
+  opts: VideoOptions
+) {
+  const settings = await mediaSettings(opts, DEFAULT_CONCURRENCY);
+  const generationOptions = videoGenerationOptions(opts);
+  const maxVideosPerCall =
+    opts.maxVideosPerCall === undefined
+      ? undefined
+      : parsePositiveInt(opts.maxVideosPerCall, "max-videos-per-call");
+  const frameImages = opts.frameImages
+    ? await readFrameImages(opts.frameImages)
+    : undefined;
+  const inputReferences = opts.inputReferences
+    ? await readInputReferences(opts.inputReferences)
+    : undefined;
+  const prompt = rawPrompt?.trim() || undefined;
+  const stdin = await readStdin();
+  if ((opts.image?.length ?? 0) + (stdin ? 1 : 0) > 1)
+    throw new Error(
+      "Use one --image or piped image; use --frame-images for frame roles and --input-references for multiple references"
+    );
+  const image = stdin ?? (await loadImageReferences(opts.image ?? []))[0];
+  if (!prompt && !image && !frameImages?.length && !inputReferences?.length)
+    throw new Error(
+      "prompt, --image, --frame-images, or --input-references is required"
+    );
+  return {
+    settings,
+    request: {
+      ...generationOptions,
+      n: settings.n,
+      seed: settings.seed,
+      maxRetries: settings.maxRetries,
+      headers: settings.headers,
+      providerOptions: settings.providerOptions,
+      maxVideosPerCall,
+      prompt: image ? { image, text: prompt } : (prompt ?? ""),
+      frameImages,
+      inputReferences,
+    },
+  };
 }
 
 export function registerVideoCommand(program: Command) {
-  const command = program
-    .command("video")
-    .description("Generate a video from a prompt or start/end frames")
-    .argument("[prompt]", "The prompt to generate a video from")
+  const command = generationCommand(
+    program
+      .command("video")
+      .description(
+        "Generate video with AI SDK polling, or start/check an asynchronous operation"
+      )
+  )
+    .option("--poll-interval-ms <ms>", "SDK poll.intervalMs (default: 5000)")
     .option(
-      "-m, --model <model>",
-      "Model ID (creator/model-name), comma-separated for multi-model"
-    )
-    .option("-o, --output <path>", "Output file path or directory")
-    .option(
-      "-i, --image <path-or-url>",
-      "Start frame image path or URL",
-      collectImageReference,
-      []
+      "--poll-timeout-ms <ms>",
+      "SDK poll.timeoutMs (default: --timeout in milliseconds)"
     )
     .option(
-      "--start-frame <path-or-url>",
-      "Start frame image path or URL (same as --image)",
-      collectImageReference,
-      []
-    )
-    .option(
-      "--end-frame <path-or-url>",
-      "End frame image path or URL (requires a start frame)",
-      collectImageReference,
-      []
-    )
-    .option("-n, --count <n>", "Number of videos per model (default: 1)")
-    .option("--aspect-ratio <W:H>", "Aspect ratio (e.g. 16:9)")
-    .option("--resolution <WxH>", "Video resolution (e.g. 1920x1080)")
-    .option("--duration <seconds>", "Video duration in seconds")
-    .option("-q, --quiet", "Suppress progress output")
-    .option("--json", "Output metadata as JSON")
-    .option(
-      "--no-preview",
-      "Disable inline video frame preview in supported terminals"
-    )
-    .option(
-      "-p, --concurrency <n>",
-      `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
+      "--download-max-bytes <bytes>",
+      "SDK createDownload maxBytes (default: 2 GiB)"
     );
-  addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
-    async (rawPrompt: string | undefined, opts: VideoOptions) => {
-      const prompt = rawPrompt?.trim() || undefined;
-      const stdin = await readStdin();
-      const startInputs = [...(opts.image ?? []), ...(opts.startFrame ?? [])];
-      const endInputs = opts.endFrame ?? [];
-      const startCount = startInputs.length + (stdin ? 1 : 0);
-      if (startCount > 1) {
-        throw new Error(
-          "video generation accepts one start frame; use one --start-frame, --image, or piped image, and --end-frame for the end frame"
-        );
+  command.action(async (prompt: string | undefined, opts: VideoOptions) => {
+    const poll = {
+      intervalMs:
+        opts.pollIntervalMs === undefined
+          ? undefined
+          : parseTimerMs(opts.pollIntervalMs, "poll-interval-ms"),
+      timeoutMs:
+        opts.pollTimeoutMs === undefined
+          ? timeoutMs(opts.timeout)
+          : parseTimerMs(opts.pollTimeoutMs, "poll-timeout-ms"),
+    };
+    const download = createDownload({
+      maxBytes:
+        opts.downloadMaxBytes === undefined
+          ? undefined
+          : parsePositiveInt(opts.downloadMaxBytes, "download-max-bytes"),
+    });
+    const { settings, request } = await generationInputs(prompt, opts);
+    const catalog = await fetchGatewayModels(settings.catalogOptions);
+    const models = resolveModels("video", opts.model, catalog.video);
+    await runMediaJobs(
+      models,
+      async (modelId) => {
+        const result = await generateVideo({
+          ...request,
+          model: settings.gateway.video(modelId),
+          poll,
+          download,
+          abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
+        });
+        return {
+          artifacts: result.videos.map((file) =>
+            artifact(file, responseIdFromHeaders(result.responses[0]?.headers))
+          ),
+          warnings: result.warnings,
+          responses: result.responses,
+          providerMetadata: result.providerMetadata,
+        };
+      },
+      {
+        ...opts,
+        n: settings.n,
+        concurrency: settings.concurrency,
+        format: "video",
       }
-      if (endInputs.length > 1) {
-        throw new Error(
-          "video generation accepts one end frame; provide one --end-frame value"
+    );
+  });
+
+  generationCommand(
+    command
+      .command("start")
+      .description(
+        "Start one asynchronous video operation and emit/persist its JSON reference"
+      ),
+    true
+  )
+    .option(
+      "--webhook-url <url>",
+      "SDK webhookUrl for completion notifications"
+    )
+    .action(async (prompt: string | undefined, opts: VideoOptions) => {
+      const webhookUrl =
+        opts.webhookUrl === undefined
+          ? undefined
+          : validateUrl(opts.webhookUrl, "webhook-url");
+      const destination = opts.output ? resolve(opts.output) : undefined;
+      if (destination) {
+        await mkdir(dirname(destination), { recursive: true });
+        const existing = await stat(destination).catch(
+          (error: NodeJS.ErrnoException) => {
+            if (error.code === "ENOENT") return undefined;
+            throw error;
+          }
         );
+        if (existing?.isDirectory())
+          throw new Error(
+            "video start --output must be a JSON file, not a directory"
+          );
       }
-      if (endInputs.length > 0 && startCount === 0) {
-        throw new Error(
-          "--end-frame requires a start frame from --start-frame, --image, or piped stdin"
-        );
-      }
-      if (!prompt && startCount === 0) {
-        throw new Error(
-          "prompt or image is required (provide a prompt, --start-frame, --image, or pipe an image via stdin)"
-        );
-      }
-      for (const [flag, references] of [
-        ["--image", opts.image],
-        ["--start-frame", opts.startFrame],
-        ["--end-frame", opts.endFrame],
-      ] as const) {
-        if (references?.some((reference) => !reference.trim())) {
-          throw new Error(`${flag} cannot be empty`);
+      const { settings, request } = await generationInputs(prompt, opts);
+      const catalog = await fetchGatewayModels(settings.catalogOptions);
+      const models = resolveModels("video", opts.model, catalog.video);
+      if (models.length !== 1)
+        throw new Error("video start accepts one model per operation");
+      const model = models[0]!;
+      const result = await startVideo({
+        ...request,
+        model: settings.gateway.video(model),
+        webhookUrl,
+        abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
+      });
+      const data = JSON.stringify({ model, ...result }, null, 2) + "\n";
+      // Emit first so a filesystem failure cannot lose an already-started job.
+      process.stdout.write(data);
+      if (destination) {
+        const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
+        try {
+          await writeFile(temporary, data, { mode: 0o600, flag: "wx" });
+          await rename(temporary, destination);
+        } catch (error) {
+          // Preserve one valid operation JSON on stdout even if persistence fails.
+          process.stderr.write(
+            `Error: could not save operation to ${destination}: ${error instanceof Error ? error.message : String(error)}\n`
+          );
+          process.exitCode = 1;
+        } finally {
+          await rm(temporary, { force: true }).catch(() => {});
         }
       }
+    });
 
-      const [startImages, endImages] = await Promise.all([
-        loadImageReferences(startInputs),
-        loadImageReferences(endInputs),
-      ]);
-      const startFrame = stdin ?? startImages[0];
-      const endFrame = endImages[0];
-
-      let videoPrompt: string | { image: ImageReference; text?: string } =
-        prompt ?? "";
-      let frameImages: Parameters<typeof generateVideo>[0]["frameImages"];
-      if (endFrame !== undefined) {
-        frameImages = [
-          { image: startFrame!, frameType: "first_frame" },
-          { image: endFrame, frameType: "last_frame" },
-        ];
-      } else if (startFrame !== undefined) {
-        videoPrompt = prompt
-          ? { image: startFrame, text: prompt }
-          : { image: startFrame };
+  const statusCommand = addGatewayOptions(
+    command
+      .command("status")
+      .description(
+        "Check a saved SDK operation; returns JSON without downloading by default"
+      )
+      .argument("<operation-file>", "JSON emitted by video start")
+      .option("--download", "Download completed videos")
+      .option(
+        "--download-max-bytes <bytes>",
+        "SDK createDownload maxBytes (default: 2 GiB)"
+      )
+      .option("-o, --output <path>", "Downloaded video file or directory")
+      .option(
+        "--json",
+        "JSON status / downloaded artifact manifest (always enabled)"
+      )
+      .option("-q, --quiet", "Suppress progress")
+      .option("--no-preview", "Disable previews")
+  );
+  addTimeoutOption(statusCommand, DEFAULT_TIMEOUT_MS).action(
+    async (
+      path: string | undefined,
+      opts: MediaOptions & { download?: boolean; downloadMaxBytes?: string }
+    ) => {
+      if (!path) throw new Error("video status requires an operation file");
+      if (opts.output && !opts.download)
+        throw new Error("video status --output requires --download");
+      const settings = await mediaSettings(opts);
+      const download = createDownload({
+        maxBytes:
+          opts.downloadMaxBytes === undefined
+            ? undefined
+            : parsePositiveInt(opts.downloadMaxBytes, "download-max-bytes"),
+      });
+      const saved = await readJsonObject(path, "operation");
+      if (
+        typeof saved.model !== "string" ||
+        !saved.model.trim() ||
+        !("operation" in saved)
+      )
+        throw new Error(
+          "Operation file must contain model and operation from video start"
+        );
+      const model = resolveModels("video", saved.model);
+      if (model.length !== 1)
+        throw new Error("Operation file must contain one model");
+      const abortSignal = AbortSignal.timeout(timeoutMs(opts.timeout));
+      const result = await getVideoStatus(settings.gateway.video(model[0]!), {
+        operation: saved.operation as JSONValue,
+        headers: settings.headers,
+        maxRetries: settings.maxRetries,
+        abortSignal,
+      });
+      if (!opts.download || result.status !== "completed") {
+        process.stdout.write(
+          JSON.stringify({ model: model[0], ...result }, null, 2) + "\n"
+        );
+        if (result.status === "error") {
+          process.stderr.write(`Error: ${result.error}\n`);
+          process.exitCode = 1;
+        }
+        return;
       }
-
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("video", opts.model, gatewayModels.video);
-      const countPerModel = opts.count
-        ? parsePositiveInt(opts.count, "count")
-        : 1;
-      const generationOptions = videoGenerationOptions(opts);
-
-      const jobs = buildJobs(models, countPerModel);
-
-      const { total, failed } = await runJobs(
-        jobs,
-        async (modelId) => {
-          const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
-          const result = await generateVideo({
-            headers: {
-              "http-referer": "https://github.com/vercel-labs/ai-cli",
-              "x-title": "ai-cli",
-            },
-            model: gateway.video(modelId),
-            prompt: videoPrompt,
-            frameImages,
-            abortSignal: abort,
-            ...generationOptions,
-          });
-          return {
-            data: Buffer.from(result.video.uint8Array),
-            id: responseIdFromHeaders(result.responses[0]?.headers),
-          };
-        },
+      await runMediaJobs(
+        model,
+        async () => ({
+          status: result.status,
+          response: result.response,
+          warnings: result.warnings,
+          providerMetadata: result.providerMetadata,
+          artifacts: await Promise.all(
+            result.videos.map(async (video) => {
+              if (video.type === "url") {
+                const file = await download({
+                  url: new URL(video.url),
+                  abortSignal,
+                });
+                return {
+                  data: Buffer.from(file.data),
+                  mediaType:
+                    (video.mediaType &&
+                    video.mediaType !== "application/octet-stream"
+                      ? video.mediaType
+                      : undefined) ||
+                    file.mediaType ||
+                    "video/mp4",
+                };
+              }
+              return {
+                data:
+                  video.type === "base64"
+                    ? Buffer.from(video.data, "base64")
+                    : Buffer.from(video.data),
+                mediaType: video.mediaType || "video/mp4",
+              };
+            })
+          ),
+        }),
         {
-          noun: "video",
+          ...opts,
+          n: result.videos.length,
+          concurrency: 1,
+          json: true,
           format: "video",
-          outputPath: opts.output,
-          quiet: opts.quiet,
-          json: opts.json,
-          display: opts.preview,
-          concurrency: opts.concurrency
-            ? parsePositiveInt(opts.concurrency, "concurrency")
-            : DEFAULT_CONCURRENCY,
         }
       );
-      if (failed === total) process.exit(1);
-      if (failed > 0) process.exit(2);
     }
   );
 }
 
-export function videoGenerationOptions(opts: {
-  aspectRatio?: string;
-  resolution?: string;
-  duration?: string;
-}) {
+export function videoGenerationOptions(
+  opts: Pick<
+    VideoOptions,
+    "aspectRatio" | "resolution" | "duration" | "fps" | "generateAudio"
+  >
+) {
+  const duration =
+    opts.duration === undefined
+      ? undefined
+      : parseNonNegativeFloat(opts.duration, "duration");
+  if (duration === 0) throw new Error("--duration must be greater than zero");
+  const fps =
+    opts.fps === undefined ? undefined : parseNonNegativeFloat(opts.fps, "fps");
+  if (fps === 0) throw new Error("--fps must be greater than zero");
   return {
-    aspectRatio: opts.aspectRatio
-      ? parseAspectRatio(opts.aspectRatio)
-      : undefined,
-    resolution: opts.resolution
-      ? parseSize(opts.resolution, "resolution")
-      : undefined,
-    duration: opts.duration
-      ? parseNonNegativeFloat(opts.duration, "duration")
-      : undefined,
+    aspectRatio:
+      opts.aspectRatio === "adaptive"
+        ? ("adaptive" as const)
+        : opts.aspectRatio === undefined
+          ? undefined
+          : parseAspectRatio(opts.aspectRatio),
+    resolution:
+      opts.resolution === undefined
+        ? undefined
+        : parseSize(opts.resolution, "resolution"),
+    duration,
+    fps,
+    generateAudio: opts.generateAudio,
   };
 }

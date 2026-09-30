@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@vercel/agent-readability": "0.5.1",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
+    "@types/bun": "1.4.2",
     "@types/mdast": "4.0.4",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

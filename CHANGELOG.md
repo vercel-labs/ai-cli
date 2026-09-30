@@ -2,9 +2,19 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- Align image/video flags with AI SDK names: `--n`, image `--images` / `--mask`, video `--frame-images` / `--input-references`. Remove `--count`, image `--image`, `--quality`, `--style`, and the unreleased `--start-frame` / `--end-frame` aliases. Provider-specific settings now use `--provider-options` JSON.
+- Image/video JSON now contains all artifacts and SDK diagnostics in per-model results with `elapsedMs`. Multiple media outputs always save to separate files. Image API discovery failures require an explicit API selection. Video defaults to SDK polling with a 600-second timeout.
+
 ### New Features
 
-- **Video start/end frames** - `ai video --start-frame <path-or-url> --end-frame <path-or-url>` guides a clip with first and last images on supported models. Existing `--image` and piped image inputs can also be paired with `--end-frame`.
+- Upgrade AI SDK to 7.0.123 and Gateway to 4.0.101. Expose native batching, seeds, retries, headers, Gateway routing/connection settings, masks, frame roles (including last-frame-only), references, FPS, audio and polling/download controls.
+- Add `video start` / `video status` with persisted operations, webhook URLs and optional downloads. Expose language-image settings and provider tools, preserving all generated images and accompanying text.
+
+### Bug Fixes
+
+- Preserve native model capabilities, image call diagnostics, usage, warnings, provider metadata and all output media types. Report structured failures even in quiet mode; validate numeric inputs before requests and preserve zero seeds despite the current Gateway serialization bug.
 
 ## 0.5.2
 

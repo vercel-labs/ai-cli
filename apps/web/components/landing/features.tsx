@@ -148,7 +148,7 @@ export function Features() {
             bullets={[
               "comma-separated model IDs for parallel generation",
               "configurable concurrency limits",
-              "per-job timing and structured JSON output",
+              "all media outputs, usage, and provider metadata in JSON",
             ]}
             window={<Panel rows={multimodelrows} />}
           />

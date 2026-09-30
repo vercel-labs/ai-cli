@@ -1,4 +1,4 @@
-import { generateImage, generateText, gateway, type JSONValue } from "ai";
+import { generateImage, generateText, type JSONValue } from "ai";
 
 import type { Command } from "../lib/command.js";
 import {
@@ -6,7 +6,14 @@ import {
   loadImageReferences,
   type ImageReference,
 } from "../lib/image-references.js";
-import { buildJobs, runJobs } from "../lib/jobs.js";
+import { readGenerateTextOptions, toolImages } from "../lib/language-images.js";
+import { artifact, runMediaJobs } from "../lib/media-jobs.js";
+import {
+  addMediaOptions,
+  mediaSettings,
+  mergeOptions,
+  type MediaOptions,
+} from "../lib/media-options.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
@@ -25,222 +32,232 @@ const SVG_LANGUAGE_IMAGE_MODEL_IDS = new Set([
   "quiverai/arrow-2-telos",
 ]);
 
-interface ImageOptions {
-  model?: string;
-  output?: string;
-  image?: string[];
-  count?: string;
+interface ImageOptions extends MediaOptions {
+  images?: string[];
+  mask?: string;
   size?: string;
   aspectRatio?: string;
-  quality?: string;
-  style?: string;
-  quiet?: boolean;
-  json?: boolean;
-  concurrency?: string;
-  preview?: boolean;
-  timeout: number;
+  maxImagesPerCall?: string;
+  api?: string;
+  generateTextOptions?: string;
 }
 
 export function registerImageCommand(program: Command) {
-  const command = program
-    .command("image")
-    .description("Generate an image from a prompt")
-    .argument("[prompt]", "The prompt to generate an image from")
+  const command = addMediaOptions(
+    program
+      .command("image")
+      .description(
+        "Generate or edit images using AI SDK generateImage or generateText"
+      )
+      .argument("[prompt]", "Image prompt"),
+    DEFAULT_CONCURRENCY
+  )
     .option(
-      "-m, --model <model>",
-      "Model ID (creator/model-name), comma-separated for multi-model"
-    )
-    .option("-o, --output <path>", "Output file path or directory")
-    .option(
-      "-i, --image <path-or-url>",
-      "Reference image path or URL (repeatable)",
+      "-i, --images <path-or-url>",
+      "SDK prompt.images reference (repeatable)",
       collectImageReference,
       []
     )
-    .option("-n, --count <n>", "Number of images per model (default: 1)")
-    .option("--size <WxH>", "Image size (e.g. 1024x1024)")
-    .option("--aspect-ratio <W:H>", "Aspect ratio (e.g. 16:9)")
-    .option("--quality <level>", "Quality (standard, hd)")
-    .option("--style <style>", "Style (e.g. vivid, natural)")
-    .option("-q, --quiet", "Suppress progress output")
-    .option("--json", "Output metadata as JSON")
     .option(
-      "--no-preview",
-      "Disable inline image preview in supported terminals"
+      "--mask <path-or-url>",
+      "SDK prompt.mask for editing reference images"
+    )
+    .option("--size <WxH>", "SDK image size, e.g. 1024x1024")
+    .option("--aspect-ratio <W:H>", "SDK aspectRatio, e.g. 16:9")
+    .option("--max-images-per-call <n>", "SDK maxImagesPerCall batching limit")
+    .option(
+      "--api <api>",
+      "generateImage or generateText (default: model catalog)"
     )
     .option(
-      "-p, --concurrency <n>",
-      `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
+      "--generate-text-options <path>",
+      "JSON generateText settings and provider tools; selects generateText"
     );
   addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
     async (rawPrompt: string | undefined, opts: ImageOptions) => {
+      const settings = await mediaSettings(opts, DEFAULT_CONCURRENCY);
+      const size = opts.size === undefined ? undefined : parseSize(opts.size);
+      const aspectRatio =
+        opts.aspectRatio === undefined
+          ? undefined
+          : parseAspectRatio(opts.aspectRatio);
+      const maxImagesPerCall =
+        opts.maxImagesPerCall === undefined
+          ? undefined
+          : parsePositiveInt(opts.maxImagesPerCall, "max-images-per-call");
+      if (
+        opts.api !== undefined &&
+        !["generateImage", "generateText"].includes(opts.api)
+      )
+        throw new Error("--api must be generateImage or generateText");
+      if (opts.generateTextOptions && opts.api === "generateImage")
+        throw new Error("--generate-text-options requires --api generateText");
+      const textOptions = opts.generateTextOptions
+        ? await readGenerateTextOptions(opts.generateTextOptions)
+        : {};
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
-      const imageReferenceInputs = opts.image ?? [];
-      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
-        process.stderr.write(
-          "Error: prompt or reference image is required (provide a prompt, --image, or pipe an image via stdin)\n"
-        );
-        process.exit(1);
-      }
-
-      let referenceImages: ImageReference[] = [];
-      try {
-        referenceImages = await loadImageReferences(imageReferenceInputs);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
-        process.exit(1);
-      }
-
       const images: ImageReference[] = [
         ...(stdin ? [new Uint8Array(stdin)] : []),
-        ...referenceImages,
+        ...(await loadImageReferences(opts.images ?? [], "images")),
       ];
-
-      let imagePrompt: string | { images: ImageReference[]; text?: string };
-      if (images.length > 0) {
-        imagePrompt = prompt ? { images, text: prompt } : { images };
-      } else {
-        imagePrompt = prompt!;
-      }
-
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("image", opts.model, gatewayModels.image);
-      const languageImageModelIds = new Set([
-        ...gatewayModels.languageImageModelIds,
+      const mask =
+        opts.mask === undefined
+          ? undefined
+          : (await loadImageReferences([opts.mask], "mask"))[0];
+      if (mask !== undefined && images.length === 0)
+        throw new Error("--mask requires --images or piped image input");
+      if (!prompt && images.length === 0)
+        throw new Error(
+          "prompt or reference image is required (use --images or pipe an image via stdin)"
+        );
+      const imagePrompt =
+        images.length > 0 ? { images, text: prompt, mask } : prompt!;
+      const catalog = await fetchGatewayModels(settings.catalogOptions);
+      const models = resolveModels("image", opts.model, catalog.image);
+      const explicitApi =
+        opts.api ?? (opts.generateTextOptions ? "generateText" : undefined);
+      if (!explicitApi && !catalog.available)
+        throw new Error(
+          "Cannot determine the image API because model discovery failed. Retry or select --api generateImage / --api generateText explicitly."
+        );
+      const languageIds = new Set([
+        ...catalog.languageImageModelIds,
         ...SVG_LANGUAGE_IMAGE_MODEL_IDS,
       ]);
-      const countPerModel = opts.count
-        ? parsePositiveInt(opts.count, "count")
-        : 1;
-      const size = opts.size ? parseSize(opts.size) : undefined;
-      const aspectRatio = opts.aspectRatio
-        ? parseAspectRatio(opts.aspectRatio)
-        : undefined;
-      const provOpts = buildProviderOptions(opts);
-
-      if (
-        (opts.quality || opts.style) &&
-        models.every((m) => !m.startsWith("openai/"))
-      ) {
-        process.stderr.write(
-          "Warning: --quality and --style only apply to OpenAI models\n"
-        );
+      const usesText = (model: string) =>
+        explicitApi === "generateText" ||
+        (!explicitApi && languageIds.has(model));
+      if (models.some(usesText)) {
+        if (size || mask || maxImagesPerCall !== undefined || settings.n !== 1)
+          throw new Error(
+            "generateText does not support --size, --mask, --max-images-per-call or --n other than 1; use --provider-options for model-specific image settings"
+          );
+        if (
+          aspectRatio &&
+          models.some(
+            (model) => usesText(model) && !model.startsWith("google/")
+          )
+        )
+          throw new Error(
+            "--aspect-ratio on generateText is supported for Google imageConfig only; use --provider-options for this model"
+          );
       }
-
-      if (opts.size && models.some((m) => languageImageModelIds.has(m))) {
-        process.stderr.write(
-          "Warning: --size is not supported by language image models; use --aspect-ratio instead\n"
-        );
-      }
-
-      const jobs = buildJobs(models, countPerModel);
-
-      const { total, failed } = await runJobs(
-        jobs,
+      await runMediaJobs(
+        models,
         async (modelId) => {
-          const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
-
-          if (languageImageModelIds.has(modelId)) {
-            const messageContent: Array<
-              | { type: "text"; text: string }
-              | { type: "image"; image: ImageReference }
-            > = [];
-            if (typeof imagePrompt === "string") {
-              messageContent.push({ type: "text", text: imagePrompt });
-            } else {
-              for (const img of imagePrompt.images) {
-                messageContent.push({ type: "image", image: img });
-              }
-              if (imagePrompt.text) {
-                messageContent.push({
-                  type: "text",
-                  text: imagePrompt.text,
-                });
-              } else {
-                messageContent.push({
-                  type: "text",
-                  text: "Generate an image",
-                });
-              }
-            }
-            const creator = gatewayModels.all.find(
-              (m) => m.id === modelId
-            )?.creator;
+          const common = {
+            headers: settings.headers,
+            seed: settings.seed,
+            maxRetries: settings.maxRetries,
+            abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
+          };
+          if (usesText(modelId)) {
             const result = await generateText({
-              headers: {
-                "http-referer": "https://github.com/vercel-labs/ai-cli",
-                "x-title": "ai-cli",
-              },
-              model: gateway(modelId),
-              messages: [{ role: "user", content: messageContent }],
-              abortSignal: abort,
-              providerOptions: languageImageProviderOptions(
-                creator,
-                aspectRatio
-              ),
+              ...textOptions,
+              ...common,
+              model: settings.gateway(modelId),
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    ...images.map((image) => ({
+                      type: "image" as const,
+                      image,
+                    })),
+                    { type: "text", text: prompt ?? "Generate an image" },
+                  ],
+                },
+              ],
+              providerOptions: mergeOptions(
+                languageImageProviderOptions(
+                  modelId.split("/")[0],
+                  aspectRatio
+                ) ?? {},
+                settings.providerOptions
+              ) as typeof settings.providerOptions,
             });
-            const imageFile = result.files?.find((f) =>
-              f.mediaType.startsWith("image/")
+            const artifacts = result.files
+              .filter((file) => file.mediaType.startsWith("image/"))
+              .map((file) => artifact(file, result.response.id));
+            artifacts.push(
+              ...toolImages(
+                result.toolResults,
+                textOptions.tools,
+                result.response.id
+              )
             );
-            if (imageFile) {
-              return {
-                data: Buffer.from(imageFile.uint8Array),
-                id: result.response.id,
-                mediaType: imageFile.mediaType,
-              };
+            if (artifacts.length === 0 && SVG_IMAGE_MODEL_IDS.has(modelId)) {
+              const svg = extractSvgImage(result.text);
+              if (svg)
+                artifacts.push({
+                  data: svg,
+                  mediaType: "image/svg+xml",
+                  id: result.response.id,
+                });
             }
-
-            const svg = SVG_IMAGE_MODEL_IDS.has(modelId)
-              ? extractSvgImage(result.text)
-              : undefined;
-            if (!svg) {
-              throw new Error(
-                `Model ${modelId} did not return an image in the response`
-              );
-            }
+            const {
+              messages: _messages,
+              body: _body,
+              ...response
+            } = result.response;
             return {
-              data: svg,
-              id: result.response.id,
-              mediaType: "image/svg+xml",
+              artifacts,
+              text: result.text,
+              usage: result.usage,
+              totalUsage: result.totalUsage,
+              warnings: result.warnings,
+              providerMetadata: result.providerMetadata,
+              response,
+              finishReason: result.finishReason,
+              // Tool image bytes live in artifacts, not in the diagnostic manifest.
+              toolResults: result.toolResults.map((item) => ({
+                ...item,
+                output:
+                  textOptions.tools?.[item.toolName]?.id ===
+                    "openai.image_generation" &&
+                  typeof item.output === "object" &&
+                  item.output !== null &&
+                  "result" in item.output
+                    ? { ...item.output, result: "[saved as image]" }
+                    : item.output,
+              })),
             };
           }
-
           const result = await generateImage({
-            headers: {
-              "http-referer": "https://github.com/vercel-labs/ai-cli",
-              "x-title": "ai-cli",
-            },
-            model: gateway.image(modelId),
+            ...common,
+            model: settings.gateway.image(modelId),
             prompt: imagePrompt,
-            abortSignal: abort,
-            n: 1,
+            n: settings.n,
+            maxImagesPerCall,
             size,
             aspectRatio,
-            providerOptions:
-              Object.keys(provOpts).length > 0 ? provOpts : undefined,
+            providerOptions: settings.providerOptions,
           });
+          const calls = result.calls.map((call) => ({
+            images: call.images.map((file) => ({
+              ...artifact(file, responseIdFromHeaders(call.response.headers)),
+              mediaType: generatedImageMediaType(modelId, file.mediaType),
+            })),
+            response: call.response,
+            providerMetadata: call.providerMetadata,
+            warnings: call.warnings,
+            usage: call.usage,
+          }));
           return {
-            data: Buffer.from(result.image.uint8Array),
-            id: responseIdFromHeaders(result.responses[0]?.headers),
-            mediaType: generatedImageMediaType(modelId, result.image.mediaType),
+            artifacts: calls.flatMap((call) => call.images),
+            usage: result.usage,
+            warnings: result.warnings,
+            calls,
           };
         },
         {
-          noun: "image",
+          ...opts,
+          n: settings.n,
+          concurrency: settings.concurrency,
           format: "image",
-          outputPath: opts.output,
-          quiet: opts.quiet,
-          json: opts.json,
-          display: opts.preview,
-          concurrency: opts.concurrency
-            ? parsePositiveInt(opts.concurrency, "concurrency")
-            : DEFAULT_CONCURRENCY,
         }
       );
-      if (failed === total) process.exit(1);
-      if (failed > 0) process.exit(2);
     }
   );
 }
@@ -339,16 +356,4 @@ export function languageImageProviderOptions(
       ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}),
     },
   };
-}
-
-function buildProviderOptions(
-  opts: ImageOptions
-): Record<string, Record<string, string>> {
-  const providerOptions: Record<string, Record<string, string>> = {};
-  if (opts.quality || opts.style) {
-    providerOptions.openai = {};
-    if (opts.quality) providerOptions.openai.quality = opts.quality;
-    if (opts.style) providerOptions.openai.style = opts.style;
-  }
-  return providerOptions;
 }

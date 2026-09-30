@@ -10,6 +10,11 @@ import {
   formatWebSearchPrice,
 } from "../lib/format.js";
 import {
+  addGatewayConnectionOptions,
+  mediaSettings,
+  type MediaOptions,
+} from "../lib/media-options.js";
+import {
   expandModelId,
   fetchGatewayModels,
   fetchModelEndpoints,
@@ -40,8 +45,12 @@ function pricingString(pricing: ModelEntry["pricing"], key: string) {
   return typeof value === "string" && value !== "" ? value : undefined;
 }
 
-async function showModelInfo(input: string, json: boolean): Promise<void> {
-  const gatewayModels = await fetchGatewayModels();
+async function showModelInfo(
+  input: string,
+  json: boolean,
+  options: Awaited<ReturnType<typeof mediaSettings>>["catalogOptions"]
+): Promise<void> {
+  const gatewayModels = await fetchGatewayModels(options);
   const id = expandModelId(input, gatewayModels.lookup);
   const entry = gatewayModels.lookup.find((m) => m.id === id);
   if (!entry) {
@@ -51,10 +60,11 @@ async function showModelInfo(input: string, json: boolean): Promise<void> {
     process.exit(1);
   }
 
-  const endpointsInfo = await fetchModelEndpoints(entry.id);
+  const endpointsInfo = await fetchModelEndpoints(entry.id, options);
 
   if (json) {
     const output = {
+      ...entry,
       id: entry.id,
       ...(entry.name ? { name: entry.name } : {}),
       ...(entry.description ? { description: entry.description } : {}),
@@ -151,7 +161,7 @@ async function showModelInfo(input: string, json: boolean): Promise<void> {
 }
 
 export function registerModelsCommand(program: Command) {
-  program
+  const command = program
     .command("models")
     .description("List available models from AI Gateway")
     .argument(
@@ -163,119 +173,125 @@ export function registerModelsCommand(program: Command) {
       "Filter by type: text, image, video, audio, speech, transcription, evaluation"
     )
     .option("--creator <name>", "Filter by creator (e.g. openai, google)")
-    .option("--json", "Output as JSON (includes descriptions)")
-    .action(
-      async (
-        model: string | undefined,
-        opts: { type?: string; creator?: string; json?: boolean }
-      ) => {
-        if (model) {
-          if (opts.type || opts.creator) {
-            process.stderr.write(
-              "Error: --type and --creator cannot be used with a model argument\n"
-            );
-            process.exit(1);
-          }
-          await showModelInfo(model, opts.json ?? false);
-          return;
-        }
-        const validTypes = [
-          "text",
-          "image",
-          "video",
-          "audio",
-          "speech",
-          "transcription",
-          "evaluation",
-        ];
-        const filterType = opts.type?.toLowerCase() as ModelFilter | undefined;
-        if (filterType && !validTypes.includes(filterType)) {
+    .option("--json", "Output as JSON (includes native Gateway capabilities)");
+  addGatewayConnectionOptions(command).action(
+    async (
+      model: string | undefined,
+      opts: Partial<MediaOptions> & {
+        type?: string;
+        creator?: string;
+        json?: boolean;
+      }
+    ) => {
+      const { catalogOptions } = await mediaSettings(opts);
+      if (model) {
+        if (opts.type || opts.creator) {
           process.stderr.write(
-            `Error: --type must be one of: ${validTypes.join(", ")} (got "${opts.type}")\n`
+            "Error: --type and --creator cannot be used with a model argument\n"
           );
           process.exit(1);
         }
-        const filterCreator = opts.creator?.toLowerCase();
+        await showModelInfo(model, opts.json ?? false, catalogOptions);
+        return;
+      }
+      const validTypes = [
+        "text",
+        "image",
+        "video",
+        "audio",
+        "speech",
+        "transcription",
+        "evaluation",
+      ];
+      const filterType = opts.type?.toLowerCase() as ModelFilter | undefined;
+      if (filterType && !validTypes.includes(filterType)) {
+        process.stderr.write(
+          `Error: --type must be one of: ${validTypes.join(", ")} (got "${opts.type}")\n`
+        );
+        process.exit(1);
+      }
+      const filterCreator = opts.creator?.toLowerCase();
 
-        const gatewayModels = await fetchGatewayModels();
+      const gatewayModels = await fetchGatewayModels(catalogOptions);
 
-        if (opts.json) {
-          let entries = gatewayModels.all;
-          if (filterType) {
-            entries = entries.filter((m) =>
-              filterType === "audio"
-                ? m.capabilities.includes("speech") ||
-                  m.capabilities.includes("transcription")
-                : m.capabilities.includes(filterType)
-            );
-          }
-          if (filterCreator) {
-            entries = entries.filter(
-              (m) => m.creator.toLowerCase() === filterCreator
-            );
-          }
-          const output = entries.map((m) => ({
-            id: m.id,
-            ...(m.name ? { name: m.name } : {}),
-            ...(m.description ? { description: m.description } : {}),
-            creator: m.creator,
-            capabilities: m.capabilities,
-            ...(m.pricing ? { pricing: m.pricing } : {}),
-          }));
-          process.stdout.write(JSON.stringify(output, null, 2) + "\n");
-          return;
+      if (opts.json) {
+        let entries = gatewayModels.all;
+        if (filterType) {
+          entries = entries.filter((m) =>
+            filterType === "audio"
+              ? m.capabilities.includes("speech") ||
+                m.capabilities.includes("transcription")
+              : m.capabilities.includes(filterType)
+          );
         }
-
-        const sections: { title: string; entries: ModelEntry[] }[] = [];
-        if (!filterType || filterType === "text")
-          sections.push({ title: "Text", entries: gatewayModels.text });
-        if (!filterType || filterType === "image")
-          sections.push({ title: "Image", entries: gatewayModels.image });
-        if (!filterType || filterType === "video")
-          sections.push({ title: "Video", entries: gatewayModels.video });
-        if (!filterType || filterType === "evaluation")
-          sections.push({
-            title: "Evaluation",
-            entries: gatewayModels.evaluation,
-          });
-        if (!filterType || filterType === "audio" || filterType === "speech")
-          sections.push({ title: "Speech", entries: gatewayModels.speech });
-        if (
-          !filterType ||
-          filterType === "audio" ||
-          filterType === "transcription"
-        )
-          sections.push({
-            title: "Transcription",
-            entries: gatewayModels.transcription,
-          });
-
-        let totalCount = 0;
-        for (const section of sections) {
-          let entries = section.entries;
-          if (filterCreator) {
-            entries = entries.filter(
-              (m) => m.creator.toLowerCase() === filterCreator
-            );
-          }
-          const grouped = groupByCreator(entries);
-          const count = [...grouped.values()].reduce((s, m) => s + m.length, 0);
-          if (count === 0) continue;
-          totalCount += count;
-          process.stdout.write(`\n${section.title} models (${count}):\n`);
-          for (const [creator, models] of grouped) {
-            process.stdout.write(`\n  ${creator}\n`);
-            for (const m of models) {
-              process.stdout.write(`    ${modelName(m.id)}\n`);
-            }
-          }
+        if (filterCreator) {
+          entries = entries.filter(
+            (m) => m.creator.toLowerCase() === filterCreator
+          );
         }
+        const output = entries.map((m) => ({
+          ...m,
+          id: m.id,
+          ...(m.name ? { name: m.name } : {}),
+          ...(m.description ? { description: m.description } : {}),
+          creator: m.creator,
+          capabilities: m.capabilities,
+          ...(m.pricing ? { pricing: m.pricing } : {}),
+        }));
+        process.stdout.write(JSON.stringify(output, null, 2) + "\n");
+        return;
+      }
 
-        if (totalCount === 0) {
-          process.stderr.write("No models found matching filters\n");
-        } else {
-          process.stdout.write("\n");
+      const sections: { title: string; entries: ModelEntry[] }[] = [];
+      if (!filterType || filterType === "text")
+        sections.push({ title: "Text", entries: gatewayModels.text });
+      if (!filterType || filterType === "image")
+        sections.push({ title: "Image", entries: gatewayModels.image });
+      if (!filterType || filterType === "video")
+        sections.push({ title: "Video", entries: gatewayModels.video });
+      if (!filterType || filterType === "evaluation")
+        sections.push({
+          title: "Evaluation",
+          entries: gatewayModels.evaluation,
+        });
+      if (!filterType || filterType === "audio" || filterType === "speech")
+        sections.push({ title: "Speech", entries: gatewayModels.speech });
+      if (
+        !filterType ||
+        filterType === "audio" ||
+        filterType === "transcription"
+      )
+        sections.push({
+          title: "Transcription",
+          entries: gatewayModels.transcription,
+        });
+
+      let totalCount = 0;
+      for (const section of sections) {
+        let entries = section.entries;
+        if (filterCreator) {
+          entries = entries.filter(
+            (m) => m.creator.toLowerCase() === filterCreator
+          );
+        }
+        const grouped = groupByCreator(entries);
+        const count = [...grouped.values()].reduce((s, m) => s + m.length, 0);
+        if (count === 0) continue;
+        totalCount += count;
+        process.stdout.write(`\n${section.title} models (${count}):\n`);
+        for (const [creator, models] of grouped) {
+          process.stdout.write(`\n  ${creator}\n`);
+          for (const m of models) {
+            process.stdout.write(`    ${modelName(m.id)}\n`);
+          }
         }
       }
-    );
+
+      if (totalCount === 0) {
+        process.stderr.write("No models found matching filters\n");
+      } else {
+        process.stdout.write("\n");
+      }
+    }
+  );
 }

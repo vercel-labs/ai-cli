@@ -43,8 +43,8 @@
     "prepack": "bun run typecheck && bun run build"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "4.0.85",
-    "ai": "7.0.105",
+    "@ai-sdk/gateway": "4.0.101",
+    "ai": "7.0.123",
     "sharp": "0.35.4"
   },
   "devDependencies": {

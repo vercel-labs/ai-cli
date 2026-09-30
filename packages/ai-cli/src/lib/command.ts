@@ -120,6 +120,17 @@ export class Command {
   }
 
   private async run(args: string[], optionsEnded = false): Promise<void> {
+    // Commands such as video have a default action as well as start/status.
+    // `--` always permits a prompt that happens to be a subcommand name.
+    if (
+      this.actionHandler &&
+      (optionsEnded ||
+        (args[0] !== "help" &&
+          !this.commands.some((child) => child.commandName === args[0])))
+    ) {
+      await this.runLeaf(args, optionsEnded);
+      return;
+    }
     if (this.commands.length > 0) {
       await this.runParent(args, optionsEnded);
       return;
