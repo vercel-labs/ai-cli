@@ -28,31 +28,88 @@ Requires `AI_GATEWAY_API_KEY` or a provider-specific key (e.g. `OPENAI_API_KEY`)
 ai text "explain this code"              # generate text
 ai image "a sunset over mountains"       # generate an image
 ai video "a spinning triangle"           # generate a video
+ai video start "a spinning triangle" -o operation.json  # submit a video job
+ai video status operation.json --download -o ./clips/    # check and download it
 ai audio speak "hello"                   # generate speech
 ai audio transcribe recording.mp3        # transcribe audio
 ai models --type audio                   # list speech and transcription models
 ```
 
-## Video Resolution
-
-Use `--resolution <WxH>` to request a specific video output resolution. Supported resolutions vary by model.
-
-```bash
-ai video "a cinematic landscape" --resolution 1920x1080
-```
-
 ## Key Flags
 
-Generation commands support:
+For image and video, use these flags:
 
 ```
 -m, --model <id>       Model ID (provider/name or short name), comma-separated for multi-model
 -o, --output <path>    Output file or directory
--n, --count <n>        Number of generations per model
+-n, --n <n>            Number of outputs per model (default: 1)
+-p, --concurrency <n>  Parallel models (image: 4; video: 2)
 -q, --quiet            Suppress progress output
---json                 Output structured metadata as JSON (paths, timing, success/failure)
---timeout <seconds>    Request timeout in seconds (see Timeouts for per-command defaults)
+--json                 Save artifacts and print a JSON manifest
+--timeout <seconds>    Request deadline (image: 300; video: 600)
+--provider-options <path> JSON provider settings and Gateway routing
+--seed <integer>       Generation seed, including 0
+--max-retries <n>      SDK retries (default: 2)
 ```
+
+Text and audio still use `-n, --count`, not `--n`. `--quiet`, `--json`,
+`--timeout`, `--model`, and `--output` also apply to those commands.
+
+## Image Options
+
+Use repeatable `--images` for image references and `--mask` to edit a region.
+Image stdin adds another reference. `--n` requests multiple images per model;
+`--max-images-per-call` splits SDK batches when needed.
+
+```bash
+ai image --images photo.png --mask mask.png "replace the background" --json -o ./renders/
+ai image "a sunset" --n 3 --max-images-per-call 2 --json -o ./renders/
+```
+
+`--size <WxH>` and `--aspect-ratio <W:H>` request dimensions. Use
+`--api generateImage` or `--api generateText` to select an API explicitly.
+Automatic routing uses the Gateway image catalog; if discovery fails or an
+unknown image model is missing from the catalog, provide a full model ID and
+`--api`. Quiver Arrow 2 SVG language-image models can route through
+`generateText` when the catalog is available even if absent from its image list.
+`--generate-text-options <path>` selects `generateText` and accepts JSON SDK
+settings and provider tools. That API rejects `--size`, `--mask`,
+`--max-images-per-call`, and `--n` other than 1. For Gemini image size, use
+`{"google":{"imageConfig":{"imageSize":"4K"}}}` in `--provider-options`.
+
+Provider-specific quality, style, and output format belong in a JSON file, for
+example `{"openai":{"quality":"high","outputFormat":"webp"}}` with
+`--provider-options image-options.json`. `--output` selects a file destination;
+`outputFormat` selects the encoded format.
+
+## Video Options
+
+Use one `--image` or piped image as `prompt.image`. Use `--frame-images` for
+first/last frame roles and `--input-references` for multiple reference files.
+Both flags take JSON files. For example, `frames.json` can contain:
+
+```json
+[
+  { "image": "start.png", "frameType": "first_frame" },
+  { "image": "end.png", "frameType": "last_frame" }
+]
+```
+
+```bash
+ai video "a smooth camera move" --frame-images frames.json --duration 5
+ai video "a cinematic landscape" --resolution 1920x1080 --fps 24
+ai video "a scene" --n 2 --max-videos-per-call 1 --json -o ./clips/
+```
+
+`--aspect-ratio <W:H|adaptive>`, `--duration <seconds>`, `--fps <number>`,
+`--generate-audio` / `--no-generate-audio`, and `--resolution <WxH>` follow
+model capabilities. Video polls by default; use `--poll-interval-ms`,
+`--poll-timeout-ms`, and `--download-max-bytes` for finer control. For long jobs,
+`ai video start` returns an operation JSON immediately; `ai video status` checks
+it once, and `--download` saves completed media. `start` accepts one model and
+one SDK operation. Keep the operation JSON private because provider metadata
+may contain a webhook secret. See [Commands](https://ai-cli.dev/docs/commands)
+for reference JSON and all options.
 
 ## Piping Patterns
 
@@ -208,19 +265,24 @@ ai image "a sunset" --json
 Returns:
 ```json
 {
-  "elapsed_ms": 3420,
-  "count": 1,
+  "elapsedMs": 3420,
   "results": [
     {
-      "index": 1,
       "model": "openai/gpt-image-2",
-      "elapsed_ms": 3420,
+      "elapsedMs": 3420,
       "success": true,
-      "file": "/path/to/resp_abc123.png"
+      "images": [{ "file": "/path/to/resp_abc123.png", "mediaType": "image/png" }],
+      "warnings": [],
+      "calls": []
     }
   ]
 }
 ```
+
+Image/video results include `images` or `videos` arrays with every artifact.
+They can also include usage, provider metadata, responses, successful call
+diagnostics, and `failures`. `--json` keeps stdout parseable and saves artifacts
+to files even when stdout is piped.
 
 ## Multi-Model Comparison
 
@@ -232,19 +294,24 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 
 - **evaluate**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
 - **Generation, interactive (TTY)**: saves to file, prints path to stderr
-- **Piped (non-TTY)**: writes raw content to stdout for chaining
+- **Piped (non-TTY)**: a single image/video artifact writes raw bytes to stdout;
+  multiple artifacts save to separate files. Text/audio retain their own stdout
+  behavior
 - **`-o <dir>`**: saves inside directory with auto-generated names
 
 When the CLI chooses a filename, it uses a response ID when available and falls back to a random 8-character ID, such as `resp_abc123.png` or `7f3a9c1d.mp3`.
 
-**Important for agents**: Always use `-o` to save to a file when generating images, video, or speech audio. Without `-o` in a non-TTY context, raw binary data is written to stdout, which wastes context and is not useful for agents. Use `-o output.png`, `-o speech.mp3`, or an output directory and read the file path from `--json` output instead.
+**Important for agents**: Use `--json -o ./renders/` or a specific output file
+when you need saved media, so binary stdout does not enter your context. Direct
+image-to-video piping is useful when one image is expected. Multiple image or
+video outputs are saved separately and can be read from the JSON manifest.
 
 ## Timeouts
 
 - evaluate: 30 seconds including evaluation retries
 - text: 120 seconds
 - image: 300 seconds
-- video: 300 seconds
+- video: 600 seconds
 - audio speak: 120 seconds
 - audio transcribe: 120 seconds
 
@@ -259,5 +326,6 @@ The value is in seconds, not milliseconds, and is capped at 2147483.
 ## Exit Codes
 
 - `0` — success
-- `1` — invalid input or request failure; all generations failed
-- `2` — partial generation failure (some succeeded)
+- `1` — invalid input or request failure; no image/video model result fully
+  succeeded, including one that saved partial media
+- `2` — some image/video model results fully succeeded and others failed

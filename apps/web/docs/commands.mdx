@@ -84,7 +84,9 @@ which are all saved. Other language image models use provider-specific controls.
 
 `--api generateText` selects a language model explicitly; `--api generateImage`
 selects a dedicated image model. If discovery fails, returns an invalid catalog,
-or omits the selected image model, automatic routing stops with an error.
+or omits the selected image model, automatic routing stops with an error. The
+known Quiver Arrow 2 SVG language-image models still route to `generateText`
+when they are absent from the image catalog.
 Explicit `--api` and a full model ID allow generation without discovery.
 When the catalog is available, `generateText` also resolves short names against
 language models, including when selected by `--generate-text-options`.

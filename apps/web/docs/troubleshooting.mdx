@@ -74,7 +74,7 @@ npm update -g ai-cli
 
 ## Gateway unreachable
 
-If the AI Gateway is unreachable, the `models` command will return an empty list and short-name resolution will be unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Image generation also requires an explicit `--api generateImage` or `--api generateText` when discovery fails or the selected model is missing from the image catalog, so the selected API cannot change silently. Video and other generation commands can use full model IDs.
+If the AI Gateway is unreachable, the `models` command will return an empty list and short-name resolution will be unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Image generation also requires an explicit `--api generateImage` or `--api generateText` when discovery fails or the selected model is missing from the image catalog, so the selected API cannot change silently. Known Quiver Arrow 2 SVG language-image models are an exception when the catalog is available: they use `generateText` even if absent from its image list. Video and other generation commands can use full model IDs.
 
 Check your network connection and verify the gateway status at [vercel.com/status](https://www.vercel.com/status).
 

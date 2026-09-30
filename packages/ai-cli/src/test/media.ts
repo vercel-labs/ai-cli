@@ -33,6 +33,10 @@ globalThis.fetch = async (url, init) => {
       { id: 'openai/gpt-image-2', type: 'image' },
       { id: 'openai/gpt-5.5', type: 'language' },
       { id: 'google/gemini-3-pro-image', type: 'language', owned_by: 'google', tags: ['image-generation'] },
+      ...(mode === 'arrow-catalog' ? [
+        { id: 'quiverai/arrow-2', type: 'language' },
+        { id: 'quiverai/arrow-2-telos', type: 'language' }
+      ] : []),
       { id: 'bytedance/seedance-2.0', type: 'video', video_capabilities: { durations: [4, 15] }, supported_specifications: ['video-v4'], modalities: { input: ['text', 'image'], output: ['video'] } }
     ] });
   }
@@ -52,7 +56,8 @@ globalThis.fetch = async (url, init) => {
     content: mode === 'tool' ? [
       { type: 'tool-call', toolCallId: 'call-1', toolName: 'image_generation', input: '{}', providerExecuted: true },
       { type: 'tool-result', toolCallId: 'call-1', toolName: 'image_generation', result: { result: png, outputFormat: 'webp', revisedPrompt: 'tool revised' } }
-    ] : [ { type: 'text', text: 'Two generated images' }, ...[1, 2].map(() => ({ type: 'file', data: { type: 'data', data: png }, mediaType: 'image/png' })) ],
+    ] : mode === 'arrow-catalog' ? [ { type: 'text', text: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>' } ]
+      : [ { type: 'text', text: 'Two generated images' }, ...[1, 2].map(() => ({ type: 'file', data: { type: 'data', data: png }, mediaType: 'image/png' })) ],
     finishReason: { unified: 'stop', raw: 'STOP' }, usage: { inputTokens: { total: 12 }, outputTokens: { total: 34 } }, warnings: [],
     response: { id: 'language-id' }
   });

@@ -116,10 +116,21 @@ export function registerImageCommand(program: Command) {
       const catalog = await fetchGatewayModels(settings.catalogOptions);
       const explicitApi =
         opts.api ?? (opts.generateTextOptions ? "generateText" : undefined);
+      const languageIds = new Set([
+        ...catalog.languageImageModelIds,
+        ...SVG_LANGUAGE_IMAGE_MODEL_IDS,
+      ]);
       const models = resolveModels(
         "image",
         opts.model,
-        explicitApi === "generateText" ? catalog.text : catalog.image
+        explicitApi === "generateText"
+          ? catalog.text
+          : explicitApi === "generateImage"
+            ? catalog.image
+            : [
+                ...catalog.image,
+                ...[...SVG_LANGUAGE_IMAGE_MODEL_IDS].map((id) => ({ id })),
+              ]
       );
       if (!explicitApi && !catalog.available)
         throw new Error(
@@ -127,17 +138,15 @@ export function registerImageCommand(program: Command) {
         );
       const missingModel = !explicitApi
         ? models.find(
-            (model) => !catalog.image.some((entry) => entry.id === model)
+            (model) =>
+              !languageIds.has(model) &&
+              !catalog.image.some((entry) => entry.id === model)
           )
         : undefined;
       if (missingModel)
         throw new Error(
           `Cannot determine the image API for ${missingModel} because it is missing from the Gateway image catalog. Select --api generateImage or --api generateText explicitly.`
         );
-      const languageIds = new Set([
-        ...catalog.languageImageModelIds,
-        ...SVG_LANGUAGE_IMAGE_MODEL_IDS,
-      ]);
       const usesText = (model: string) =>
         explicitApi === "generateText" ||
         (!explicitApi && languageIds.has(model));

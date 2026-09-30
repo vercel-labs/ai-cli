@@ -255,6 +255,34 @@ describe("SDK image generation", () => {
     expect(output.images[0].id).toBe(output.response.id);
   });
 
+  test("routes Arrow SVG models through generateText without an explicit API", async () => {
+    for (const name of ["arrow-2", "arrow-2-telos"]) {
+      const result = await generate(
+        [
+          "draw an icon",
+          "-m",
+          name,
+          "--json",
+          "-o",
+          join(fixture.directory, `${name}/`),
+        ],
+        "arrow-catalog"
+      );
+      expect(result.exitCode).toBe(0);
+      const request = result.requests.find((item) =>
+        item.route.endsWith("/language-model")
+      );
+      expect(request.headers["ai-language-model-id"]).toBe(`quiverai/${name}`);
+      expect(
+        result.requests.some((item) => item.route.endsWith("/image-model"))
+      ).toBe(false);
+      const output = JSON.parse(result.stdout).results[0];
+      expect(output.images).toHaveLength(1);
+      expect(output.images[0].file.endsWith(".svg")).toBe(true);
+      expect(readFileSync(output.images[0].file, "utf8")).toContain("<svg");
+    }
+  });
+
   test("extracts OpenAI provider-tool image output using its configured format", async () => {
     const result = await generate(
       [
