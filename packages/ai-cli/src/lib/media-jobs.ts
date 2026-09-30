@@ -11,10 +11,47 @@ export interface MediaArtifact {
   providerMetadata?: unknown;
 }
 
+export interface MediaFailure {
+  kind: "batch" | "download";
+  index: number;
+  requested?: number;
+  error: ReturnType<typeof errorDetails>;
+}
+
 export interface MediaResult {
   artifacts: MediaArtifact[];
   calls?: Array<{ images: MediaArtifact[]; [key: string]: unknown }>;
+  failures?: MediaFailure[];
   [key: string]: unknown;
+}
+
+export async function runMediaBatches<T>(
+  n: number,
+  maxPerCall: number | undefined,
+  generate: (count: number) => Promise<T>
+): Promise<
+  Array<
+    | { index: number; requested: number; result: T; error?: never }
+    | {
+        index: number;
+        requested: number;
+        result?: never;
+        error: ReturnType<typeof errorDetails>;
+      }
+  >
+> {
+  const perCall = Math.min(maxPerCall ?? n, n);
+  const counts = Array.from({ length: Math.ceil(n / perCall) }, (_, index) =>
+    Math.min(perCall, n - index * perCall)
+  );
+  const outcomes = await Promise.allSettled(counts.map(generate));
+  return outcomes.map((outcome, index) => ({
+    index: index + 1,
+    requested: counts[index]!,
+    ...(outcome.status === "fulfilled"
+      ? { result: outcome.value }
+      : { error: errorDetails(outcome.reason) }),
+  }));
 }
 
 export function artifact(file: GeneratedFile, id?: string): MediaArtifact {
@@ -51,8 +88,14 @@ export async function runMediaJobs(
       const files: Record<string, unknown>[] = [];
       let metadata: Record<string, unknown> = {};
       try {
-        const { artifacts, calls, ...diagnostics } = await generate(model);
+        const {
+          artifacts,
+          calls,
+          failures = [],
+          ...diagnostics
+        } = await generate(model);
         metadata = diagnostics;
+        if (failures.length) metadata.failures = failures;
         const artifactInfo = new Map(
           artifacts.map((item) => [
             item,
@@ -69,7 +112,7 @@ export async function runMediaJobs(
             ...call,
             images: call.images.map((item) => artifactInfo.get(item)),
           }));
-        if (!artifacts.length)
+        if (!artifacts.length && !failures.length)
           throw new Error(`Model ${model} did not return any ${opts.format}s`);
         const multiple =
           models.length > 1 || opts.n > 1 || artifacts.length > 1;
@@ -96,11 +139,21 @@ export async function runMediaJobs(
         ) {
           process.stderr.write(`${diagnostics.text}\n`);
         }
+        const incomplete = artifacts.length < opts.n || failures.length > 0;
+        const detail = incomplete
+          ? {
+              name: "IncompleteMediaResult",
+              message: `Requested ${opts.n} ${opts.format} output(s), saved ${files.length}${failures.length ? `; ${failures.length} batch or download failure(s): ${failures[0]!.error.message}` : ""}`,
+            }
+          : undefined;
+        if (detail)
+          process.stderr.write(`Error (${model}): ${detail.message}\n`);
         return {
           model,
-          success: true,
+          success: !detail,
           elapsedMs: Date.now() - jobStart,
           ...metadata,
+          ...(detail ? { error: detail } : {}),
           [opts.format === "image" ? "images" : "videos"]: files,
         };
       } catch (error) {

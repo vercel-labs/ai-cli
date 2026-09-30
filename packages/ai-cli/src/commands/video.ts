@@ -14,10 +14,16 @@ import {
   collectImageReference,
   loadImageReferences,
 } from "../lib/image-references.js";
-import { artifact, runMediaJobs } from "../lib/media-jobs.js";
+import {
+  artifact,
+  errorDetails,
+  runMediaBatches,
+  runMediaJobs,
+} from "../lib/media-jobs.js";
 import {
   addGatewayOptions,
   addMediaOptions,
+  isObject,
   mediaSettings,
   readJsonObject,
   validateUrl,
@@ -173,36 +179,51 @@ export function registerVideoCommand(program: Command) {
     await runMediaJobs(
       models,
       async (modelId) => {
-        const result = await generateVideo({
-          ...request,
-          model: settings.gateway.video(modelId),
-          poll,
-          download,
-          abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
-        });
-        // The SDK flattens videos but retains one response per call. Requested
-        // batch sizes identify each video's call only when all videos arrived.
-        const videosPerCall = request.maxVideosPerCall ?? settings.n;
-        const completeBatches =
-          result.videos.length === settings.n &&
-          result.responses.length === Math.ceil(settings.n / videosPerCall);
-        const responseIds = result.responses.map((response) =>
-          responseIdFromHeaders(response.headers)
+        const abortSignal = AbortSignal.timeout(timeoutMs(opts.timeout));
+        const batches = await runMediaBatches(
+          settings.n,
+          request.maxVideosPerCall,
+          (count) =>
+            generateVideo({
+              ...request,
+              n: count,
+              maxVideosPerCall: count,
+              model: settings.gateway.video(modelId),
+              poll,
+              download,
+              abortSignal,
+            })
+        );
+        const completed = batches.flatMap((batch) =>
+          batch.result ? [{ ...batch, result: batch.result }] : []
         );
         return {
-          artifacts: result.videos.map((file, index) =>
-            artifact(
-              file,
-              responseIds.length === 1
-                ? responseIds[0]
-                : completeBatches
-                  ? responseIds[Math.floor(index / videosPerCall)]
+          artifacts: completed.flatMap(({ result }) =>
+            result.videos.map((file) =>
+              artifact(
+                file,
+                result.responses.length === 1
+                  ? responseIdFromHeaders(result.responses[0]?.headers)
                   : undefined
+              )
             )
           ),
-          warnings: result.warnings,
-          responses: result.responses,
-          providerMetadata: result.providerMetadata,
+          warnings: completed.flatMap(({ result }) => result.warnings),
+          responses: completed.flatMap(({ result }) => result.responses),
+          providerMetadata: mergeVideoMetadata(
+            completed.map(({ result }) => result.providerMetadata)
+          ),
+          batches: completed.map(({ index, requested, result }) => ({
+            index,
+            requested,
+            received: result.videos.length,
+            warnings: result.warnings,
+            responses: result.responses,
+            providerMetadata: result.providerMetadata,
+          })),
+          failures: batches.flatMap(({ index, requested, error }) =>
+            error ? [{ kind: "batch" as const, index, requested, error }] : []
+          ),
         };
       },
       {
@@ -343,12 +364,8 @@ export function registerVideoCommand(program: Command) {
       }
       await runMediaJobs(
         model,
-        async () => ({
-          status: result.status,
-          response: result.response,
-          warnings: result.warnings,
-          providerMetadata: result.providerMetadata,
-          artifacts: await Promise.all(
+        async () => {
+          const downloads = await Promise.allSettled(
             result.videos.map(async (video) => {
               if (video.type === "url") {
                 const file = await download({
@@ -374,8 +391,28 @@ export function registerVideoCommand(program: Command) {
                 mediaType: video.mediaType || "video/mp4",
               };
             })
-          ),
-        }),
+          );
+          return {
+            status: result.status,
+            response: result.response,
+            warnings: result.warnings,
+            providerMetadata: result.providerMetadata,
+            artifacts: downloads.flatMap((item) =>
+              item.status === "fulfilled" ? [item.value] : []
+            ),
+            failures: downloads.flatMap((item, index) =>
+              item.status === "rejected"
+                ? [
+                    {
+                      kind: "download" as const,
+                      index: index + 1,
+                      error: errorDetails(item.reason),
+                    },
+                  ]
+                : []
+            ),
+          };
+        },
         {
           ...opts,
           n: result.videos.length,
@@ -386,6 +423,36 @@ export function registerVideoCommand(program: Command) {
       );
     }
   );
+}
+
+function mergeVideoMetadata(
+  sources: Array<Record<string, unknown>>
+): Record<string, unknown> {
+  const combined: Record<string, unknown> = {};
+  for (const source of sources) {
+    for (const [provider, value] of Object.entries(source)) {
+      const previous = Object.hasOwn(combined, provider)
+        ? combined[provider]
+        : undefined;
+      const merged =
+        isObject(previous) && isObject(value)
+          ? {
+              ...previous,
+              ...value,
+              ...(Array.isArray(previous.videos) && Array.isArray(value.videos)
+                ? { videos: [...previous.videos, ...value.videos] }
+                : {}),
+            }
+          : value;
+      Object.defineProperty(combined, provider, {
+        value: merged,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+  }
+  return combined;
 }
 
 export function videoGenerationOptions(

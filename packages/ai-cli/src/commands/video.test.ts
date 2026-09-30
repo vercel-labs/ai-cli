@@ -163,7 +163,7 @@ describe("SDK video generation", () => {
       expect(video.file.endsWith(".webm")).toBe(true);
   });
 
-  test("omits ambiguous video IDs when a batch returns fewer outputs", async () => {
+  test("marks a short batch incomplete and keeps exact response IDs", async () => {
     const result = await generate(
       [
         "a scene",
@@ -177,13 +177,54 @@ describe("SDK video generation", () => {
       ],
       "short-video-batch"
     );
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode).toBe(1);
     const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
     expect(output.videos).toHaveLength(2);
-    expect(output.videos.every((video: { id?: string }) => !video.id)).toBe(
-      true
+    expect(output.videos.map((video: { id?: string }) => video.id)).toEqual([
+      "batch-2",
+      "batch-1",
+    ]);
+    expect(output.error.message).toContain(
+      "Requested 3 video output(s), saved 2"
     );
     expect(output.responses).toHaveLength(2);
+  });
+
+  test("keeps successful video batches when another batch fails", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "--n",
+        "3",
+        "--max-videos-per-call",
+        "2",
+        "--json",
+        "-o",
+        join(fixture.directory, "partial-video-batch/"),
+      ],
+      "partial-video-batch"
+    );
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
+    expect(output.videos).toHaveLength(2);
+    expect(output.videos.map((video: { id?: string }) => video.id)).toEqual([
+      "batch-2",
+      "batch-2",
+    ]);
+    expect(output.responses).toHaveLength(1);
+    expect(output.providerMetadata.gateway.cost).toBe("0.42");
+    expect(output.failures[0]).toMatchObject({
+      kind: "batch",
+      index: 2,
+      requested: 1,
+    });
+    expect(output.failures[0].error.message).toContain(
+      "one video batch failed"
+    );
+    for (const video of output.videos)
+      expect(readFileSync(video.file, "utf8")).toMatch(/^video[12]$/);
   });
 
   test("never concatenates multiple binary outputs without an output path", async () => {
@@ -342,6 +383,33 @@ describe("video operation lifecycle", () => {
     );
     expect(limited.exitCode).toBe(1);
     expect(JSON.parse(limited.stdout).results[0].success).toBe(false);
+  });
+
+  test("saves successful status downloads when another URL fails", async () => {
+    const path = fixture.json({
+      model: "bytedance/seedance-2.0",
+      operation: { id: "job" },
+    });
+    const result = await fixture.run(
+      [
+        "video",
+        "status",
+        path,
+        "--download",
+        "--max-retries",
+        "0",
+        "--output",
+        join(fixture.directory, "mixed-download/"),
+      ],
+      { mode: "mixed-download" }
+    );
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
+    expect(output.videos).toHaveLength(1);
+    expect(readFileSync(output.videos[0].file, "utf8")).toBe("good-video");
+    expect(output.failures[0]).toMatchObject({ kind: "download", index: 2 });
+    expect(output.failures[0].error.message).toContain("bad.webm");
   });
 
   test("reports pending and provider errors", async () => {

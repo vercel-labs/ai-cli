@@ -59,6 +59,12 @@ Generation commands support:
 ```
 
 When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped.
+For image and video `--n`, fewer returned outputs than requested are reported as
+an incomplete result with a nonzero exit code. Available media is still saved.
+When a batching limit splits generation into calls, successful calls are saved
+even if another call fails. For `generateImage` and video generation, JSON
+results include successful call diagnostics in `batches` and failed call or
+download details in `failures`.
 
 Model IDs can be specified as `creator/model-name` or just `model-name` (resolved against models fetched from the gateway):
 
@@ -256,10 +262,9 @@ are rejected for `generateText`; that API can still return multiple image files,
 which are all saved. Other language image models use provider-specific controls.
 
 `--api generateText` selects a language model explicitly; `--api generateImage`
-selects a dedicated image model. If discovery fails or returns an invalid model
-catalog, automatic image routing stops with an error instead of silently
-switching APIs. Explicit `--api` and a full model ID allow generation without
-discovery.
+selects a dedicated image model. If discovery fails, returns an invalid catalog,
+or omits the selected image model, automatic routing stops with an error.
+Explicit `--api` and a full model ID allow generation without discovery.
 
 For OpenAI image generation through a language model, use
 `--generate-text-options text-image.json` (which selects `generateText`):
@@ -348,8 +353,9 @@ video response. `--timeout` defaults to 600 seconds and bounds generation plus
 download; `--poll-timeout-ms` limits the polling stage. `--concurrency` limits
 parallel models; `n` and `maxVideosPerCall` control SDK batching within a model.
 For multiple SDK calls, JSON output associates each video with its call's response
-ID. If a provider returns fewer videos than requested, the call responses remain
-in JSON but ambiguous per-video IDs are omitted.
+ID, even if another batch is short or fails. Successful batch diagnostics remain
+in `batches`; a short result or failed batch exits nonzero while preserving
+returned videos.
 
 To submit a job and return immediately:
 
@@ -372,7 +378,8 @@ team, and authentication when checking it.
 `--download` saves completed videos and returns a manifest; `--output` requires
 `--download`. Request headers, retries, Gateway connection settings, timeout,
 and download limits can be set on status requests too. Provider errors exit 1;
-pending operations exit 0 and can be checked again later.
+pending operations exit 0 and can be checked again later. If one video download
+fails, successful downloads are still saved and `failures` records the error.
 
 Model support determines valid frame/reference combinations, durations,
 resolutions, FPS, and audio. Inspect `ai models <model> --json` for native

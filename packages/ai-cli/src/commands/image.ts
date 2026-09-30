@@ -7,7 +7,7 @@ import {
   type ImageReference,
 } from "../lib/image-references.js";
 import { readGenerateTextOptions, toolImages } from "../lib/language-images.js";
-import { artifact, runMediaJobs } from "../lib/media-jobs.js";
+import { artifact, runMediaBatches, runMediaJobs } from "../lib/media-jobs.js";
 import {
   addMediaOptions,
   mediaSettings,
@@ -121,6 +121,15 @@ export function registerImageCommand(program: Command) {
         throw new Error(
           "Cannot determine the image API because model discovery failed. Retry or select --api generateImage / --api generateText explicitly."
         );
+      const missingModel = !explicitApi
+        ? models.find(
+            (model) => !catalog.image.some((entry) => entry.id === model)
+          )
+        : undefined;
+      if (missingModel)
+        throw new Error(
+          `Cannot determine the image API for ${missingModel} because it is missing from the Gateway image catalog. Select --api generateImage or --api generateText explicitly.`
+        );
       const languageIds = new Set([
         ...catalog.languageImageModelIds,
         ...SVG_LANGUAGE_IMAGE_MODEL_IDS,
@@ -224,31 +233,63 @@ export function registerImageCommand(program: Command) {
               })),
             };
           }
-          const result = await generateImage({
-            ...common,
-            model: settings.gateway.image(modelId),
-            prompt: imagePrompt,
-            n: settings.n,
+          const batches = await runMediaBatches(
+            settings.n,
             maxImagesPerCall,
-            size,
-            aspectRatio,
-            providerOptions: settings.providerOptions,
-          });
-          const calls = result.calls.map((call) => ({
-            images: call.images.map((file) => ({
-              ...artifact(file, responseIdFromHeaders(call.response.headers)),
-              mediaType: generatedImageMediaType(modelId, file.mediaType),
-            })),
-            response: call.response,
-            providerMetadata: call.providerMetadata,
-            warnings: call.warnings,
-            usage: call.usage,
-          }));
+            (count) =>
+              generateImage({
+                ...common,
+                model: settings.gateway.image(modelId),
+                prompt: imagePrompt,
+                n: count,
+                maxImagesPerCall: count,
+                size,
+                aspectRatio,
+                providerOptions: settings.providerOptions,
+              })
+          );
+          const completed = batches.flatMap((batch) =>
+            batch.result ? [{ ...batch, result: batch.result }] : []
+          );
+          const calls = completed.flatMap(({ result }) =>
+            result.calls.map((call) => ({
+              images: call.images.map((file) => ({
+                ...artifact(file, responseIdFromHeaders(call.response.headers)),
+                mediaType: generatedImageMediaType(modelId, file.mediaType),
+              })),
+              response: call.response,
+              providerMetadata: call.providerMetadata,
+              warnings: call.warnings,
+              usage: call.usage,
+            }))
+          );
           return {
             artifacts: calls.flatMap((call) => call.images),
-            usage: result.usage,
-            warnings: result.warnings,
+            usage: {
+              inputTokens: sumImageUsage(
+                completed.map(({ result }) => result.usage.inputTokens)
+              ),
+              outputTokens: sumImageUsage(
+                completed.map(({ result }) => result.usage.outputTokens)
+              ),
+              totalTokens: sumImageUsage(
+                completed.map(({ result }) => result.usage.totalTokens)
+              ),
+            },
+            warnings: completed.flatMap(({ result }) => result.warnings),
             calls,
+            batches: completed.map(({ index, requested, result }) => ({
+              index,
+              requested,
+              received: result.images.length,
+              usage: result.usage,
+              warnings: result.warnings,
+              providerMetadata: result.providerMetadata,
+              responses: result.responses,
+            })),
+            failures: batches.flatMap(({ index, requested, error }) =>
+              error ? [{ kind: "batch" as const, index, requested, error }] : []
+            ),
           };
         },
         {
@@ -260,6 +301,13 @@ export function registerImageCommand(program: Command) {
       );
     }
   );
+}
+
+function sumImageUsage(values: Array<number | undefined>): number | undefined {
+  const known = values.filter((value): value is number => value !== undefined);
+  return known.length
+    ? known.reduce((sum, value) => sum + value, 0)
+    : undefined;
 }
 
 export function extractSvgImage(text: string): string | undefined {

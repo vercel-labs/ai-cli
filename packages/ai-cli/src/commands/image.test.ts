@@ -165,6 +165,68 @@ describe("SDK image generation", () => {
     expect(manifest.warnings[0].feature).toBe("style");
   });
 
+  test("keeps successful batches when one image batch fails", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "--n",
+        "3",
+        "--max-images-per-call",
+        "1",
+        "--json",
+        "-o",
+        join(fixture.directory, "partial-image-batch/"),
+      ],
+      "partial-image-batch"
+    );
+    expect(result.exitCode).toBe(1);
+    expect(
+      result.requests
+        .filter((item) => item.route.endsWith("/image-model"))
+        .map((item) => item.body.n)
+    ).toEqual([1, 1, 1]);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
+    expect(output.images).toHaveLength(2);
+    expect(output.calls).toHaveLength(2);
+    expect(output.batches).toHaveLength(2);
+    expect(output.usage.totalTokens).toBe(92);
+    expect(output.failures[0]).toMatchObject({
+      kind: "batch",
+      index: 2,
+      requested: 1,
+    });
+    expect(output.failures[0].error.message).toContain(
+      "one image batch failed"
+    );
+    for (const image of output.images)
+      expect(readFileSync(image.file).toString("base64")).toBe(pngBase64);
+  });
+
+  test("marks a short image response incomplete while saving its image", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "--n",
+        "3",
+        "--json",
+        "-o",
+        join(fixture.directory, "short-image/"),
+      ],
+      "short-image-batch"
+    );
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
+    expect(output.images).toHaveLength(1);
+    expect(output.error.message).toContain(
+      "Requested 3 image output(s), saved 1"
+    );
+    expect(readFileSync(output.images[0].file).toString("base64")).toBe(
+      pngBase64
+    );
+  });
+
   test("merges Gemini imageConfig and preserves all image files and text", async () => {
     const result = await generate([
       "scene",
@@ -244,7 +306,11 @@ describe("SDK image generation", () => {
       "-o",
       join(fixture.directory, "explicit/"),
     ];
-    for (const mode of ["catalog-failure", "catalog-malformed"]) {
+    for (const mode of [
+      "catalog-failure",
+      "catalog-malformed",
+      "catalog-missing",
+    ]) {
       const failed = await generate(args, mode);
       expect(failed.exitCode).toBe(1);
       expect(failed.requests).toHaveLength(1);
