@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+<!-- release:start -->
 
 ### Breaking Changes
 
@@ -25,9 +27,13 @@
 - Resolve short language model names for explicit image `generateText` calls and infer saved video formats from generic status downloads. Clarify exit codes when a partial media result was saved.
 - Keep automatic `generateText` routing for Quiver Arrow 2 SVG models when the Gateway image catalog omits them.
 
-## 0.5.2
+### Contributors
 
-<!-- release:start -->
+- @ctate
+
+<!-- release:end -->
+
+## 0.5.2
 
 ### Bug Fixes
 
@@ -36,8 +42,6 @@
 ### Contributors
 
 - @ctate
-
-<!-- release:end -->
 
 ## 0.5.1
 
