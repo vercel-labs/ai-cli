@@ -65,13 +65,26 @@ and an opaque white background.
 
 ## video
 
-Generate video from a prompt or image.
+Generate video from a prompt, a starting image, or start/end frame images.
 
 ```bash
 ai video "a spinning triangle"
 ai video "a cinematic landscape" --resolution 1920x1080
 ai image "a dragon" | ai video "animate this"
+ai video "transition between these frames" --start-frame start.png --end-frame end.png --duration 3
+ai video -i start.png --end-frame end.png "a smooth camera move"
+cat start.png | ai video --end-frame end.png "a smooth camera move"
 ```
+
+Frame inputs accept local paths, `file://` URLs, `http(s)://` URLs, and data
+URLs. Provide one start frame using `--start-frame`, `--image`, or piped stdin.
+The text prompt is optional when a start frame is provided. Add one `--end-frame`
+to guide the end of the clip; it requires a start frame. Repeated `--image`
+values are not a start/end pair, and multiple start-frame sources are rejected.
+
+Start/end-frame generation, durations, and resolutions depend on the selected
+model. Unsupported inputs may be rejected. Frame inputs guide generation but do
+not guarantee exact frame matching.
 
 ### Options
 
@@ -81,6 +94,16 @@ ai image "a dragon" | ai video "animate this"
   </Property>
   <Property name="-o, --output" type="path">
     Output file path or directory.
+  </Property>
+  <Property name="-i, --image" type="path-or-url">
+    Start frame image. Use one image input or pipe an image via stdin.
+  </Property>
+  <Property name="--start-frame" type="path-or-url">
+    Start frame image. Same as `--image`.
+  </Property>
+  <Property name="--end-frame" type="path-or-url">
+    End frame image. Requires a start frame from `--start-frame`, `--image`,
+    or stdin. Supported models can generate a transition between the frames.
   </Property>
   <Property name="-n, --count" type="number" default="1">
     Number of videos per model.
@@ -99,7 +122,7 @@ ai image "a dragon" | ai video "animate this"
     by model.
   </Property>
   <Property name="--duration" type="seconds">
-    Duration in seconds.
+    Duration in seconds. Supported durations vary by model.
   </Property>
   <Property name="--no-preview" type="boolean">
     Disable inline video frame preview.

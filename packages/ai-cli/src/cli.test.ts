@@ -180,6 +180,8 @@ describe("cli integration", () => {
     const { exitCode, stdout } = await run("video", "--help");
     expect(exitCode).toBe(0);
     expect(stdout).toContain("--image");
+    expect(stdout).toContain("--start-frame");
+    expect(stdout).toContain("--end-frame");
     expect(stdout).toContain("--duration");
     expect(stdout).toContain("--aspect-ratio");
     expect(stdout).toContain("--resolution");

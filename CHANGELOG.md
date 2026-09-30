@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- **Video start/end frames** - `ai video --start-frame <path-or-url> --end-frame <path-or-url>` guides a clip with first and last images on supported models. Existing `--image` and piped image inputs can also be paired with `--end-frame`.
+
 ## 0.5.2
 
 <!-- release:start -->

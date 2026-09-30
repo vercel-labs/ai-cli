@@ -218,21 +218,28 @@ Quiver Arrow image models generate SVG. Their output is saved as an `.svg` file;
 ### video
 
 ```
--i, --image <path-or-url> Image input path or URL
---aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
---resolution <WxH>       Video resolution (e.g. 1920x1080 for 1080p)
---duration <seconds>     Duration in seconds
---no-preview             Disable inline video frame preview
+-i, --image <path-or-url>    Start frame image path or URL
+--start-frame <path-or-url> Start frame image path or URL (same as --image)
+--end-frame <path-or-url>   End frame image path or URL (requires a start frame)
+--aspect-ratio <W:H>        Aspect ratio (e.g. 16:9)
+--resolution <WxH>          Video resolution (e.g. 1920x1080 for 1080p)
+--duration <seconds>        Duration in seconds
+--no-preview                Disable inline video frame preview
 ```
 
-Image inputs can be local paths, `file://` URLs, `http(s)://` URLs or data URLs. Video generation accepts one input image, provided either through `--image` or piped stdin:
+Frame inputs can be local paths, `file://` URLs, `http(s)://` URLs or data URLs. Provide one start frame through `--start-frame`, `--image`, or piped stdin. Add `--end-frame` to guide the end of the clip:
 
 ```bash
 ai video -i input.png "animate this"
 cat input.png | ai video "animate this"
+ai video "transition between these frames" --start-frame start.png --end-frame end.png --duration 3
+ai video -i start.png --end-frame end.png "a smooth camera move"
+cat start.png | ai video --end-frame end.png "a smooth camera move"
 ```
 
-Resolution support is model-dependent; unsupported resolutions may be rejected by the selected video model.
+The text prompt is optional when a start frame is provided. Use only one start-frame source and one end frame per clip; repeated `--image` values are not a start/end pair. `--end-frame` requires a start frame.
+
+Start/end-frame generation, durations, and resolutions are model-dependent; unsupported inputs may be rejected by the selected video model. Frame inputs guide generation but do not guarantee exact frame matching.
 
 ### text
 

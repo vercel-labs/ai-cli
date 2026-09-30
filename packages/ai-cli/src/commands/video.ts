@@ -25,6 +25,8 @@ interface VideoOptions {
   model?: string;
   output?: string;
   image?: string[];
+  startFrame?: string[];
+  endFrame?: string[];
   count?: string;
   aspectRatio?: string;
   resolution?: string;
@@ -39,7 +41,7 @@ interface VideoOptions {
 export function registerVideoCommand(program: Command) {
   const command = program
     .command("video")
-    .description("Generate a video from a prompt")
+    .description("Generate a video from a prompt or start/end frames")
     .argument("[prompt]", "The prompt to generate a video from")
     .option(
       "-m, --model <model>",
@@ -48,7 +50,19 @@ export function registerVideoCommand(program: Command) {
     .option("-o, --output <path>", "Output file path or directory")
     .option(
       "-i, --image <path-or-url>",
-      "Image input path or URL",
+      "Start frame image path or URL",
+      collectImageReference,
+      []
+    )
+    .option(
+      "--start-frame <path-or-url>",
+      "Start frame image path or URL (same as --image)",
+      collectImageReference,
+      []
+    )
+    .option(
+      "--end-frame <path-or-url>",
+      "End frame image path or URL (requires a start frame)",
       collectImageReference,
       []
     )
@@ -70,40 +84,58 @@ export function registerVideoCommand(program: Command) {
     async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
-      const imageReferenceInputs = opts.image ?? [];
-      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
-        process.stderr.write(
-          "Error: prompt or image is required (provide a prompt, --image, or pipe an image via stdin)\n"
+      const startInputs = [...(opts.image ?? []), ...(opts.startFrame ?? [])];
+      const endInputs = opts.endFrame ?? [];
+      const startCount = startInputs.length + (stdin ? 1 : 0);
+      if (startCount > 1) {
+        throw new Error(
+          "video generation accepts one start frame; use one --start-frame, --image, or piped image, and --end-frame for the end frame"
         );
-        process.exit(1);
+      }
+      if (endInputs.length > 1) {
+        throw new Error(
+          "video generation accepts one end frame; provide one --end-frame value"
+        );
+      }
+      if (endInputs.length > 0 && startCount === 0) {
+        throw new Error(
+          "--end-frame requires a start frame from --start-frame, --image, or piped stdin"
+        );
+      }
+      if (!prompt && startCount === 0) {
+        throw new Error(
+          "prompt or image is required (provide a prompt, --start-frame, --image, or pipe an image via stdin)"
+        );
+      }
+      for (const [flag, references] of [
+        ["--image", opts.image],
+        ["--start-frame", opts.startFrame],
+        ["--end-frame", opts.endFrame],
+      ] as const) {
+        if (references?.some((reference) => !reference.trim())) {
+          throw new Error(`${flag} cannot be empty`);
+        }
       }
 
-      let referenceImages: ImageReference[] = [];
-      try {
-        referenceImages = await loadImageReferences(imageReferenceInputs);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
-        process.exit(1);
-      }
-
-      const images: ImageReference[] = [
-        ...(stdin ? [new Uint8Array(stdin)] : []),
-        ...referenceImages,
-      ];
-      if (images.length > 1) {
-        process.stderr.write(
-          "Error: video generation accepts one input image; provide one --image value or pipe one image via stdin\n"
-        );
-        process.exit(1);
-      }
+      const [startImages, endImages] = await Promise.all([
+        loadImageReferences(startInputs),
+        loadImageReferences(endInputs),
+      ]);
+      const startFrame = stdin ?? startImages[0];
+      const endFrame = endImages[0];
 
       let videoPrompt: string | { image: ImageReference; text?: string } =
-        prompt!;
-      if (images.length > 0) {
+        prompt ?? "";
+      let frameImages: Parameters<typeof generateVideo>[0]["frameImages"];
+      if (endFrame !== undefined) {
+        frameImages = [
+          { image: startFrame!, frameType: "first_frame" },
+          { image: endFrame, frameType: "last_frame" },
+        ];
+      } else if (startFrame !== undefined) {
         videoPrompt = prompt
-          ? { image: images[0]!, text: prompt }
-          : { image: images[0]! };
+          ? { image: startFrame, text: prompt }
+          : { image: startFrame };
       }
 
       const gatewayModels = await fetchGatewayModels();
@@ -126,6 +158,7 @@ export function registerVideoCommand(program: Command) {
             },
             model: gateway.video(modelId),
             prompt: videoPrompt,
+            frameImages,
             abortSignal: abort,
             ...generationOptions,
           });

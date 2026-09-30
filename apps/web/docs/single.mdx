@@ -40,12 +40,16 @@ cat photo.png | ai image "make it a watercolor painting"
 
 ### Video
 
-Stdin is read as binary image data for image-to-video generation:
+Stdin is read as the binary starting image for image-to-video generation. Add
+`--end-frame` to guide the end of the clip on models that support start/end frames:
 
 ```bash
 ai image "a dragon" | ai video "animate this"
 cat scene.png | ai video "zoom out slowly"
+cat start.png | ai video --end-frame end.png "a smooth camera move"
 ```
+
+Use only one start-frame source: stdin, `--image`, or `--start-frame`.
 
 ### Audio
 
