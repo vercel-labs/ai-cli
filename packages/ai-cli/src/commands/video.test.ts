@@ -148,8 +148,42 @@ describe("SDK video generation", () => {
     const output = JSON.parse(result.stdout).results[0];
     expect(output.videos).toHaveLength(3);
     expect(output.providerMetadata.gateway.cost).toBe("0.42");
+    expect(
+      output.responses.map(
+        (response: { headers: Record<string, string> }) =>
+          response.headers["x-request-id"]
+      )
+    ).toEqual(["batch-2", "batch-1"]);
+    expect(output.videos.map((video: { id?: string }) => video.id)).toEqual([
+      "batch-2",
+      "batch-2",
+      "batch-1",
+    ]);
     for (const video of output.videos)
       expect(video.file.endsWith(".webm")).toBe(true);
+  });
+
+  test("omits ambiguous video IDs when a batch returns fewer outputs", async () => {
+    const result = await generate(
+      [
+        "a scene",
+        "--n",
+        "3",
+        "--max-videos-per-call",
+        "2",
+        "--json",
+        "-o",
+        join(fixture.directory, "short-batch/"),
+      ],
+      "short-video-batch"
+    );
+    expect(result.exitCode).toBe(0);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.videos).toHaveLength(2);
+    expect(output.videos.every((video: { id?: string }) => !video.id)).toBe(
+      true
+    );
+    expect(output.responses).toHaveLength(2);
   });
 
   test("never concatenates multiple binary outputs without an output path", async () => {

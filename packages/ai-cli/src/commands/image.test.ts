@@ -244,18 +244,17 @@ describe("SDK image generation", () => {
       "-o",
       join(fixture.directory, "explicit/"),
     ];
-    const failed = await generate(args, "catalog-failure");
-    expect(failed.exitCode).toBe(1);
-    expect(failed.requests).toHaveLength(1);
-    expect(JSON.parse(failed.stdout).error.message).toContain("--api");
-    const explicit = await generate(
-      [...args, "--api", "generateText"],
-      "catalog-failure"
-    );
-    expect(explicit.exitCode).toBe(0);
-    expect(
-      explicit.requests.some((item) => item.route.endsWith("/language-model"))
-    ).toBe(true);
+    for (const mode of ["catalog-failure", "catalog-malformed"]) {
+      const failed = await generate(args, mode);
+      expect(failed.exitCode).toBe(1);
+      expect(failed.requests).toHaveLength(1);
+      expect(JSON.parse(failed.stdout).error.message).toContain("--api");
+      const explicit = await generate([...args, "--api", "generateText"], mode);
+      expect(explicit.exitCode).toBe(0);
+      expect(
+        explicit.requests.some((item) => item.route.endsWith("/language-model"))
+      ).toBe(true);
+    }
   });
 
   test("returns structured single and partial errors even with quiet", async () => {

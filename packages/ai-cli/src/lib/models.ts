@@ -99,6 +99,36 @@ interface RawGatewayModel {
 
 let cached: Promise<GatewayModels> | null = null;
 
+function emptyGatewayModels(): GatewayModels {
+  return {
+    available: false,
+    text: [],
+    image: [],
+    video: [],
+    speech: [],
+    transcription: [],
+    evaluation: [],
+    all: [],
+    lookup: [],
+    languageImageModelIds: new Set(),
+  };
+}
+
+function isRawGatewayModel(value: unknown): value is RawGatewayModel {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const model = value as Record<string, unknown>;
+  return (
+    typeof model.id === "string" &&
+    model.id.length > 0 &&
+    typeof model.type === "string" &&
+    (model.owned_by == null || typeof model.owned_by === "string") &&
+    (model.tags == null ||
+      (Array.isArray(model.tags) &&
+        model.tags.every((tag) => typeof tag === "string")))
+  );
+}
+
 export function fetchGatewayModels(options?: {
   baseURL?: string;
   headers?: Record<string, string>;
@@ -121,18 +151,7 @@ async function doFetch(options?: {
   baseURL?: string;
   headers?: Record<string, string>;
 }): Promise<GatewayModels> {
-  const result: GatewayModels = {
-    available: false,
-    text: [],
-    image: [],
-    video: [],
-    speech: [],
-    transcription: [],
-    evaluation: [],
-    all: [],
-    lookup: [],
-    languageImageModelIds: new Set(),
-  };
+  const result = emptyGatewayModels();
 
   try {
     const res = await fetch(
@@ -145,9 +164,16 @@ async function doFetch(options?: {
       }
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { data?: RawGatewayModel[] };
-    const models = json.data ?? [];
-    result.available = true;
+    const json: unknown = await res.json();
+    if (
+      json === null ||
+      typeof json !== "object" ||
+      !("data" in json) ||
+      !Array.isArray(json.data) ||
+      !json.data.every(isRawGatewayModel)
+    )
+      throw new Error("Invalid AI Gateway model catalog");
+    const models: RawGatewayModel[] = json.data;
 
     const entryMap = new Map<string, ModelEntry>();
 
@@ -217,9 +243,11 @@ async function doFetch(options?: {
 
     result.lookup = [...entryMap.values()];
     result.all = result.lookup.filter((e) => e.capabilities.length > 0);
+    result.available = true;
   } catch {
     cached = null;
     process.stderr.write("Warning: could not fetch models from AI Gateway\n");
+    return emptyGatewayModels();
   }
 
   return result;

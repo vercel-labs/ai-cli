@@ -15,6 +15,7 @@
 ### Bug Fixes
 
 - Preserve native model capabilities, image call diagnostics, usage, warnings, provider metadata and all output media types. Report structured failures even in quiet mode; validate numeric inputs before requests and preserve zero seeds despite the current Gateway serialization bug.
+- Reject malformed model catalogs during automatic image API selection and associate batched video outputs with their own call's response ID.
 
 ## 0.5.2
 

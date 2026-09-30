@@ -180,9 +180,25 @@ export function registerVideoCommand(program: Command) {
           download,
           abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
         });
+        // The SDK flattens videos but retains one response per call. Requested
+        // batch sizes identify each video's call only when all videos arrived.
+        const videosPerCall = request.maxVideosPerCall ?? settings.n;
+        const completeBatches =
+          result.videos.length === settings.n &&
+          result.responses.length === Math.ceil(settings.n / videosPerCall);
+        const responseIds = result.responses.map((response) =>
+          responseIdFromHeaders(response.headers)
+        );
         return {
-          artifacts: result.videos.map((file) =>
-            artifact(file, responseIdFromHeaders(result.responses[0]?.headers))
+          artifacts: result.videos.map((file, index) =>
+            artifact(
+              file,
+              responseIds.length === 1
+                ? responseIds[0]
+                : completeBatches
+                  ? responseIds[Math.floor(index / videosPerCall)]
+                  : undefined
+            )
           ),
           warnings: result.warnings,
           responses: result.responses,

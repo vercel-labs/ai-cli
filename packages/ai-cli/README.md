@@ -256,9 +256,10 @@ are rejected for `generateText`; that API can still return multiple image files,
 which are all saved. Other language image models use provider-specific controls.
 
 `--api generateText` selects a language model explicitly; `--api generateImage`
-selects a dedicated image model. If discovery fails, automatic image routing
-stops with an error instead of silently switching APIs. Explicit `--api` and a
-full model ID allow generation without discovery.
+selects a dedicated image model. If discovery fails or returns an invalid model
+catalog, automatic image routing stops with an error instead of silently
+switching APIs. Explicit `--api` and a full model ID allow generation without
+discovery.
 
 For OpenAI image generation through a language model, use
 `--generate-text-options text-image.json` (which selects `generateText`):
@@ -346,6 +347,9 @@ Generation polls the SDK start/status API by default, avoiding a single long-liv
 video response. `--timeout` defaults to 600 seconds and bounds generation plus
 download; `--poll-timeout-ms` limits the polling stage. `--concurrency` limits
 parallel models; `n` and `maxVideosPerCall` control SDK batching within a model.
+For multiple SDK calls, JSON output associates each video with its call's response
+ID. If a provider returns fewer videos than requested, the call responses remain
+in JSON but ambiguous per-video IDs are omitted.
 
 To submit a job and return immediately:
 

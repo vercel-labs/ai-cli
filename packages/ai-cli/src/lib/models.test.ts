@@ -15,10 +15,12 @@ afterEach(() => {
 });
 
 function mockGateway(models: Record<string, unknown>[]) {
+  mockGatewayPayload({ data: models });
+}
+
+function mockGatewayPayload(payload: unknown) {
   globalThis.fetch = mock(() =>
-    Promise.resolve(
-      new Response(JSON.stringify({ data: models }), { status: 200 })
-    )
+    Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))
   ) as unknown as typeof fetch;
 }
 
@@ -314,6 +316,33 @@ describe("fetchGatewayModels", () => {
     expect(result.speech).toHaveLength(0);
     expect(result.transcription).toHaveLength(0);
     expect(result.all).toHaveLength(0);
+  });
+
+  test.each([
+    ["missing data", {}],
+    ["non-array data", { data: {} }],
+    [
+      "invalid entry after a valid model",
+      {
+        data: [
+          {
+            id: "google/gemini-3-pro-image",
+            type: "language",
+            tags: ["image-generation"],
+          },
+          null,
+        ],
+      },
+    ],
+  ])("rejects malformed 200 catalog with %s", async (_case, payload) => {
+    mockGatewayPayload(payload);
+
+    const result = await fetchGatewayModels();
+
+    expect(result.available).toBe(false);
+    expect(result.lookup).toEqual([]);
+    expect(result.image).toEqual([]);
+    expect(result.languageImageModelIds.size).toBe(0);
   });
 
   test("caches result across multiple calls", async () => {
