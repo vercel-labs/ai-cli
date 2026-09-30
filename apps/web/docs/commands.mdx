@@ -173,7 +173,10 @@ parallel models; `n` and `maxVideosPerCall` control SDK batching within a model.
 For multiple SDK calls, JSON output associates each video with its call's response
 ID, even if another batch is short or fails. Successful batch diagnostics remain
 in `batches`; a short result or failed batch exits nonzero while preserving
-returned videos.
+returned videos. A failed URL download within a call is recorded in `failures`
+without discarding its successfully downloaded siblings. The top-level Gateway
+cost fields sum reported costs from completed batches; `batches` keeps each
+call's original provider metadata.
 
 To submit a job and return immediately:
 

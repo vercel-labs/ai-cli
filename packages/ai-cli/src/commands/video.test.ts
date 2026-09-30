@@ -147,7 +147,13 @@ describe("SDK video generation", () => {
     ).toEqual([2, 1]);
     const output = JSON.parse(result.stdout).results[0];
     expect(output.videos).toHaveLength(3);
-    expect(output.providerMetadata.gateway.cost).toBe("0.42");
+    expect(output.providerMetadata.gateway.cost).toBe("0.84");
+    expect(
+      output.batches.map(
+        (batch: { providerMetadata: { gateway: { cost: string } } }) =>
+          batch.providerMetadata.gateway.cost
+      )
+    ).toEqual(["0.42", "0.42"]);
     expect(
       output.responses.map(
         (response: { headers: Record<string, string> }) =>
@@ -225,6 +231,30 @@ describe("SDK video generation", () => {
     );
     for (const video of output.videos)
       expect(readFileSync(video.file, "utf8")).toMatch(/^video[12]$/);
+  });
+
+  test("keeps a downloaded video when another URL in the same batch fails", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "--n",
+        "2",
+        "--max-videos-per-call",
+        "2",
+        "--json",
+        "-o",
+        join(fixture.directory, "mixed-generation-download/"),
+      ],
+      "mixed-download"
+    );
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
+    expect(output.videos).toHaveLength(1);
+    expect(output.batches[0].received).toBe(1);
+    expect(readFileSync(output.videos[0].file, "utf8")).toBe("good-video");
+    expect(output.failures[0]).toMatchObject({ kind: "download", index: 2 });
+    expect(output.failures[0].error.message).toContain("bad.webm");
   });
 
   test("never concatenates multiple binary outputs without an output path", async () => {

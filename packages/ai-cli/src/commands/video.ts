@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -19,6 +20,7 @@ import {
   errorDetails,
   runMediaBatches,
   runMediaJobs,
+  type MediaFailure,
 } from "../lib/media-jobs.js";
 import {
   addGatewayOptions,
@@ -183,23 +185,79 @@ export function registerVideoCommand(program: Command) {
         const batches = await runMediaBatches(
           settings.n,
           request.maxVideosPerCall,
-          (count) =>
-            generateVideo({
+          async (count) => {
+            const failedDownloads = new Map<
+              string,
+              ReturnType<typeof errorDetails>
+            >();
+            const result = await generateVideo({
               ...request,
               n: count,
               maxVideosPerCall: count,
               model: settings.gateway.video(modelId),
               poll,
-              download,
+              download: async (options) => {
+                try {
+                  return await download(options);
+                } catch (error) {
+                  // The SDK discards every video in a call if one URL download
+                  // rejects. A unique placeholder lets it return the siblings.
+                  const placeholder = randomBytes(32);
+                  failedDownloads.set(
+                    placeholder.toString("hex"),
+                    errorDetails(error)
+                  );
+                  return { data: placeholder, mediaType: "video/mp4" };
+                }
+              },
               abortSignal,
-            })
+            });
+            const outputs = result.videos.map((file, index) => {
+              const bytes = file.uint8Array;
+              const error =
+                bytes.length === 32
+                  ? failedDownloads.get(Buffer.from(bytes).toString("hex"))
+                  : undefined;
+              return { file, index: index + 1, error };
+            });
+            return {
+              result,
+              videos: outputs.flatMap(({ file, error }) =>
+                error ? [] : [file]
+              ),
+              downloadFailures: outputs.flatMap(({ index, error }) =>
+                error ? [{ index, error }] : []
+              ),
+            };
+          }
         );
         const completed = batches.flatMap((batch) =>
-          batch.result ? [{ ...batch, result: batch.result }] : []
+          batch.result ? [{ ...batch, ...batch.result }] : []
         );
+        let requestedBefore = 0;
+        const failures: MediaFailure[] = [];
+        for (const batch of batches) {
+          if (batch.error) {
+            failures.push({
+              kind: "batch",
+              index: batch.index,
+              requested: batch.requested,
+              error: batch.error,
+            });
+          } else {
+            failures.push(
+              ...batch.result.downloadFailures.map(({ index, error }) => ({
+                kind: "download" as const,
+                index: requestedBefore + index,
+                error,
+              }))
+            );
+          }
+          requestedBefore += batch.requested;
+        }
         return {
-          artifacts: completed.flatMap(({ result }) =>
-            result.videos.map((file) =>
+          artifacts: completed.flatMap(({ result, videos }) =>
+            videos.map((file) =>
               artifact(
                 file,
                 result.responses.length === 1
@@ -213,17 +271,15 @@ export function registerVideoCommand(program: Command) {
           providerMetadata: mergeVideoMetadata(
             completed.map(({ result }) => result.providerMetadata)
           ),
-          batches: completed.map(({ index, requested, result }) => ({
+          batches: completed.map(({ index, requested, result, videos }) => ({
             index,
             requested,
-            received: result.videos.length,
+            received: videos.length,
             warnings: result.warnings,
             responses: result.responses,
             providerMetadata: result.providerMetadata,
           })),
-          failures: batches.flatMap(({ index, requested, error }) =>
-            error ? [{ kind: "batch" as const, index, requested, error }] : []
-          ),
+          failures,
         };
       },
       {
@@ -442,6 +498,17 @@ function mergeVideoMetadata(
               ...(Array.isArray(previous.videos) && Array.isArray(value.videos)
                 ? { videos: [...previous.videos, ...value.videos] }
                 : {}),
+              ...(provider === "gateway"
+                ? Object.fromEntries(
+                    GATEWAY_COST_KEYS.flatMap((key) => {
+                      const total = addDecimalStrings(
+                        previous[key],
+                        value[key]
+                      );
+                      return total === undefined ? [] : [[key, total]];
+                    })
+                  )
+                : {}),
             }
           : value;
       Object.defineProperty(combined, provider, {
@@ -453,6 +520,41 @@ function mergeVideoMetadata(
     }
   }
   return combined;
+}
+
+const GATEWAY_COST_KEYS = [
+  "cost",
+  "gatewayCost",
+  "inferenceCost",
+  "inputInferenceCost",
+  "marketCost",
+  "outputInferenceCost",
+  "surchargeCost",
+];
+
+function addDecimalStrings(left: unknown, right: unknown): string | undefined {
+  if (
+    typeof left !== "string" ||
+    typeof right !== "string" ||
+    !/^\d+(?:\.\d+)?$/.test(left) ||
+    !/^\d+(?:\.\d+)?$/.test(right)
+  )
+    return undefined;
+  const [leftInteger, leftFraction = ""] = left.split(".");
+  const [rightInteger, rightFraction = ""] = right.split(".");
+  const precision = Math.max(leftFraction.length, rightFraction.length);
+  const total = (
+    BigInt(leftInteger + leftFraction.padEnd(precision, "0")) +
+    BigInt(rightInteger + rightFraction.padEnd(precision, "0"))
+  )
+    .toString()
+    .padStart(precision + 1, "0");
+  return precision === 0
+    ? total
+    : `${total.slice(0, -precision)}.${total.slice(-precision)}`.replace(
+        /\.?0+$/,
+        ""
+      );
 }
 
 export function videoGenerationOptions(
