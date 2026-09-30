@@ -12,6 +12,10 @@
 - Upgrade AI SDK to 7.0.123 and Gateway to 4.0.101. Expose native batching, seeds, retries, headers, Gateway routing/connection settings, masks, frame roles (including last-frame-only), references, FPS, audio and polling/download controls.
 - Add `video start` / `video status` with persisted operations, webhook URLs and optional downloads. Expose language-image settings and provider tools, preserving all generated images and accompanying text.
 
+### Improvements
+
+- Restore “Generate anything from your terminal” as the headline in the landing page, social preview, CLI help, and package description.
+
 ### Bug Fixes
 
 - Preserve native model capabilities, image call diagnostics, usage, warnings, provider metadata and all output media types. Report structured failures even in quiet mode; validate numeric inputs before requests and preserve zero seeds despite the current Gateway serialization bug.

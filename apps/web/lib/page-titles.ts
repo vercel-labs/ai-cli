@@ -1,5 +1,5 @@
 export const PAGE_TITLES: Record<string, string> = {
-  "": "The AI SDK\nfor Your Terminal",
+  "": "Generate anything\nfrom your terminal",
   installation: "Installation",
   commands: "Commands",
   evaluate: "Evaluate",

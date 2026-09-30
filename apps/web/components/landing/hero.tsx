@@ -13,7 +13,7 @@ export function Hero() {
             className="landing-fade-up text-5xl font-semibold tracking-tighter text-white sm:text-6xl md:text-7xl leading-[1.03]"
             style={{ animationDelay: "30ms" }}
           >
-            The AI SDK for your terminal.
+            Generate anything from your terminal.
           </h1>
           <p
             className="landing-fade-up mt-5 text-base text-[#888] leading-relaxed"

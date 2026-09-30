@@ -6,7 +6,9 @@
   <a href="https://www.apache.org/licenses/LICENSE-2.0"><img alt="License: Apache-2.0" src="https://img.shields.io/npm/l/ai-cli.svg?style=for-the-badge&amp;labelColor=000000" height="28"></a>
 </p>
 
-The [Vercel AI SDK](https://sdk.vercel.ai) in your terminal. Generate text, images, video, and audio, and evaluate typed questions with composable commands, stdin support, and predictable outputs. Uses [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
+## Generate anything from your terminal
+
+Create text, images, video, and audio, and evaluate typed questions with composable commands, stdin support, and predictable outputs. Built with the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for access to hundreds of models.
 
 ## Install
 

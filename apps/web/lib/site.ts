@@ -1,7 +1,7 @@
 export const siteName = "ai-cli";
 export const siteUrl = "https://ai-cli.dev";
 export const description =
-  "The AI SDK for your terminal. Generate text and media, and evaluate typed questions.";
+  "Generate anything from your terminal. Create text, images, video, and audio, and evaluate typed questions with composable commands.";
 export const githubUrl = "https://github.com/vercel-labs/ai-cli";
 
 export function canonicalUrlFor(pathname: string): string {

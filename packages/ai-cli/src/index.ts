@@ -13,9 +13,7 @@ const program = new Command();
 
 program
   .name("ai")
-  .description(
-    "The AI SDK for your terminal: generate text and media, and evaluate typed questions"
-  )
+  .description("Generate anything from your terminal")
   .version(pkg.version);
 
 registerTextCommand(program);

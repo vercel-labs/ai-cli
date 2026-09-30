@@ -1,11 +1,12 @@
 ---
 name: ai-cli
-description: Use the AI SDK from the terminal to generate media and text and evaluate typed questions.
+description: Generate text, images, video, and audio, and evaluate typed questions from the terminal.
 ---
 
 # ai-cli
 
-Use the AI SDK from the terminal to generate media and text and evaluate typed questions.
+Generate anything from your terminal. Create text, images, video, and audio,
+and evaluate typed questions with composable commands.
 
 ## When to Use
 
