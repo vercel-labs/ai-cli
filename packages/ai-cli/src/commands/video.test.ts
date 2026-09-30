@@ -442,6 +442,31 @@ describe("video operation lifecycle", () => {
     expect(output.failures[0].error.message).toContain("bad.webm");
   });
 
+  test("detects a status download's format when both media types are generic", async () => {
+    const path = fixture.json({
+      model: "bytedance/seedance-2.0",
+      operation: { id: "job" },
+    });
+    const result = await fixture.run(
+      [
+        "video",
+        "status",
+        path,
+        "--download",
+        "--output",
+        join(fixture.directory, "generic-download/"),
+      ],
+      { mode: "download-generic" }
+    );
+    expect(result.exitCode).toBe(0);
+    const video = JSON.parse(result.stdout).results[0].videos[0];
+    expect(video.mediaType).toBe("video/webm");
+    expect(video.file.endsWith(".webm")).toBe(true);
+    expect([...readFileSync(video.file).subarray(0, 4)]).toEqual([
+      0x1a, 0x45, 0xdf, 0xa3,
+    ]);
+  });
+
   test("reports pending and provider errors", async () => {
     const path = fixture.json({
       model: "bytedance/seedance-2.0",

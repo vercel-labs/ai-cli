@@ -428,14 +428,13 @@ export function registerVideoCommand(program: Command) {
                   url: new URL(video.url),
                   abortSignal,
                 });
+                const data = Buffer.from(file.data);
                 return {
-                  data: Buffer.from(file.data),
+                  data,
                   mediaType:
-                    (video.mediaType &&
-                    video.mediaType !== "application/octet-stream"
-                      ? video.mediaType
-                      : undefined) ||
-                    file.mediaType ||
+                    usableVideoMediaType(video.mediaType) ||
+                    usableVideoMediaType(file.mediaType) ||
+                    detectVideoMediaType(data) ||
                     "video/mp4",
                 };
               }
@@ -479,6 +478,33 @@ export function registerVideoCommand(program: Command) {
       );
     }
   );
+}
+
+function usableVideoMediaType(value: string | undefined): string | undefined {
+  const mediaType = value?.trim();
+  return mediaType &&
+    mediaType.split(";", 1)[0]?.trim().toLowerCase() !==
+      "application/octet-stream"
+    ? mediaType
+    : undefined;
+}
+
+function detectVideoMediaType(data: Buffer): string | undefined {
+  if (
+    data.length >= 4 &&
+    data[0] === 0x1a &&
+    data[1] === 0x45 &&
+    data[2] === 0xdf &&
+    data[3] === 0xa3
+  )
+    return "video/webm";
+  if (data.length >= 12 && data.toString("ascii", 4, 8) === "ftyp")
+    return data.toString("ascii", 8, 12) === "qt  "
+      ? "video/quicktime"
+      : "video/mp4";
+  if (data.length >= 4 && data.toString("ascii", 0, 4) === "OggS")
+    return "video/ogg";
+  return undefined;
 }
 
 function mergeVideoMetadata(

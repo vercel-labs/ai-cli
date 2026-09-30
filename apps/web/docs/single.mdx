@@ -156,6 +156,7 @@ Image/video manifests also retain SDK usage, provider metadata and response
 information. Image `calls` keep each response with its saved images, warnings,
 usage and provider metadata; artifacts stay in call order. Video outputs use
 `videos` instead of `images`. Errors include `name` and `message`, even with
-`--quiet`; exit 1 means total failure, exit 2 means some models failed.
+`--quiet`. For image/video generation, exit 1 means no model fully succeeded,
+even if partial media was saved; exit 2 means some models fully succeeded.
 Validation errors use `{ "success": false, "error": { "name": "Error", "message": "..." } }`.
 Text/audio retain their existing JSON format.

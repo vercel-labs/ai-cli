@@ -114,9 +114,13 @@ export function registerImageCommand(program: Command) {
       const imagePrompt =
         images.length > 0 ? { images, text: prompt, mask } : prompt!;
       const catalog = await fetchGatewayModels(settings.catalogOptions);
-      const models = resolveModels("image", opts.model, catalog.image);
       const explicitApi =
         opts.api ?? (opts.generateTextOptions ? "generateText" : undefined);
+      const models = resolveModels(
+        "image",
+        opts.model,
+        explicitApi === "generateText" ? catalog.text : catalog.image
+      );
       if (!explicitApi && !catalog.available)
         throw new Error(
           "Cannot determine the image API because model discovery failed. Retry or select --api generateImage / --api generateText explicitly."

@@ -297,6 +297,30 @@ describe("SDK image generation", () => {
     expect(result.stdout).not.toContain(pngBase64);
   });
 
+  test("resolves short language model names for both generateText selectors", async () => {
+    const selectors = [
+      ["--api", "generateText"],
+      ["--generate-text-options", fixture.json({ maxOutputTokens: 100 })],
+    ];
+    for (const [index, selector] of selectors.entries()) {
+      const result = await generate([
+        "scene",
+        "-m",
+        "gpt-5.5",
+        ...selector,
+        "--json",
+        "-o",
+        join(fixture.directory, `short-text-${index}/`),
+      ]);
+      expect(result.exitCode).toBe(0);
+      expect(
+        result.requests.find((item) => item.route.endsWith("/language-model"))
+          .headers["ai-language-model-id"]
+      ).toBe("openai/gpt-5.5");
+      expect(JSON.parse(result.stdout).results[0].model).toBe("openai/gpt-5.5");
+    }
+  });
+
   test("discovery failure never silently changes the generation API", async () => {
     const args = [
       "scene",

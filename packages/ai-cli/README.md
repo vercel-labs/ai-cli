@@ -65,6 +65,9 @@ When a batching limit splits generation into calls, successful calls are saved
 even if another call fails. For `generateImage` and video generation, JSON
 results include successful call diagnostics in `batches` and failed call or
 download details in `failures`.
+For image/video generation, exit 1 means every model result is unsuccessful,
+including a partial result that saved files. Exit 2 means some models succeeded
+and others did not. Input validation errors also exit 1.
 
 Model IDs can be specified as `creator/model-name` or just `model-name` (resolved against models fetched from the gateway):
 
@@ -265,6 +268,8 @@ which are all saved. Other language image models use provider-specific controls.
 selects a dedicated image model. If discovery fails, returns an invalid catalog,
 or omits the selected image model, automatic routing stops with an error.
 Explicit `--api` and a full model ID allow generation without discovery.
+When the catalog is available, `generateText` also resolves short names against
+language models, including when selected by `--generate-text-options`.
 
 For OpenAI image generation through a language model, use
 `--generate-text-options text-image.json` (which selects `generateText`):
@@ -283,7 +288,7 @@ For OpenAI image generation through a language model, use
 ```
 
 ```bash
-ai image -m openai/gpt-5.5 "draw a lighthouse" --generate-text-options text-image.json --json -o ./renders/
+ai image -m gpt-5.5 "draw a lighthouse" --generate-text-options text-image.json --json -o ./renders/
 ```
 
 The file also accepts SDK `system`, `temperature`, `topP`, `topK`,
@@ -383,6 +388,8 @@ team, and authentication when checking it.
 and download limits can be set on status requests too. Provider errors exit 1;
 pending operations exit 0 and can be checked again later. If one video download
 fails, successful downloads are still saved and `failures` records the error.
+When a URL reports a generic media type, recognized video bytes determine the
+saved file's format and extension.
 
 Model support determines valid frame/reference combinations, durations,
 resolutions, FPS, and audio. Inspect `ai models <model> --json` for native

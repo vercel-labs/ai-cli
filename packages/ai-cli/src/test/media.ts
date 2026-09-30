@@ -31,6 +31,7 @@ globalThis.fetch = async (url, init) => {
     return Response.json({ data: [
       ...(mode === 'partial' ? [{ id: 'test/fail', type: 'image' }] : []),
       { id: 'openai/gpt-image-2', type: 'image' },
+      { id: 'openai/gpt-5.5', type: 'language' },
       { id: 'google/gemini-3-pro-image', type: 'language', owned_by: 'google', tags: ['image-generation'] },
       { id: 'bytedance/seedance-2.0', type: 'video', video_capabilities: { durations: [4, 15] }, supported_specifications: ['video-v4'], modalities: { input: ['text', 'image'], output: ['video'] } }
     ] });
@@ -67,10 +68,15 @@ globalThis.fetch = async (url, init) => {
       { type: 'url', url: 'https://example.com/good.webm', mediaType: 'video/webm' },
       { type: 'url', url: 'https://example.com/bad.webm', mediaType: 'video/webm' }
     ], warnings: [] });
+    if (mode === 'download-generic') return Response.json({ status: 'completed', videos: [
+      { type: 'url', url: 'https://example.com/movie.webm', mediaType: 'application/octet-stream' }
+    ], warnings: [] });
     const count = mode === 'short-video-batch' && body.operation.n === 2 ? 1 : (body.operation.n ?? 1);
     return Response.json({ status: 'completed', videos: Array.from({ length: count }, (_, i) => mode === 'download' ? { type: 'url', url: 'https://example.com/movie.webm', mediaType: 'video/webm' } : { type: 'base64', data: Buffer.from('video' + (i+1)).toString('base64'), mediaType: 'video/webm' }), warnings: [], providerMetadata: { gateway: { cost: '0.42' } } }, { headers: { 'x-request-id': 'batch-' + (body.operation.n ?? 1) } });
   }
-  if (route.endsWith('/movie.webm')) return new Response('downloaded-video', { headers: { 'content-type': 'video/webm', 'content-length': '16' } });
+  if (route.endsWith('/movie.webm')) return mode === 'download-generic'
+    ? new Response(Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x01]), { headers: { 'content-type': 'application/octet-stream; charset=binary' } })
+    : new Response('downloaded-video', { headers: { 'content-type': 'video/webm', 'content-length': '16' } });
   if (route.endsWith('/good.webm')) return new Response('good-video', { headers: { 'content-type': 'video/webm', 'content-length': '10' } });
   if (route.endsWith('/bad.webm')) return new Response('download failed', { status: 503 });
   throw new Error('Unexpected network request: ' + route);

@@ -18,6 +18,7 @@
 - Reject malformed model catalogs during automatic image API selection and associate batched video outputs with their own call's response ID.
 - Require an explicit image API when the catalog omits the selected model. Save successful image/video batches and status downloads after a sibling failure, and report short output counts as incomplete while keeping returned media.
 - Keep successful video URL downloads when another URL in the same call fails, make URL downloads work in the published Node CLI, and sum reported Gateway cost fields across completed video batches.
+- Resolve short language model names for explicit image `generateText` calls and infer saved video formats from generic status downloads. Clarify exit codes when a partial media result was saved.
 
 ## 0.5.2
 
