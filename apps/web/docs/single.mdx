@@ -132,6 +132,9 @@ Generation commands use `--json` to get structured metadata on stdout instead of
 ai image "a sunset" --json
 ```
 
+The main fields look like this; `generateImage` results also include `calls`
+and `batches` diagnostics:
+
 ```json
 {
   "elapsedMs": 3420,
@@ -141,8 +144,7 @@ ai image "a sunset" --json
       "elapsedMs": 3420,
       "success": true,
       "images": [{ "file": "/Users/you/resp_abc123.png", "mediaType": "image/png" }],
-      "warnings": [],
-      "calls": []
+      "warnings": []
     }
   ]
 }

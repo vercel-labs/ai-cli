@@ -262,7 +262,7 @@ Generation commands use `--json` to get machine-readable results; `evaluate` alw
 ai image "a sunset" --json
 ```
 
-Returns:
+Key fields (additional SDK diagnostics are included):
 ```json
 {
   "elapsedMs": 3420,
@@ -272,17 +272,17 @@ Returns:
       "elapsedMs": 3420,
       "success": true,
       "images": [{ "file": "/path/to/resp_abc123.png", "mediaType": "image/png" }],
-      "warnings": [],
-      "calls": []
+      "warnings": []
     }
   ]
 }
 ```
 
 Image/video results include `images` or `videos` arrays with every artifact.
-They can also include usage, provider metadata, responses, successful call
-diagnostics, and `failures`. `--json` keeps stdout parseable and saves artifacts
-to files even when stdout is piped.
+`generateImage` results include `calls`; batched image/video results include
+`batches` and any `failures`. Usage, provider metadata, and responses are kept
+when available. `--json` keeps stdout parseable and saves artifacts to files
+even when stdout is piped.
 
 ## Multi-Model Comparison
 
