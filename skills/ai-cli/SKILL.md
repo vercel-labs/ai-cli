@@ -1,12 +1,12 @@
 ---
 name: ai-cli
-description: Generate text, images, video, and audio, and evaluate typed questions from the terminal.
+description: Generate text, images, video, and audio, and make typed decisions from the terminal.
 ---
 
 # ai-cli
 
 Generate anything from your terminal. Create text, images, video, and audio,
-and evaluate typed questions with composable commands.
+and make typed decisions with composable commands.
 
 ## When to Use
 
@@ -132,13 +132,13 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
-## Evaluate
+## Decide
 
-Evaluate named Boolean, Choice, and Score questions using AI SDK evaluation models:
+Make decisions with named Boolean, Choice, and Score questions using AI SDK evaluation models:
 
 ```bash
 cat ticket.txt |
-  ai evaluate \
+  ai decide \
     --boolean "refund=Refund requested?" \
     --choice "team=Which team?" \
     --choices "team=billing,support" \
@@ -187,8 +187,8 @@ For richer criteria, save a named question map to `triage.json`:
 ```
 
 ```bash
-ai evaluate --questions triage.json < ticket.json
-ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+ai decide --questions triage.json < ticket.json
+ai decide --boolean "refund=Refund requested?" < ticket.txt |
   jq -e '.answers.refund.probability >= 0.9'
 ```
 
@@ -229,7 +229,7 @@ Stdin is buffered through EOF. Auto mode tries one complete JSON value, then
 text. Malformed JSON-looking input fails; use `--input text` for literal logs.
 JSON state must be a string, object, or array. Empty stdin and binary input fail;
 explicit empty JSON objects, arrays, and strings are valid. To read JSONL as a
-shared array, use `jq -s . tickets.jsonl | ai evaluate --questions triage.json`.
+shared array, use `jq -s . tickets.jsonl | ai decide --questions triage.json`.
 Provider context limits apply; input and questions are never silently split or truncated.
 
 Valid evaluations exit `0`, including false and uncertain answers. Input errors,
@@ -253,11 +253,11 @@ Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
 the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
 `typesafe-ai/jev`. Discover models with `ai models --type evaluation`.
 
-See [Evaluate](https://ai-cli.dev/docs/evaluate) for the complete interface.
+See [Decide](https://ai-cli.dev/docs/decide) for the complete interface.
 
 ## Structured Output
 
-Generation commands use `--json` to get machine-readable results; `evaluate` always returns JSON:
+Generation commands use `--json` to get machine-readable results; `decide` always returns JSON:
 
 ```bash
 ai image "a sunset" --json
@@ -293,7 +293,7 @@ ai image "a sunset" -m "openai/gpt-image-1,bfl/flux-2-pro,xai/grok-imagine-image
 
 ## Output Behavior
 
-- **evaluate**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
+- **decide**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
 - **Generation, interactive (TTY)**: saves to file, prints path to stderr
 - **Piped (non-TTY)**: a single image/video artifact writes raw bytes to stdout;
   multiple artifacts save to separate files. Text/audio retain their own stdout
@@ -309,7 +309,7 @@ video outputs are saved separately and can be read from the JSON manifest.
 
 ## Timeouts
 
-- evaluate: 30 seconds including evaluation retries
+- decide: 30 seconds including evaluation retries
 - text: 120 seconds
 - image: 300 seconds
 - video: 600 seconds

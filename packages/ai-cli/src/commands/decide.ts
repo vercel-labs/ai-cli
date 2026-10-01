@@ -19,7 +19,7 @@ import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { readStdin } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
-interface EvaluateOptions extends QuestionOptions {
+interface DecideOptions extends QuestionOptions {
   questions?: string;
   model?: string;
   input: InputFormat;
@@ -41,7 +41,7 @@ async function readTextFile(path: string, flag: string): Promise<string> {
 async function resolveEvaluationModel(userModel?: string): Promise<string> {
   const models = resolveModels("evaluation", userModel);
   if (models.length !== 1 || models[0].includes(","))
-    throw new Error("ai evaluate requires exactly one evaluation model");
+    throw new Error("ai decide requires exactly one evaluation model");
   const model = models[0];
   if (model === "jev") return "typesafe-ai/jev";
   if (model.includes("/")) return model;
@@ -56,11 +56,12 @@ async function resolveEvaluationModel(userModel?: string): Promise<string> {
 
 const append = (value: string, previous: string[] = []) => [...previous, value];
 
-export function registerEvaluateCommand(program: Command) {
+export function registerDecideCommand(program: Command) {
   const command = program
-    .command("evaluate")
+    .command("decide")
+    .alias("evaluate")
     .description(
-      "Evaluate named, typed questions against stdin; output answers and metadata as JSON"
+      "Make decisions with named, typed questions against stdin; output answers and metadata as JSON"
     )
     .option(
       "--boolean <id=question>",
@@ -113,7 +114,7 @@ export function registerEvaluateCommand(program: Command) {
     );
 
   addTimeoutOption(command, 30_000).action(
-    async (_: undefined, options: EvaluateOptions) => {
+    async (_: undefined, options: DecideOptions) => {
       const questions = buildQuestions(
         options,
         options.questions

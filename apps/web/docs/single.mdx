@@ -61,20 +61,20 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
-### Evaluate
+### Decide
 
-`evaluate` reads finite input through EOF and evaluates named typed questions together.
+`decide` reads finite input through EOF and evaluates named typed questions together.
 Text keeps whitespace; JSON objects and arrays remain one shared state. It always
 prints JSON answers and metadata in terminals and pipes, without writing files.
 
 ```bash
-ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+ai decide --boolean "refund=Refund requested?" < ticket.txt |
   jq '.answers.refund.probability'
-ai evaluate --questions triage.json < ticket.json
+ai decide --questions triage.json < ticket.json
 ```
 
 Use `--input text` for literal JSON-looking text, or `--input json` to require JSON.
-See [Evaluate](/docs/evaluate) for question types, probability semantics, and format flags.
+See [Decide](/docs/decide) for question types, probability semantics, and format flags.
 
 ## Stdout
 
@@ -117,7 +117,7 @@ ai audio transcribe call.mp3 -o call.txt   # transcript file
 
 When `-o` points to a directory, files use response IDs when available and random 8-character names otherwise.
 
-The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. `evaluate` always uses stdout and does not use this setting:
+The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. `decide` always uses stdout and does not use this setting:
 
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output

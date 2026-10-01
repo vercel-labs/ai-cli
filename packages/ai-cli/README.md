@@ -8,7 +8,7 @@
 
 ## Generate anything from your terminal
 
-Create text, images, video, and audio, and evaluate typed questions with composable commands, stdin support, and predictable outputs. Built with the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for access to hundreds of models.
+Create text, images, video, and audio, and make typed decisions with composable commands, stdin support, and predictable outputs. Built with the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for access to hundreds of models.
 
 ## Install
 
@@ -26,7 +26,7 @@ ai video "a spinning triangle"
 ai text "explain quantum computing"
 ai audio speak "Thanks for trying ai-cli"
 ai audio transcribe recording.mp3
-ai evaluate --boolean "refund=Refund requested?" < ticket.txt
+ai decide --boolean "refund=Refund requested?" < ticket.txt
 ai models                          # list available models
 ```
 
@@ -81,13 +81,15 @@ ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
 
-### evaluate
+### decide
 
-Evaluate named Boolean, Choice, and Score questions using AI SDK evaluation models:
+`ai evaluate` remains available as a backward-compatible alias for `ai decide`.
+
+Make decisions with named Boolean, Choice, and Score questions using AI SDK evaluation models:
 
 ```bash
 cat ticket.txt |
-  ai evaluate \
+  ai decide \
     --boolean "refund=Refund requested?" \
     --choice "team=Which team?" \
     --choices "team=billing,support" \
@@ -136,8 +138,8 @@ For richer criteria, save a named question map to `triage.json`:
 ```
 
 ```bash
-ai evaluate --questions triage.json < ticket.json
-ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+ai decide --questions triage.json < ticket.json
+ai decide --boolean "refund=Refund requested?" < ticket.txt |
   jq -e '.answers.refund.probability >= 0.9'
 ```
 
@@ -178,7 +180,7 @@ Stdin is buffered through EOF. Auto mode tries one complete JSON value, then
 text. Malformed JSON-looking input fails; use `--input text` for literal logs.
 JSON state must be a string, object, or array. Empty stdin and binary input fail;
 explicit empty JSON objects, arrays, and strings are valid. To read JSONL as a
-shared array, use `jq -s . tickets.jsonl | ai evaluate --questions triage.json`.
+shared array, use `jq -s . tickets.jsonl | ai decide --questions triage.json`.
 Provider context limits apply; input and questions are never silently split or truncated.
 
 Valid evaluations exit `0`, including false and uncertain answers. Input errors,
@@ -202,7 +204,7 @@ Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
 the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
 `typesafe-ai/jev`. Discover models with `ai models --type evaluation`.
 
-See [Evaluate](https://ai-cli.dev/docs/evaluate) for the complete interface.
+See [Decide](https://ai-cli.dev/docs/decide) for the complete interface.
 
 ### image
 
@@ -531,7 +533,7 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 ### Output Behavior
 
-- **evaluate**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
+- **decide**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
 - **text**: saves to `<id>.md` (interactive), stdout when piped
 - **image/video**: saves every artifact using its returned media type (PNG, WebP, SVG, MP4, WebM, etc.). A single artifact writes raw bytes when piped; multiple artifacts always use separate files. `--json` includes all artifacts, accompanying text, usage, warnings, responses, and provider metadata when available
 - **audio speak**: saves to `<id>.mp3` (interactive), raw binary stdout when piped
@@ -567,14 +569,14 @@ Requests that exceed the timeout are aborted automatically:
 
 | Command | Timeout |
 |---|---|
-| `evaluate` | 30 seconds per evaluation request |
+| `decide` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
 | `video` | 600 seconds |
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
 
-Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, `audio transcribe`, or `evaluate`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
+Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, `audio transcribe`, or `decide`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
 
 ### Exit Codes
 

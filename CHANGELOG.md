@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Improvements
+
+- Rename `ai evaluate` to `ai decide`, keeping `evaluate` as a backward-compatible alias. Help, documentation, and the bundled skill now use `decide`; existing evaluation documentation URLs redirect to `/docs/decide`.
+
 ## 0.6.0
 
 <!-- release:start -->

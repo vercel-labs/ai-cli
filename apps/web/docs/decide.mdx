@@ -1,18 +1,20 @@
 ---
-title: Evaluate
+title: Decide
 description: Use AI SDK evaluation models with typed shell flags and SDK-shaped JSON results.
 order: 3.5
 ---
 
-`ai evaluate` brings AI SDK evaluation to the terminal. Ask typed questions about
+`ai decide` brings AI SDK evaluation to the terminal. Ask typed questions about
 shared text or JSON, then use the SDK result in your scripts. The default model
 is `typesafe-ai/jev`, accessed through AI Gateway.
+
+`ai evaluate` remains available as a backward-compatible alias for `ai decide`.
 
 ## One input, several questions
 
 ```bash
 cat ticket.txt |
-  ai evaluate \
+  ai decide \
     --boolean "refund=Refund requested?" \
     --choice "team=Which team?" \
     --choices "team=billing,support" \
@@ -25,7 +27,7 @@ bind to that ID regardless of flag order. Repeat any question flag to ask more
 questions in the same request. A single question works the same way:
 
 ```bash
-ai evaluate --boolean "refund=Is the customer requesting money back?" < ticket.txt
+ai decide --boolean "refund=Is the customer requesting money back?" < ticket.txt
 ```
 
 Inline choices use each comma-separated label as both the option name and its
@@ -86,7 +88,7 @@ Save a named question map to `triage.json`:
 ```
 
 ```bash
-ai evaluate --questions triage.json < ticket.json
+ai decide --questions triage.json < ticket.json
 ```
 
 Instructions can be strings, JSON objects, or arrays. Criteria descriptions can
@@ -115,7 +117,7 @@ an explicit empty JSON object, array, or string is valid. Binary input is reject
 To use JSONL as an array, convert it explicitly:
 
 ```bash
-jq -s . tickets.jsonl | ai evaluate --questions triage.json
+jq -s . tickets.jsonl | ai decide --questions triage.json
 ```
 
 All questions are sent together without automatic splitting, shortlisting, or
@@ -153,8 +155,8 @@ Thresholds, sorting, routing, and side effects belong in your code. For example,
 extract an answer or apply your own refund threshold:
 
 ```bash
-ai evaluate --questions triage.json < ticket.json | jq '.answers.team'
-ai evaluate --boolean "refund=Refund requested?" < ticket.txt |
+ai decide --questions triage.json < ticket.json | jq '.answers.team'
+ai decide --boolean "refund=Refund requested?" < ticket.txt |
   jq -e '.answers.refund.probability >= 0.9'
 ```
 

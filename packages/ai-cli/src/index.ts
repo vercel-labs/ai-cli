@@ -2,7 +2,7 @@
 
 import pkg from "../package.json";
 import { registerAudioCommand } from "./commands/audio.js";
-import { registerEvaluateCommand } from "./commands/evaluate.js";
+import { registerDecideCommand } from "./commands/decide.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerTextCommand } from "./commands/text.js";
@@ -20,7 +20,7 @@ registerTextCommand(program);
 registerImageCommand(program);
 registerVideoCommand(program);
 registerAudioCommand(program);
-registerEvaluateCommand(program);
+registerDecideCommand(program);
 registerModelsCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

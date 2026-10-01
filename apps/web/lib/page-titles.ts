@@ -2,7 +2,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "": "Generate anything\nfrom your terminal",
   installation: "Installation",
   commands: "Commands",
-  evaluate: "Evaluate",
+  decide: "Decide",
   models: "Models",
   configuration: "Configuration",
   single: "Piping & Output",

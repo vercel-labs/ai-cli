@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const directory = mkdtempSync(join(tmpdir(), "ai-cli-evaluate-"));
+const directory = mkdtempSync(join(tmpdir(), "ai-cli-decide-"));
 const preload = join(directory, "gateway.js");
 writeFileSync(
   preload,
@@ -52,12 +52,13 @@ async function run(
   args: string[],
   input: string,
   response: Record<string, unknown> = { answers: mixedAnswers },
-  extraEnv: Record<string, string> = {}
+  extraEnv: Record<string, string> = {},
+  command: "decide" | "evaluate" = "decide"
 ) {
   const requestPath = join(directory, `requests-${crypto.randomUUID()}.jsonl`);
   writeFileSync(requestPath, "");
   const proc = Bun.spawn(
-    ["bun", "run", "--preload", preload, "src/index.ts", "evaluate", ...args],
+    ["bun", "run", "--preload", preload, "src/index.ts", command, ...args],
     {
       cwd: import.meta.dir + "/../..",
       stdin: "pipe",
@@ -88,7 +89,22 @@ async function run(
   return { stdout, stderr, exitCode, requests };
 }
 
-describe("evaluate CLI", () => {
+describe("decide CLI", () => {
+  test("evaluate remains an alias with identical requests and JSON output", async () => {
+    const [result, alias] = await Promise.all([
+      run(graphicArgs, "ticket"),
+      run(graphicArgs, "ticket", undefined, {}, "evaluate"),
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(alias.exitCode).toBe(0);
+    expect(alias.stderr).toBe("");
+    expect(alias.requests).toEqual(result.requests);
+    const output = JSON.parse(result.stdout);
+    const aliasOutput = JSON.parse(alias.stdout);
+    aliasOutput.response.timestamp = output.response.timestamp;
+    expect(aliasOutput).toEqual(output);
+  });
+
   test("the graphic's exact syntax sends one mixed request and prints complete JSON in a TTY", async () => {
     const providerMetadata = {
       typesafe: { confidence: { team: 0.72, tone: 0.65 } },

@@ -59,6 +59,7 @@ npm install -g ai-cli
 - \`ai video "prompt"\`
 - \`ai text "prompt"\`
 - \`ai audio speak "text"\`
+- \`ai decide --boolean "refund=Refund requested?" < ticket.txt\`
 - \`ai models\`
 
 ## Documentation

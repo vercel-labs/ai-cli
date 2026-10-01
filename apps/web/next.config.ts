@@ -5,6 +5,20 @@ const config: NextConfig = {
   outputFileTracingIncludes: {
     "/*": ["./docs/**/*"],
   },
+  async redirects() {
+    return [
+      {
+        source: "/docs/evaluate",
+        destination: "/docs/decide",
+        permanent: true,
+      },
+      {
+        source: "/docs/evaluate.md",
+        destination: "/docs/decide.md",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return {
       beforeFiles: [

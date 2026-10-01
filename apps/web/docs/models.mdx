@@ -15,7 +15,7 @@ Each command type has a default model used when `-m` is not specified:
 | video | `bytedance/seedance-2.0` | `AI_CLI_VIDEO_MODEL` |
 | speech | `openai/tts-1` | `AI_CLI_SPEECH_MODEL` |
 | transcription | `openai/whisper-1` | `AI_CLI_TRANSCRIPTION_MODEL` |
-| evaluation (evaluate) | `typesafe-ai/jev` | `AI_CLI_EVALUATION_MODEL` |
+| evaluation (decide) | `typesafe-ai/jev` | `AI_CLI_EVALUATION_MODEL` |
 
 The `-m` flag always takes priority over environment variables.
 
@@ -55,7 +55,7 @@ ai image "a sunset" -n 2 -m "openai/gpt-image-1,bfl/flux-2-pro"
 
 This produces 4 images total (2 per model), saved with generated filename stems and numeric suffixes, such as `resp_abc-1.<format>` through `resp_def-4.<format>`. The extension matches the format returned by each model when it is reported.
 
-`evaluate` accepts exactly one evaluation model per invocation and does not fall back to text generation models.
+`decide` accepts exactly one evaluation model per invocation and does not fall back to text generation models.
 
 ## Listing models
 

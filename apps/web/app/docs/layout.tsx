@@ -25,8 +25,8 @@ const navigation = [
       { type: "item" as const, title: "Commands", href: "/docs/commands" },
       {
         type: "item" as const,
-        title: "Evaluate",
-        href: "/docs/evaluate",
+        title: "Decide",
+        href: "/docs/decide",
       },
       { type: "item" as const, title: "Models", href: "/docs/models" },
       {

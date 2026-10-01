@@ -19,7 +19,7 @@ const multimodelrows: readonly row[] = [
 
 const evaluationrows: readonly row[] = [
   { tone: "dim", text: "$ cat ticket.txt |" },
-  { tone: "cmd", text: "  ai evaluate \\" },
+  { tone: "cmd", text: "  ai decide \\" },
   { tone: "cmd", text: '    --boolean "refund=Refund requested?" \\' },
   { tone: "cmd", text: '    --choice "team=Which team?" \\' },
   { tone: "cmd", text: '    --choices "team=billing,support" \\' },

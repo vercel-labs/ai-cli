@@ -3,6 +3,30 @@ import { describe, expect, test } from "bun:test";
 import { Command } from "./command.js";
 
 describe("Command", () => {
+  test("routes aliases to subcommands before a parent's default action", async () => {
+    let received: unknown;
+    const program = new Command().name("ai");
+    const video = program
+      .command("video")
+      .argument("[prompt]", "Prompt")
+      .action((prompt) => {
+        received = { command: "video", prompt };
+      });
+    video
+      .command("start")
+      .alias("create")
+      .argument("[prompt]", "Prompt")
+      .action((prompt) => {
+        received = { command: "start", prompt };
+      });
+
+    await program.parseAsync(["node", "ai", "video", "create", "a scene"]);
+    expect(received).toEqual({ command: "start", prompt: "a scene" });
+
+    await program.parseAsync(["node", "ai", "video", "--", "create"]);
+    expect(received).toEqual({ command: "video", prompt: "create" });
+  });
+
   test("parses positional, long, short, negated, and repeatable options", async () => {
     let received:
       | {

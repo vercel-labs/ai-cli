@@ -378,20 +378,20 @@ cat recording.mp3 | ai audio transcribe
 
 ---
 
-## evaluate
+## decide
 
 Ask named Boolean, Choice, and Score questions against shared stdin:
 
 ```bash
 cat ticket.txt |
-  ai evaluate \
+  ai decide \
     --boolean "refund=Refund requested?" \
     --choice "team=Which team?" \
     --choices "team=billing,support" \
     --score "tone=How positive?" \
     --levels "tone=angry,neutral,happy"
 
-ai evaluate --questions triage.json < ticket.json
+ai decide --questions triage.json < ticket.json
 ```
 
 Output is the SDK evaluation result as JSON, including named typed answers,
@@ -403,7 +403,7 @@ Use `--questions` for structured instructions and criteria, `--input auto|text|j
 to control parsing, `--model` to choose one evaluation model, `--provider-options`
 for the SDK’s provider-specific settings, and `--max-retries` or `--timeout` for request controls.
 
-See [Evaluate](/docs/evaluate) for every flag, the question-file schema, probability
+See [Decide](/docs/decide) for every flag, the question-file schema, probability
 semantics, and examples of using the answers in scripts. Valid evaluations exit
 zero even for false or uncertain answers; your code owns thresholds and routing.
 
@@ -459,7 +459,7 @@ Requests that exceed the per-command timeout are aborted automatically:
 
 | Command | Timeout |
 | --- | --- |
-| `evaluate` | 30 seconds per evaluation request |
+| `decide` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
 | `video` | 600 seconds |

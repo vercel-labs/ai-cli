@@ -19,7 +19,7 @@ export function Hero() {
             className="landing-fade-up mt-5 text-base text-[#888] leading-relaxed"
             style={{ animationDelay: "90ms" }}
           >
-            Generate text, images, video, and audio. Evaluate typed questions.
+            Generate text, images, video, and audio. Make typed decisions.
             Composable commands, shell pipelines, and hundreds of models
             for people and agents.
           </p>

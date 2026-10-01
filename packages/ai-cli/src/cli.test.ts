@@ -31,16 +31,10 @@ describe("cli integration", () => {
   test("--help exits 0 and lists subcommands", async () => {
     const { exitCode, stdout } = await run("--help");
     expect(exitCode).toBe(0);
-    for (const sub of [
-      "text",
-      "image",
-      "video",
-      "audio",
-      "models",
-      "evaluate",
-    ]) {
+    for (const sub of ["text", "image", "video", "audio", "models", "decide"]) {
       expect(stdout).toContain(sub);
     }
+    expect(stdout).not.toContain("evaluate");
   });
 
   test("--version exits 0 and prints semver", async () => {
@@ -286,9 +280,10 @@ describe("cli integration", () => {
     expect(stdout).toContain("evaluation");
   });
 
-  test("evaluate documents its typed interface", async () => {
-    const { exitCode, stdout } = await run("evaluate", "--help");
+  test("decide documents its typed interface", async () => {
+    const { exitCode, stdout } = await run("decide", "--help");
     expect(exitCode).toBe(0);
+    expect(stdout).toContain("Usage: ai decide");
     for (const flag of [
       "--boolean",
       "--choice",
@@ -306,6 +301,15 @@ describe("cli integration", () => {
     expect(stdout).not.toContain("--count");
   });
 
+  test.each([
+    ["evaluate", "--help"],
+    ["help", "evaluate"],
+    ["help", "decide"],
+  ])("%s %s displays the canonical decide help", async (command, help) => {
+    const canonical = await run("decide", "--help");
+    expect(await run(command, help)).toEqual(canonical);
+  });
+
   test.each(["filter", "rank", "pick", "judge"])(
     "%s is not a command",
     async (command) => {
@@ -315,13 +319,16 @@ describe("cli integration", () => {
     }
   );
 
-  test("evaluate requires explicit typed questions", async () => {
-    const result = await run("evaluate");
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("named question is required");
-  });
+  test.each(["decide", "evaluate"])(
+    "%s requires explicit typed questions",
+    async (command) => {
+      const result = await run(command);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("named question is required");
+    }
+  );
 
-  test("evaluate validates flags before requesting a model", async () => {
+  test("decide validates flags before requesting a model", async () => {
     for (const args of [
       ["--boolean", "missing-id"],
       ["--choice", "team=Which team?"],
@@ -329,7 +336,7 @@ describe("cli integration", () => {
       ["--input", "yaml"],
       ["--max-retries", "-1"],
     ]) {
-      expect((await run("evaluate", ...args)).exitCode).toBe(1);
+      expect((await run("decide", ...args)).exitCode).toBe(1);
     }
   });
 
