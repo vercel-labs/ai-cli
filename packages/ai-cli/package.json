@@ -1,6 +1,6 @@
 {
   "name": "ai-cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Generate anything from your terminal",
   "type": "module",
   "license": "Apache-2.0",
