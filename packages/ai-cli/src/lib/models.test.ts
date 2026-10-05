@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, vi, test } from "vitest";
 
 import {
   resolveModels,
@@ -19,13 +19,13 @@ function mockGateway(models: Record<string, unknown>[]) {
 }
 
 function mockGatewayPayload(payload: unknown) {
-  globalThis.fetch = mock(() =>
+  globalThis.fetch = vi.fn(() =>
     Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))
   ) as unknown as typeof fetch;
 }
 
 function mockGatewayError() {
-  globalThis.fetch = mock(() =>
+  globalThis.fetch = vi.fn(() =>
     Promise.reject(new Error("network error"))
   ) as unknown as typeof fetch;
 }
@@ -304,7 +304,7 @@ describe("fetchGatewayModels", () => {
   });
 
   test("returns empty lists on non-200 response", async () => {
-    globalThis.fetch = mock(() =>
+    globalThis.fetch = vi.fn(() =>
       Promise.resolve(new Response("Not Found", { status: 404 }))
     ) as unknown as typeof fetch;
 
@@ -346,7 +346,7 @@ describe("fetchGatewayModels", () => {
   });
 
   test("caches result across multiple calls", async () => {
-    const fetchMock = mock(() =>
+    const fetchMock = vi.fn(() =>
       Promise.resolve(
         new Response(
           JSON.stringify({
@@ -459,7 +459,7 @@ describe("fetchModelEndpoints", () => {
         },
       ],
     };
-    const fetchMock = mock((_url: string) =>
+    const fetchMock = vi.fn((_url: string) =>
       Promise.resolve(new Response(JSON.stringify({ data }), { status: 200 }))
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -476,7 +476,7 @@ describe("fetchModelEndpoints", () => {
   });
 
   test("defaults endpoints to an empty array", async () => {
-    globalThis.fetch = mock(() =>
+    globalThis.fetch = vi.fn(() =>
       Promise.resolve(
         new Response(JSON.stringify({ data: { id: "openai/gpt-5" } }), {
           status: 200,
@@ -494,7 +494,7 @@ describe("fetchModelEndpoints", () => {
   });
 
   test("returns null on non-200 response", async () => {
-    globalThis.fetch = mock(() =>
+    globalThis.fetch = vi.fn(() =>
       Promise.resolve(new Response("Not Found", { status: 404 }))
     ) as unknown as typeof fetch;
     expect(await fetchModelEndpoints("openai/nope")).toBeNull();

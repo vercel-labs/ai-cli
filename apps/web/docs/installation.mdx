@@ -13,7 +13,6 @@ npm install -g ai-cli
 Or with other package managers:
 
 ```bash
-bun add -g ai-cli
 pnpm add -g ai-cli
 yarn global add ai-cli
 ```
@@ -50,11 +49,22 @@ If you see generated text, you're ready.
 ## Requirements
 
 <Properties>
-  <Property name="Bun" type="1.0+" required>
-    ai-cli runs with Bun. Install from bun.sh.
+  <Property name="Node.js" type="22+" required>
+    ai-cli runs on Node.js. Install from nodejs.org.
   </Property>
   <Property name="API key" type="string" required>
     A Vercel AI Gateway key or provider-specific key.
   </Property>
 </Properties>
 
+## Developing from source
+
+Repository development uses Node.js 24+ and npm. From the repository root:
+
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run build
+npm run dev --workspace ai-cli -- --help
+```

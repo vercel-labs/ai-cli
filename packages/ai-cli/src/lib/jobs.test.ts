@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { basename, join } from "path";
+
+import { describe, expect, test } from "vitest";
 
 import { buildJobs, runJobs } from "./jobs.js";
 

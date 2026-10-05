@@ -1,6 +1,7 @@
-import { describe, expect, test } from "bun:test";
 import { Readable } from "node:stream";
 import { setTimeout } from "node:timers/promises";
+
+import { describe, expect, test } from "vitest";
 
 import { readStdin, stdinAsText } from "./stdin.js";
 

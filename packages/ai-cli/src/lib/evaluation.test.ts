@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
-
 import type { Experimental_EvaluationModel as EvaluationModel } from "ai";
+import { describe, expect, test } from "vitest";
 
 import {
   buildQuestions,

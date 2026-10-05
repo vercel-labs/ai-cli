@@ -1,7 +1,13 @@
-import { afterAll } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { afterAll } from "vitest";
+
+import { runNode } from "./process.js";
+
+const tsx = fileURLToPath(import.meta.resolve("tsx"));
 
 export const pngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=";
@@ -15,6 +21,7 @@ export function mediaFixture() {
     preload,
     `
 import { appendFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 const png = ${JSON.stringify(pngBase64)};
 const mode = process.env.TEST_MODE;
 let statuses = 0;
@@ -86,6 +93,8 @@ globalThis.fetch = async (url, init) => {
   if (route.endsWith('/bad.webm')) return new Response('download failed', { status: 503 });
   throw new Error('Unexpected network request: ' + route);
 };
+// The SDK's Node.js download transport imports undici instead of global fetch.
+createRequire(${JSON.stringify(import.meta.url)})('undici').fetch = globalThis.fetch;
 `
   );
   const json = (value: unknown) => {
@@ -97,44 +106,33 @@ globalThis.fetch = async (url, init) => {
   writeFileSync(image, png);
   async function run(
     args: string[],
-    options: { mode?: string; input?: Uint8Array; node?: boolean } = {}
+    options: { mode?: string; input?: Uint8Array; built?: boolean } = {}
   ) {
     const requestPath = join(directory, `${crypto.randomUUID()}.jsonl`);
     writeFileSync(requestPath, "");
-    const executable = options.node
-      ? [
-          "node",
+    const executable = options.built
+      ? ["--import", preload, join(import.meta.dirname, "../../dist/index.js")]
+      : [
+          "--import",
+          tsx,
           "--import",
           preload,
-          join(import.meta.dir, "../../dist/index.js"),
-        ]
-      : [
-          "bun",
-          "run",
-          "--preload",
-          preload,
-          join(import.meta.dir, "../index.ts"),
+          join(import.meta.dirname, "../index.ts"),
         ];
-    const proc = Bun.spawn([...executable, ...args], {
-      cwd: directory,
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        AI_GATEWAY_API_KEY: "test-key",
-        AI_CLI_OUTPUT_DIR: "",
-        TEST_REQUESTS: requestPath,
-        TEST_MODE: options.mode ?? "",
+    const { stdout, stderr, exitCode } = await runNode(
+      [...executable, ...args],
+      {
+        cwd: directory,
+        env: {
+          ...process.env,
+          AI_GATEWAY_API_KEY: "test-key",
+          AI_CLI_OUTPUT_DIR: "",
+          TEST_REQUESTS: requestPath,
+          TEST_MODE: options.mode ?? "",
+        },
       },
-    });
-    if (options.input) proc.stdin.write(options.input);
-    proc.stdin.end();
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+      options.input
+    );
     const requests = readFileSync(requestPath, "utf8")
       .split("\n")
       .filter(Boolean)

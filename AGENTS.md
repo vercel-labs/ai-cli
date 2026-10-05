@@ -6,13 +6,13 @@ This is a Turborepo monorepo. The CLI application lives in `packages/ai-cli/` an
 
 ## Package Manager
 
-Use **bun** for all package management and script execution:
+Use **Node.js 24+** and **npm** for all package management and script execution:
 
-- `bun install` to install dependencies
-- `bun add <package>` to add a dependency (use `--cwd packages/ai-cli` to target the CLI package)
-- `bun add -d <package>` to add a dev dependency
-- `bun run <script>` to run package.json scripts
-- `bun test` to run tests
+- `npm ci` to install dependencies from the lockfile
+- `npm install <package>@<version>` to add a dependency (use `--workspace ai-cli` to target the CLI package)
+- `npm install -D <package>@<version>` to add a dev dependency
+- `npm run <script>` to run package.json scripts
+- `npm test` to run tests
 
 ## Installing Packages
 
@@ -22,7 +22,7 @@ Before installing any npm package, always check the latest version first:
 npm view <package> version
 ```
 
-Then install that specific version (e.g. `bun add --cwd packages/ai-cli <package>@<version>`). Never blindly install without verifying the latest version.
+Then install that specific version (e.g. `npm install --workspace ai-cli <package>@<version>`). Never blindly install without verifying the latest version.
 
 ## Documentation
 
@@ -50,7 +50,7 @@ previous release when preparing a new one.
 Run the type checker after every agent turn:
 
 ```sh
-bun run typecheck
+npm run typecheck
 ```
 
 This runs `turbo run typecheck` across all workspaces and ensures no type errors have been introduced. Fix any type errors before moving on.

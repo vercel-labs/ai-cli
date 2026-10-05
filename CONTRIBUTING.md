@@ -25,3 +25,24 @@ Use the issue template that best matches your report:
 - **Change proposal** for implementation ideas that would otherwise have been a pull request
 
 Do not include API keys, tokens, credentials, private data, or other sensitive information in issues.
+
+## Development
+
+Use Node.js 24+ (see `.node-version`) and npm to work on this monorepo. The published CLI requires Node.js 22+.
+
+From the repository root:
+
+```bash
+npm ci
+npm run typecheck
+npm run format:check
+npm run lint
+npm test
+npm run build
+```
+
+Run the CLI from source with `npm run dev --workspace ai-cli -- --help`, or start the documentation website with `npm run dev --workspace @ai-cli/web`.
+
+Tests use Vitest on Node.js. CLI builds use esbuild and copy the OpenH264 WebAssembly asset into `dist/` for terminal video previews.
+
+Before adding a dependency, check its latest version with `npm view <package> version`, then install the specific version with `npm install --save-exact --workspace ai-cli <package>@<version>` (add `-D` for a development dependency). Commit the updated `package-lock.json` with dependency changes.

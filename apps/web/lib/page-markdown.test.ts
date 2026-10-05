@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import { GET } from "../app/api/docs-md/[[...slug]]/route";
 import { isSafePathSegments } from "./docs-pages";
@@ -10,11 +10,11 @@ describe("isSafePathSegments", () => {
     ["slash segment", ["docs/installation"]],
     ["backslash segment", ["docs", String.raw`..\installation`]],
   ])("rejects a decoded %s", (_name, segments) => {
-    expect(isSafePathSegments(segments)).toBeFalse();
+    expect(isSafePathSegments(segments)).toBe(false);
   });
 
   test("accepts ordinary nested segments", () => {
-    expect(isSafePathSegments(["docs", "guides", "installation"])).toBeTrue();
+    expect(isSafePathSegments(["docs", "guides", "installation"])).toBe(true);
   });
 });
 
@@ -24,7 +24,7 @@ describe("markdownForPathname", () => {
       "docs/installation",
     ]);
 
-    expect(page.found).toBeFalse();
+    expect(page.found).toBe(false);
   });
 
   test("keeps ordinary docs paths working", async () => {
@@ -33,7 +33,7 @@ describe("markdownForPathname", () => {
       "installation",
     ]);
 
-    expect(page.found).toBeTrue();
+    expect(page.found).toBe(true);
     expect(page.canonicalUrl).toBe("https://ai-cli.dev/docs/installation");
   });
 });

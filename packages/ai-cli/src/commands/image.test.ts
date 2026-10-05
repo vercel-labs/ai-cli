@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   extractSvgImage,
@@ -97,6 +97,25 @@ const generate = (args: string[], mode?: string) =>
   );
 
 describe("SDK image generation", () => {
+  test("built Node.js CLI generates images outside the repository", async () => {
+    const result = await fixture.run(
+      ["image", "a scene", "--json", "--quiet", "--no-preview"],
+      {
+        built: true,
+      }
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.images).toHaveLength(1);
+    expect(readFileSync(output.images[0].file)).toEqual(
+      Buffer.from(pngBase64, "base64")
+    );
+    expect(
+      result.requests.some((request) => request.route.endsWith("/image-model"))
+    ).toBe(true);
+  });
+
   test("forwards masks, seed zero, nested provider options, headers, and native batching", async () => {
     const options = {
       openai: {
@@ -251,7 +270,7 @@ describe("SDK image generation", () => {
     const output = JSON.parse(result.stdout).results[0];
     expect(output.images).toHaveLength(2);
     expect(output.text).toBe("Two generated images");
-    expect(output.response.id).toBeString();
+    expect(output.response.id).toBeTypeOf("string");
     expect(output.images[0].id).toBe(output.response.id);
   });
 

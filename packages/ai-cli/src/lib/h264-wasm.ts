@@ -96,9 +96,10 @@ let modulePromise: Promise<OpenH264Module> | null = null;
 function getModule(): Promise<OpenH264Module> {
   if (!modulePromise) {
     modulePromise = (async () => {
-      const { readFileSync } = await import("fs");
-      const wasmPath: string = (await import("./openh264.wasm")).default;
-      const wasmBinary = readFileSync(wasmPath);
+      const { readFileSync } = await import("node:fs");
+      const wasmBinary = readFileSync(
+        new URL("./openh264.wasm", import.meta.url)
+      );
       const factory = (await import("./openh264.mjs")).default;
       return factory({
         wasmBinary: new Uint8Array(wasmBinary),

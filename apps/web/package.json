@@ -2,11 +2,12 @@
   "name": "@ai-cli/web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "test": "bun test",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -25,7 +26,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
-    "@types/bun": "1.4.2",
     "@types/mdast": "4.0.4",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
