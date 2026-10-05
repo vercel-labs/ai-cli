@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { describe, expect, test } from "vitest";
 
 import { mediaFixture, png, pngBase64 } from "../test/media.js";
 import { videoGenerationOptions } from "./video.js";

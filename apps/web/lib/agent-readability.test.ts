@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import { shouldServeMarkdown } from "@vercel/agent-readability";
 
@@ -14,7 +14,7 @@ describe("agent readability", () => {
 			headers: new Headers({ "user-agent": userAgent }),
 		});
 
-		expect(result.serve).toBeFalse();
+		expect(result.serve).toBe(false);
 	});
 
 	test("still detects agents", () => {
@@ -22,6 +22,6 @@ describe("agent readability", () => {
 			headers: new Headers({ "user-agent": "ClaudeBot/1.0" }),
 		});
 
-		expect(result.serve).toBeTrue();
+		expect(result.serve).toBe(true);
 	});
 });

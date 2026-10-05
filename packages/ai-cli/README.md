@@ -586,6 +586,20 @@ Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, 
 | `1` | Invalid input or request failure; all generations failed |
 | `2` | Partial generation failure (some succeeded, some failed) |
 
+## Development
+
+Repository development uses Node.js 24+ and npm. From the repository root:
+
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run build
+npm run dev --workspace ai-cli -- --help
+```
+
+See [CONTRIBUTING.md](https://github.com/vercel-labs/ai-cli/blob/main/CONTRIBUTING.md) for the development workflow.
+
 ## License
 
 [Apache-2.0](LICENSE)

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
@@ -6,7 +6,7 @@ import { mdxToMarkdown } from "./mdx-markdown";
 
 function docBody(filename: string): string {
   const source = readFileSync(
-    path.join(import.meta.dir, "../docs", filename),
+    path.join(import.meta.dirname, "../docs", filename),
     "utf8"
   );
   return source.replace(/^---\n[\s\S]*?\n---\n/, "");
@@ -30,7 +30,7 @@ describe("mdxToMarkdown", () => {
     ### Install
 
     \`\`\`bash
-    bun add ai-cli
+    npm install ai-cli
     \`\`\`
   </Step>
 </Steps>
@@ -88,7 +88,7 @@ const value = 1;
   });
 
   test("serializes every current documentation source without JSX", () => {
-    const filenames = readdirSync(path.join(import.meta.dir, "../docs"))
+    const filenames = readdirSync(path.join(import.meta.dirname, "../docs"))
       .filter((filename) => filename.endsWith(".mdx"))
       .toSorted();
 

@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+
+import { describe, expect, test } from "vitest";
 
 import { resolveAudioFormat, shouldPreviewAudio } from "./audio.js";
 

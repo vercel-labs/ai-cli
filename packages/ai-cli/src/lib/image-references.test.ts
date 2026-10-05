@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { afterEach, describe, expect, test } from "vitest";
 
 import {
   collectImageReference,

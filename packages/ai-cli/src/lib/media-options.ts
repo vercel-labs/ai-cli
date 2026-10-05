@@ -188,25 +188,22 @@ export async function mediaSettings(
     headers,
     // Gateway 4.0.101 drops zero seeds with a truthiness check. Restore only
     // an explicitly requested zero on media generation/start requests.
-    fetch: Object.assign(
-      async (
-        input: Parameters<typeof fetch>[0],
-        init?: Parameters<typeof fetch>[1]
-      ) => {
-        const url = String(input);
-        if (
-          seed === 0 &&
-          /\/(?:image-model|video-model(?:\/start)?)$/.test(url) &&
-          typeof init?.body === "string"
-        ) {
-          const body = JSON.parse(init.body);
-          if (body.seed === undefined)
-            init = { ...init, body: JSON.stringify({ ...body, seed: 0 }) };
-        }
-        return globalThis.fetch(input, init);
-      },
-      { preconnect: globalThis.fetch.preconnect }
-    ),
+    fetch: async (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1]
+    ) => {
+      const url = String(input);
+      if (
+        seed === 0 &&
+        /\/(?:image-model|video-model(?:\/start)?)$/.test(url) &&
+        typeof init?.body === "string"
+      ) {
+        const body = JSON.parse(init.body);
+        if (body.seed === undefined)
+          init = { ...init, body: JSON.stringify({ ...body, seed: 0 }) };
+      }
+      return globalThis.fetch(input, init);
+    },
   });
   return {
     gateway,

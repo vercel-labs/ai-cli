@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
-
 import sharp from "sharp";
+import { describe, expect, test } from "vitest";
 
 import { displayImage } from "./kitty.js";
 

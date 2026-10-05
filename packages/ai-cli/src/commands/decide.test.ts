@@ -1,10 +1,13 @@
-import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { afterAll, describe, expect, test } from "vitest";
+
+import { runNode } from "../test/process.js";
+
 const directory = mkdtempSync(join(tmpdir(), "ai-cli-decide-"));
-const preload = join(directory, "gateway.js");
+const preload = join(directory, "gateway.mjs");
 writeFileSync(
   preload,
   `
@@ -57,13 +60,10 @@ async function run(
 ) {
   const requestPath = join(directory, `requests-${crypto.randomUUID()}.jsonl`);
   writeFileSync(requestPath, "");
-  const proc = Bun.spawn(
-    ["bun", "run", "--preload", preload, "src/index.ts", command, ...args],
+  const { stdout, stderr, exitCode } = await runNode(
+    ["--import", "tsx", "--import", preload, "src/index.ts", command, ...args],
     {
-      cwd: import.meta.dir + "/../..",
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
+      cwd: import.meta.dirname + "/../..",
       env: {
         ...process.env,
         AI_GATEWAY_API_KEY: "test-key",
@@ -72,15 +72,9 @@ async function run(
         TEST_RESPONSE: JSON.stringify(response),
         ...extraEnv,
       },
-    }
+    },
+    input
   );
-  proc.stdin.write(input);
-  proc.stdin.end();
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
   const requests = readFileSync(requestPath, "utf8")
     .trim()
     .split("\n")

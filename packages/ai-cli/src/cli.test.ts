@@ -1,23 +1,19 @@
-import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, test } from "vitest";
 
 import pkg from "../package.json";
+import { runNode } from "./test/process.js";
 
-const CLI = ["bun", "run", "src/index.ts"];
-const ROOT = import.meta.dir + "/..";
+const CLI = ["--import", "tsx", "src/index.ts"];
+const ROOT = import.meta.dirname + "/..";
 
 async function run(...args: string[]) {
-  const proc = Bun.spawn([...CLI, ...args], {
+  return runNode([...CLI, ...args], {
     cwd: ROOT,
-    stdout: "pipe",
-    stderr: "pipe",
-    stdin: "ignore",
   });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  const exitCode = await proc.exited;
-  return { exitCode, stdout, stderr };
 }
 
 describe("cli integration", () => {
@@ -26,6 +22,26 @@ describe("cli integration", () => {
     expect(pkg.files).toContain("dist");
     expect(pkg.files).not.toContain("src");
     expect(pkg.dependencies).not.toHaveProperty("commander");
+  });
+
+  test("built CLI runs on Node.js outside the repository", async () => {
+    const result = await runNode(
+      [
+        fileURLToPath(new URL("../dist/index.js", import.meta.url)),
+        "--version",
+      ],
+      { cwd: tmpdir() }
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe(pkg.version);
+    expect(result.stderr).toBe("");
+  });
+
+  test("built package includes the WebAssembly decoder", () => {
+    const wasm = readFileSync(
+      new URL("../dist/openh264.wasm", import.meta.url)
+    );
+    expect([...wasm.subarray(0, 4)]).toEqual([0x00, 0x61, 0x73, 0x6d]);
   });
 
   test("--help exits 0 and lists subcommands", async () => {
