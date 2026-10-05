@@ -1,4 +1,3 @@
-// Ultracite oxfmt Configuration
 // https://oxc.rs/docs/guide/usage/formatter/config-file-reference.html
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
