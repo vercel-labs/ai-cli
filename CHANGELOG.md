@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
+
+<!-- release:start -->
 
 ### New Features
 
