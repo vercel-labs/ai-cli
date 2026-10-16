@@ -12,9 +12,13 @@
 
 - Move repository development, builds, tests, and CI to Node.js and npm. Update installation requirements to Node.js 22+ and document the Node.js 24+ development workflow.
 
-## 0.6.1
+### Contributors
 
-<!-- release:start -->
+- @Railly
+
+<!-- release:end -->
+
+## 0.6.1
 
 ### Improvements
 
@@ -23,8 +27,6 @@
 ### Contributors
 
 - @ctate
-
-<!-- release:end -->
 
 ## 0.6.0
 
