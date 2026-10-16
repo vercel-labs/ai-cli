@@ -142,15 +142,14 @@ export function registerDecideCommand(program: Command) {
         throw new Error(
           "Pipe text or a JSON state to stdin, or pass --images."
         );
-      const stdin = process.stdin.isTTY ? undefined : await readStdin();
+      const stdin = decodeEvaluationText(
+        (process.stdin.isTTY ? null : await readStdin()) ?? new Uint8Array()
+      );
       const state = decisionState(
-        // Images may stand alone; an empty pipe then adds no text part.
-        images.length > 0 && !stdin?.length
+        // Images may stand alone; blank stdin then adds no text part.
+        images.length > 0 && !stdin.trim()
           ? undefined
-          : parseState(
-              decodeEvaluationText(stdin ?? new Uint8Array()),
-              options.input
-            ),
+          : parseState(stdin, options.input),
         images
       );
       const model = await resolveEvaluationModel(options.model);

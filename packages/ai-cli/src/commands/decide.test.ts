@@ -306,10 +306,12 @@ describe("decide CLI", () => {
       data: readFileSync(png).toString("base64"),
     });
 
-    const alone = await run(args, "", { answers });
-    expect(alone.exitCode).toBe(0);
-    expect(alone.requests[0].stateParts).toHaveLength(1);
-    expect(alone.requests[0].stateParts[0].type).toBe("file");
+    for (const input of ["", "\n"]) {
+      const alone = await run(args, input, { answers });
+      expect(alone.exitCode).toBe(0);
+      expect(alone.requests[0].stateParts).toHaveLength(1);
+      expect(alone.requests[0].stateParts[0].type).toBe("file");
+    }
   });
 
   test("accepts empty JSON arrays as shared state", async () => {
