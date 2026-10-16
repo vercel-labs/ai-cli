@@ -314,6 +314,37 @@ describe("decide CLI", () => {
     }
   });
 
+  test("--images keeps flag order after a JSON state and accepts data URLs", async () => {
+    const answers = { q: { type: "boolean", probability: 0.5 } };
+    const png = (byte: number) =>
+      Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        Buffer.from([byte]),
+      ]);
+    const first = join(directory, "first.png");
+    writeFileSync(first, png(1));
+    const second = `data:image/png;base64,${png(2).toString("base64")}`;
+    const result = await run(
+      ["--boolean", "q=Same order?", "-i", first, "--images", second],
+      '{"ticket":"123"}',
+      { answers }
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.requests[0].stateParts).toEqual([
+      { type: "json", value: { ticket: "123" } },
+      {
+        type: "file",
+        mediaType: "image/png",
+        data: { type: "data", data: png(1).toString("base64") },
+      },
+      {
+        type: "file",
+        mediaType: "image/png",
+        data: { type: "data", data: png(2).toString("base64") },
+      },
+    ]);
+  });
+
   test("accepts empty JSON arrays as shared state", async () => {
     const result = await run(["--boolean", "q=Any requests present?"], "[]", {
       answers: { q: { type: "boolean", probability: 0 } },

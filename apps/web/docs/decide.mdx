@@ -108,8 +108,9 @@ TypeSafe's Noul primitive.
 ### Images
 
 `-i, --images <path-or-url>` adds an image to the state as a file part after stdin.
-Repeat it for several images; order is kept. Paths, `file://`, `http(s)`, and data
-URLs work. URLs are downloaded by the SDK before the request. Stdin is optional
+Repeat it for several images; order is kept. Paths, `file://`, data URLs, and public
+`http(s)` URLs work. The SDK downloads URLs before the request and rejects localhost
+and private hosts; use a path for those. Stdin is optional
 when at least one image is given:
 
 ```bash

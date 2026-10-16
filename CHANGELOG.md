@@ -4,7 +4,7 @@
 
 ### New Features
 
-- Add `-i, --images` to `ai decide` so decision models such as Jev can judge images, alone or alongside stdin text or JSON. Upgrade to `ai` 7.0.139 and `@ai-sdk/gateway` 4.0.112, which add file parts to decision state.
+- Add `-i, --images` to `ai decide` so decision models such as Jev can judge images, alone or alongside stdin text or JSON. Upgrade to `ai` 7.0.139 and `@ai-sdk/gateway` 4.0.112, which add file parts to decision state. Requests now go to the gateway's `/decision-model` endpoint instead of `/evaluation-model`.
 
 ### Improvements
 

@@ -113,7 +113,7 @@ and typed flags build its named `questions`. `--choices` creates a Choice
 the SDK question schema directly. Jev is the default evaluation model; other
 supported evaluation models use the same interface.
 
-Pass images with `-i, --images` (paths or URLs, repeatable). They follow stdin
+Pass images with `-i, --images` (paths, data URLs, or public URLs; repeatable). They follow stdin
 as file parts in the same state, in order; stdin is optional when images are given:
 
 ```bash
