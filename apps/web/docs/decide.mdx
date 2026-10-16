@@ -117,6 +117,9 @@ ai decide --boolean "receipt=Is this a receipt?" -i scan.png
 echo "Order #123" | ai decide --boolean "match=Does the photo show order #123?" -i photo.jpg
 ```
 
+Image limits come from the provider. Jev rejects images that are too small, such as
+squares under 280 pixels, with `invalid request body`; use a larger image.
+
 ### Text and JSON
 
 Stdin is buffered through EOF and sent as one shared state. JSON objects and
