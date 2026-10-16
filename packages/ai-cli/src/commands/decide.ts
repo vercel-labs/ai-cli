@@ -5,6 +5,7 @@ import { gateway } from "@ai-sdk/gateway";
 import type { Command } from "../lib/command.js";
 import {
   buildQuestions,
+  decisionState,
   decodeEvaluationText,
   evaluateState,
   parseInputFormat,
@@ -15,12 +16,17 @@ import {
   type InputFormat,
   type QuestionOptions,
 } from "../lib/evaluation.js";
+import {
+  collectImageReference,
+  loadImageReferences,
+} from "../lib/image-references.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { readStdin } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
 interface DecideOptions extends QuestionOptions {
   questions?: string;
+  images?: string[];
   model?: string;
   input: InputFormat;
   providerOptions?: string;
@@ -61,7 +67,7 @@ export function registerDecideCommand(program: Command) {
     .command("decide")
     .alias("evaluate")
     .description(
-      "Make decisions with named, typed questions against stdin; output answers and metadata as JSON"
+      "Make decisions with named, typed questions against stdin and images; output answers and metadata as JSON"
     )
     .option(
       "--boolean <id=question>",
@@ -91,6 +97,11 @@ export function registerDecideCommand(program: Command) {
     .option(
       "--questions <path>",
       "JSON file of named questions with typed criteria"
+    )
+    .option(
+      "-i, --images <path-or-url>",
+      "Image file part after stdin in the decision state (repeatable)",
+      collectImageReference
     )
     .option(
       "-m, --model <model>",
@@ -126,15 +137,24 @@ export function registerDecideCommand(program: Command) {
             await readTextFile(options.providerOptions, "provider-options")
           )
         : undefined;
-      if (process.stdin.isTTY)
-        throw new Error("Pipe text or a JSON state to stdin.");
-      const state = parseState(
-        decodeEvaluationText((await readStdin()) ?? new Uint8Array()),
-        options.input
+      const images = await loadImageReferences(options.images ?? [], "images");
+      if (process.stdin.isTTY && images.length === 0)
+        throw new Error(
+          "Pipe text or a JSON state to stdin, or pass --images."
+        );
+      const stdin = decodeEvaluationText(
+        (process.stdin.isTTY ? null : await readStdin()) ?? new Uint8Array()
+      );
+      const state = decisionState(
+        // Images may stand alone; blank stdin then adds no text part.
+        images.length > 0 && !stdin.trim()
+          ? undefined
+          : parseState(stdin, options.input),
+        images
       );
       const model = await resolveEvaluationModel(options.model);
       const result = await evaluateState(state, questions, {
-        model: gateway.evaluationModel(model),
+        model: gateway.decisionModel(model),
         timeoutMs: timeoutMs(options.timeout),
         maxRetries: options.maxRetries,
         providerOptions,

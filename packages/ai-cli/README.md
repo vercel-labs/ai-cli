@@ -107,11 +107,19 @@ ask more questions in the same request.
 - Score returns a fractional position on ordered levels, starting at zero, and
   a distribution when available. Jev uses the probability-weighted mean.
 
-The command calls AI SDK's `experimental_evaluate`: stdin maps to `state`,
+The command calls AI SDK's `experimental_decide`: stdin maps to `state`,
 and typed flags build its named `questions`. `--choices` creates a Choice
 `criteria` map; `--levels` creates a Score `criteria` array. The file form uses
 the SDK question schema directly. Jev is the default evaluation model; other
 supported evaluation models use the same interface.
+
+Pass images with `-i, --images` (paths, data URLs, or public URLs; repeatable). They follow stdin
+as file parts in the same state, in order; stdin is optional when images are given:
+
+```bash
+ai decide --boolean "receipt=Is this a receipt?" -i scan.png
+echo "Order #123" | ai decide --boolean "match=Does the photo show order #123?" -i photo.jpg
+```
 
 For richer criteria, save a named question map to `triage.json`:
 
@@ -158,6 +166,7 @@ Files and inline questions can be combined; duplicate IDs are errors.
 --score <id=question>      Ordered-score question (repeatable)
 --levels <id=low,...,high> Score levels for the named question (repeatable)
 --questions <path>        JSON file of named typed questions
+-i, --images <path-or-url> Image after stdin in the state (repeatable)
 -m, --model <id>          One evaluation model (default: typesafe-ai/jev)
 --input <format>          auto, text, or json (default: auto)
 --provider-options <path> JSON object of provider names to option objects

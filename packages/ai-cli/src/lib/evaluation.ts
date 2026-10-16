@@ -1,11 +1,14 @@
 import {
-  experimental_evaluate as evaluate,
-  type Experimental_EvaluationModel as EvaluationModel,
-  type Experimental_EvaluationQuestion as EvaluationQuestion,
+  experimental_decide as decide,
+  type Experimental_DecisionModel as DecisionModel,
+  type Experimental_DecisionQuestion as DecisionQuestion,
+  type Experimental_DecisionState as DecisionState,
   type JSONValue,
 } from "ai";
 
-export type Questions = Record<string, EvaluationQuestion>;
+import type { ImageReference } from "./image-references.js";
+
+export type Questions = Record<string, DecisionQuestion>;
 type JSONObject = { [key: string]: JSONValue };
 export type State = string | JSONObject | JSONValue[];
 export type InputFormat = "auto" | "text" | "json";
@@ -229,17 +232,41 @@ export function parseMaxRetries(value: string): number {
   return retries;
 }
 
+/** Combine stdin state and images into one ordered decision state. */
+export function decisionState(
+  state: State | undefined,
+  images: ImageReference[] = []
+): DecisionState {
+  if (state === undefined && images.length === 0)
+    throw new Error("Pipe text or a JSON state to stdin, or pass --images.");
+  // A bare array is ambiguous with SDK state parts, so wrap it as JSON.
+  if (images.length === 0)
+    return Array.isArray(state) ? [{ type: "json", value: state }] : state!;
+  return [
+    ...(state === undefined
+      ? []
+      : typeof state === "string"
+        ? [{ type: "text" as const, text: state }]
+        : [{ type: "json" as const, value: state }]),
+    ...images.map((image) => ({
+      type: "file" as const,
+      data: typeof image === "string" ? new URL(image) : image,
+      mediaType: "image",
+    })),
+  ];
+}
+
 export async function evaluateState(
-  state: State,
+  state: DecisionState,
   questions: Questions,
   options: {
-    model: EvaluationModel;
+    model: DecisionModel;
     timeoutMs: number;
     maxRetries?: number;
     providerOptions?: Record<string, JSONObject>;
   }
 ) {
-  return evaluate({
+  return decide({
     model: options.model,
     state,
     questions,

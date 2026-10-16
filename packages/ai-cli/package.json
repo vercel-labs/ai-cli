@@ -43,8 +43,8 @@
     "prepack": "npm run typecheck && npm run build"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "4.0.101",
-    "ai": "7.0.123",
+    "@ai-sdk/gateway": "4.0.112",
+    "ai": "7.0.139",
     "sharp": "0.35.4",
     "undici": "7.30.0"
   },

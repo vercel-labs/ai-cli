@@ -307,6 +307,7 @@ describe("cli integration", () => {
       "--score",
       "--levels",
       "--questions",
+      "--images",
       "--input",
       "--provider-options",
       "--max-retries",
