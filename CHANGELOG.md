@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New Features
+
+- Add `-i, --images` to `ai decide` so decision models such as Jev can judge images, alone or alongside stdin text or JSON. Upgrade to `ai` 7.0.139 and `@ai-sdk/gateway` 4.0.112, which add file parts to decision state.
+
 ### Improvements
 
 - Move repository development, builds, tests, and CI to Node.js and npm. Update installation requirements to Node.js 22+ and document the Node.js 24+ development workflow.

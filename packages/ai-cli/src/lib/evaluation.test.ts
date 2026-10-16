@@ -1,8 +1,9 @@
-import type { Experimental_EvaluationModel as EvaluationModel } from "ai";
+import type { Experimental_DecisionModel as DecisionModel } from "ai";
 import { describe, expect, test } from "vitest";
 
 import {
   buildQuestions,
+  decisionState,
   decodeEvaluationText,
   evaluateState,
   parseInputFormat,
@@ -14,9 +15,9 @@ import {
   type QuestionOptions,
 } from "./evaluation.js";
 
-type Model = Exclude<EvaluationModel, string>;
-type Call = Parameters<Model["doEvaluate"]>[0];
-type Result = Awaited<ReturnType<Model["doEvaluate"]>>;
+type Model = Extract<Exclude<DecisionModel, string>, { doDecide: unknown }>;
+type Call = Parameters<Model["doDecide"]>[0];
+type Result = Awaited<ReturnType<Model["doDecide"]>>;
 
 function harness(respond: (call: Call) => Result | Promise<Result>) {
   const calls: Call[] = [];
@@ -25,7 +26,7 @@ function harness(respond: (call: Call) => Result | Promise<Result>) {
     provider: "test",
     modelId: "test/evaluation",
     supportedQuestionTypes: ["boolean", "choice", "score"],
-    async doEvaluate(call) {
+    async doDecide(call) {
       calls.push(call);
       return respond(call);
     },
@@ -67,12 +68,12 @@ describe("evaluate evaluation", () => {
       { message: "I was charged twice. Refund the extra charge." },
       { account: "123" },
     ];
-    const result = await evaluateState(state, mixed, {
+    const result = await evaluateState(decisionState(state), mixed, {
       ...options,
       providerOptions: { gateway: { order: ["typesafe-ai"] } },
     });
     expect(calls).toHaveLength(1);
-    expect(calls[0].state).toBe(state);
+    expect(calls[0].state).toEqual([{ type: "json", value: state }]);
     expect(calls[0].questions).toBe(mixed);
     expect(calls[0].providerOptions).toEqual({
       gateway: { order: ["typesafe-ai"] },

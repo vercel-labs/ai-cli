@@ -37,7 +37,7 @@ that contain commas, separate option names and descriptions, or structured conte
 
 ## AI SDK in the shell
 
-The command calls AI SDK's `experimental_evaluate`. Stdin becomes its `state`,
+The command calls AI SDK's `experimental_decide`. Stdin becomes its `state`,
 and each named flag builds an entry in `questions`:
 
 | CLI | AI SDK |
@@ -105,6 +105,20 @@ TypeSafe's Noul primitive.
 
 ## Input and requests
 
+### Images
+
+`-i, --images <path-or-url>` adds an image to the state as a file part after stdin.
+Repeat it for several images; order is kept. Paths, `file://`, `http(s)`, and data
+URLs work. URLs are downloaded by the SDK before the request. Stdin is optional
+when at least one image is given:
+
+```bash
+ai decide --boolean "receipt=Is this a receipt?" -i scan.png
+echo "Order #123" | ai decide --boolean "match=Does the photo show order #123?" -i photo.jpg
+```
+
+### Text and JSON
+
 Stdin is buffered through EOF and sent as one shared state. JSON objects and
 arrays keep their shape; an array is one state, not a batch of separate calls.
 Text retains whitespace and line breaks. Put any additional context in the state.
@@ -112,7 +126,8 @@ Text retains whitespace and line breaks. Put any additional context in the state
 `--input auto` tries a complete JSON value and otherwise treats input as text.
 Malformed JSON-looking input fails; use `--input text` for bracketed logs or
 other literal text. `--input json` requires a JSON string, object, or array.
-Scalar numbers, booleans, and null are not JSON states. Empty stdin is an error;
+Scalar numbers, booleans, and null are not JSON states. Empty stdin is an error
+unless images are given;
 an explicit empty JSON object, array, or string is valid. Binary input is rejected.
 To use JSONL as an array, convert it explicitly:
 
@@ -217,6 +232,7 @@ when changing instructions, criteria, or models.
 --score <id=question>      Ordered-score question (repeatable)
 --levels <id=low,...,high> Score levels for the named question (repeatable)
 --questions <path>        JSON file of named typed questions
+-i, --images <path-or-url> Image after stdin in the state (repeatable)
 -m, --model <id>          One evaluation model (default: typesafe-ai/jev)
 --input <format>          auto, text, or json (default: auto)
 --provider-options <path> JSON object of provider names to option objects

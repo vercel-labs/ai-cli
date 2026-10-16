@@ -14,7 +14,7 @@ writeFileSync(
 import { appendFileSync } from "node:fs";
 let calls = 0;
 globalThis.fetch = async (url, init) => {
-  if (!String(url).endsWith('/evaluation-model')) throw new Error('Unexpected network request');
+  if (!String(url).endsWith('/decision-model')) throw new Error('Unexpected network request');
   appendFileSync(process.env.TEST_REQUESTS, JSON.stringify(JSON.parse(init.body)) + '\\n');
   calls++;
   const status = calls <= Number(process.env.TEST_FAIL_FIRST || 0) ? 503 : Number(process.env.TEST_STATUS || 200);
@@ -118,9 +118,9 @@ describe("decide CLI", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.requests).toHaveLength(1);
-    expect(result.requests[0].state).toBe(
-      "  Original ticket\n\nwith details\n"
-    );
+    expect(result.requests[0].stateParts).toEqual([
+      { type: "text", text: "  Original ticket\n\nwith details\n" },
+    ]);
     expect(Object.keys(result.requests[0].questions)).toHaveLength(3);
     expect(result.requests[0].questions.team.criteria).toEqual({
       billing: "billing",
@@ -179,9 +179,11 @@ describe("decide CLI", () => {
       { answers: { team: mixedAnswers.team, refund: mixedAnswers.refund } }
     );
     expect(result.exitCode).toBe(0);
-    expect(result.requests[0].state).toEqual([
-      { message: "Refund please" },
-      { account: "123" },
+    expect(result.requests[0].stateParts).toEqual([
+      {
+        type: "json",
+        value: [{ message: "Refund please" }, { account: "123" }],
+      },
     ]);
     expect(result.requests[0].questions.team).toEqual(question);
     expect(result.requests[0].providerOptions).toEqual({
@@ -201,7 +203,7 @@ describe("decide CLI", () => {
     const result = await run(graphicArgs, "ticket", fixture);
     expect(result.exitCode).toBe(0);
 
-    const { experimental_evaluate } = await import("ai");
+    const { experimental_decide } = await import("ai");
     const { createGateway } = await import("@ai-sdk/gateway");
     const gateway = createGateway({
       apiKey: "test-key",
@@ -213,9 +215,9 @@ describe("decide CLI", () => {
         { preconnect: () => {} }
       ),
     });
-    const sdk = await experimental_evaluate({
-      model: gateway.evaluationModel("typesafe-ai/jev"),
-      state: result.requests[0].state,
+    const sdk = await experimental_decide({
+      model: gateway.decisionModel("typesafe-ai/jev"),
+      state: result.requests[0].stateParts,
       questions: result.requests[0].questions,
       maxRetries: 0,
     });
@@ -280,12 +282,44 @@ describe("decide CLI", () => {
     }
   );
 
+  test("--images adds ordered file parts after stdin and works without stdin", async () => {
+    const png = join(directory, "pixel.png");
+    writeFileSync(
+      png,
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "base64"
+      )
+    );
+    const answers = { q: { type: "boolean", probability: 0.9 } };
+    const args = ["--boolean", "q=Is it a pixel?", "--images", png];
+    const withText = await run(args, "caption", { answers });
+    expect(withText.exitCode).toBe(0);
+    const parts = withText.requests[0].stateParts;
+    expect(parts.map((part: { type: string }) => part.type)).toEqual([
+      "text",
+      "file",
+    ]);
+    expect(parts[1].mediaType).toBe("image/png");
+    expect(parts[1].data).toEqual({
+      type: "data",
+      data: readFileSync(png).toString("base64"),
+    });
+
+    const alone = await run(args, "", { answers });
+    expect(alone.exitCode).toBe(0);
+    expect(alone.requests[0].stateParts).toHaveLength(1);
+    expect(alone.requests[0].stateParts[0].type).toBe("file");
+  });
+
   test("accepts empty JSON arrays as shared state", async () => {
     const result = await run(["--boolean", "q=Any requests present?"], "[]", {
       answers: { q: { type: "boolean", probability: 0 } },
     });
     expect(result.exitCode).toBe(0);
-    expect(result.requests[0].state).toEqual([]);
+    expect(result.requests[0].stateParts).toEqual([
+      { type: "json", value: [] },
+    ]);
   });
 
   test("invalid local inputs fail before any network request or stdout", async () => {
