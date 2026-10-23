@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createInterface } from "node:readline";
 
 import pkg from "../../package.json";
-import type { Command } from "../lib/command.js";
+import type { Command, CommandDefinition } from "../lib/command.js";
 
 type Profile = "core" | "media" | "all";
 
@@ -58,6 +58,7 @@ const STRING_ITEMS = { type: "string" };
 const QUESTION_CRITERIA: Partial<
   Record<Question["type"], "choices" | "levels">
 > = { choice: "choices", score: "levels" };
+const QUESTION_REQUIRED = ["id", "type", "question"];
 const QUESTION_INPUTS: Record<string, Input> = {
   id: { type: "string", description: "Question ID, without =" },
   type: {
@@ -93,6 +94,24 @@ const SHARED_INPUTS: Record<string, Input> = {
     description: "Child process timeout in milliseconds",
   },
 };
+const DECIDE_INPUTS: Record<string, Input> = {
+  questions: {
+    type: "array",
+    minItems: 1,
+    items: {
+      type: "object",
+      properties: QUESTION_INPUTS,
+      required: QUESTION_REQUIRED,
+      additionalProperties: false,
+    },
+    description:
+      "Named boolean, choice, or score questions; choices and levels must not contain commas",
+  },
+  state: {
+    type: "string",
+    description: "Text or JSON state written to stdin",
+  },
+};
 
 interface ToolOverride {
   path: string[];
@@ -101,6 +120,8 @@ interface ToolOverride {
   annotations: typeof WRITES;
   hint: string;
   required?: string[];
+  inputs?: Record<string, Input>;
+  hiddenOptions?: string[];
 }
 
 /** Command mappings and agent hints that the CLI definitions cannot supply. */
@@ -125,6 +146,16 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     json: false,
     annotations: READS,
     hint: "Supply state, images, or both. Useful extraArgs: --input, --max-retries.",
+    required: ["questions"],
+    inputs: DECIDE_INPUTS,
+    hiddenOptions: [
+      "boolean",
+      "choice",
+      "choices",
+      "score",
+      "levels",
+      "questions",
+    ],
   },
   ai_models: {
     path: ["models"],
@@ -154,6 +185,7 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     json: true,
     annotations: WRITES,
     hint: "Returns JSON metadata with saved file paths; without output files are written to cwd (or AI_CLI_OUTPUT_DIR). Useful extraArgs: --format, --speed.",
+    required: ["text"],
   },
   ai_audio_transcribe: {
     path: ["audio", "transcribe"],
@@ -161,6 +193,7 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     json: true,
     annotations: WRITES,
     hint: "Returns JSON metadata with a saved file path to read; without output the file is written to cwd (or AI_CLI_OUTPUT_DIR). Useful extraArgs: --format, --count.",
+    required: ["audio"],
   },
 };
 
@@ -182,34 +215,8 @@ export const HIDDEN_OPTIONS = [
   "teamIdOrSlug",
 ];
 
-const DECIDE_INPUTS: Record<string, Input> = {
-  questions: {
-    type: "array",
-    minItems: 1,
-    items: {
-      type: "object",
-      properties: QUESTION_INPUTS,
-      required: ["id", "type", "question"],
-      additionalProperties: false,
-      oneOf: [
-        { properties: { type: { const: "boolean" } } },
-        ...Object.entries(QUESTION_CRITERIA).map(([type, key]) => ({
-          required: [key],
-          properties: { type: { const: type }, [key]: { minItems: 1 } },
-        })),
-      ],
-    },
-    description:
-      "Named boolean, choice, or score questions; choices and levels must not contain commas",
-  },
-  state: {
-    type: "string",
-    description: "Text or JSON state written to stdin",
-  },
-};
-
 /** Generate MCP schemas and argument bindings from the registered CLI tree. */
-export function buildTools(definition: ReturnType<Command["definition"]>) {
+export function buildTools(definition: CommandDefinition) {
   return Object.entries(TOOL_OVERRIDES).map(([name, override]) => {
     let command = definition;
     for (const part of override.path) {
@@ -235,15 +242,7 @@ export function buildTools(definition: ReturnType<Command["definition"]>) {
       if (
         HIDDEN_OPTIONS.includes(option.name) ||
         Object.hasOwn(inputs, option.name) ||
-        (name === "ai_decide" &&
-          [
-            "boolean",
-            "choice",
-            "choices",
-            "score",
-            "levels",
-            "questions",
-          ].includes(option.name))
+        override.hiddenOptions?.includes(option.name)
       )
         continue;
       const positive =
@@ -266,11 +265,9 @@ export function buildTools(definition: ReturnType<Command["definition"]>) {
         )?.long,
       };
     }
-    if (name === "ai_decide") Object.assign(inputs, DECIDE_INPUTS);
-    Object.assign(inputs, SHARED_INPUTS);
+    Object.assign(inputs, override.inputs, SHARED_INPUTS);
     return {
       name,
-      profile: override.profile,
       command: override.path,
       json: override.json,
       positional,
@@ -289,7 +286,6 @@ export function buildTools(definition: ReturnType<Command["definition"]>) {
         required: [
           ...(command.argument?.required ? [positional!] : []),
           ...(override.required ?? []),
-          ...(name === "ai_decide" ? ["questions"] : []),
         ],
         additionalProperties: false,
       },
@@ -300,14 +296,14 @@ export function buildTools(definition: ReturnType<Command["definition"]>) {
 
 /** Tool names enabled by each server profile. */
 export const PROFILES: Record<Profile, string[]> = {
-  core: Object.keys(TOOL_OVERRIDES).filter(
-    (name) => TOOL_OVERRIDES[name]!.profile === "core"
-  ),
-  media: Object.keys(TOOL_OVERRIDES).filter(
-    (name) => TOOL_OVERRIDES[name]!.profile === "media"
-  ),
-  all: Object.keys(TOOL_OVERRIDES),
+  core: [],
+  media: [],
+  all: [],
 };
+for (const [name, { profile }] of Object.entries(TOOL_OVERRIDES)) {
+  PROFILES[profile].push(name);
+  PROFILES.all.push(name);
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -340,12 +336,6 @@ function validateInput(
   ) {
     return `argument '${key}' must be an integer from ${input.minimum} to ${input.maximum}`;
   }
-  if (
-    input.minItems !== undefined &&
-    (value as string[]).length < input.minItems
-  ) {
-    return `argument '${key}' must be a non-empty array of strings`;
-  }
 }
 
 function validateQuestions(value: unknown): string | undefined {
@@ -360,7 +350,7 @@ function validateQuestions(value: unknown): string | undefined {
         return `unknown argument '${key}' in ${prefix}; valid: ${Object.keys(QUESTION_INPUTS).join(", ")}`;
       }
     }
-    for (const key of ["id", "type", "question"]) {
+    for (const key of QUESTION_REQUIRED) {
       if (question[key] === undefined)
         return `missing required argument '${prefix}.${key}'`;
     }
@@ -409,6 +399,10 @@ export function toolArgv(
       };
     }
   }
+  const argv = [...tool.command];
+  if (tool.positional && args[tool.positional] !== undefined)
+    argv.push(args[tool.positional] as string);
+  if (tool.json) argv.push("--json");
   for (const [key, input] of Object.entries(inputs)) {
     const value = args[key];
     if (value === undefined) {
@@ -424,14 +418,6 @@ export function toolArgv(
     if (key === tool.positional && (value as string).startsWith("-")) {
       return { error: `argument '${key}' must not start with "-"` };
     }
-  }
-  const argv = [...tool.command];
-  if (tool.positional && args[tool.positional] !== undefined)
-    argv.push(args[tool.positional] as string);
-  if (tool.json) argv.push("--json");
-  for (const [key, input] of Object.entries(tool.inputs)) {
-    const value = args[key];
-    if (value === undefined) continue;
     if (key === "questions") {
       for (const question of value as Question[]) {
         argv.push(`--${question.type}=${question.id}=${question.question}`);
@@ -603,6 +589,14 @@ export async function runMcp(program: Command, args: string[]): Promise<void> {
       return;
     }
   }
+  const listedTools = tools
+    .filter((tool) => PROFILES[profile].includes(tool.name))
+    .map(({ name, description, inputSchema, annotations }) => ({
+      name,
+      description,
+      inputSchema,
+      annotations,
+    }));
   const children = new Set<ChildProcess>();
   const pending = new Set<Promise<void>>();
   const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
@@ -641,16 +635,7 @@ export async function runMcp(program: Command, args: string[]): Promise<void> {
         result = {};
         break;
       case "tools/list":
-        result = {
-          tools: tools
-            .filter((tool) => PROFILES[profile].includes(tool.name))
-            .map(({ name, description, inputSchema, annotations }) => ({
-              name,
-              description,
-              inputSchema,
-              annotations,
-            })),
-        };
+        result = { tools: listedTools };
         break;
       case "tools/call": {
         const params = isObject(request.params) ? request.params : {};
@@ -704,7 +689,7 @@ export async function runMcp(program: Command, args: string[]): Promise<void> {
     });
   });
   input.on("line", (line) => {
-    if (ending) return;
+    if (ending || !line.trim()) return;
     let request: unknown;
     try {
       request = JSON.parse(line);

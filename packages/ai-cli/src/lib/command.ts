@@ -25,6 +25,7 @@ interface OptionDefinition {
 export interface CommandDefinition {
   name: string;
   description: string;
+  runnable: boolean;
   argument?: { name: string; required: boolean; description: string };
   options: {
     name: string;
@@ -140,6 +141,7 @@ export class Command {
     return {
       name: this.commandName,
       description: this.commandDescription,
+      runnable: Boolean(this.actionHandler) || this.commands.length === 0,
       argument: this.argumentDefinition
         ? {
             name: this.argumentDefinition.name,
