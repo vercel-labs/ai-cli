@@ -405,7 +405,7 @@ export function toolArgv(
   if (tool.json) argv.push("--json");
   for (const [key, input] of Object.entries(inputs)) {
     const value = args[key];
-    if (value === undefined) {
+    if (value === undefined || value === "") {
       if (tool.inputSchema.required.includes(key))
         return { error: `missing required argument '${key}' for ${name}` };
       continue;
@@ -468,7 +468,7 @@ export function toolResult(run: Run): CallToolResult {
         run.timedOut ? `timed out after ${run.timeoutMs}ms` : "",
       ]
         .filter(Boolean)
-        .join("\n")
+        .join("\n") || `exited with ${run.signal ?? `code ${run.code}`}`
     : stdout;
   return {
     content: [{ type: "text", text }],
@@ -697,12 +697,16 @@ export async function runMcp(program: Command, args: string[]): Promise<void> {
       rpcError(null, -32700, "Parse error");
       return;
     }
-    if (!isObject(request) || typeof request.method !== "string") {
-      rpcError(
-        isObject(request) && Object.hasOwn(request, "id") ? request.id : null,
-        -32600,
-        "Invalid Request"
-      );
+    const id = isObject(request) ? request.id : undefined;
+    const validId =
+      typeof id === "string" || typeof id === "number" || id === undefined;
+    if (
+      !isObject(request) ||
+      request.jsonrpc !== "2.0" ||
+      typeof request.method !== "string" ||
+      !validId
+    ) {
+      rpcError(validId ? (id ?? null) : null, -32600, "Invalid Request");
       return;
     }
     if (!Object.hasOwn(request, "id")) return;

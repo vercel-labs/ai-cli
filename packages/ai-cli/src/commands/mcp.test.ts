@@ -70,8 +70,12 @@ describe("toolArgv", () => {
     expect(
       toolArgv(tools, "ai_decide", {
         questions: [{ id: "ok", type: "boolean", question: "Ok?" }],
+        images: ["a.png", "b.png"],
       })
-    ).toMatchObject({ stdin: "" });
+    ).toEqual({
+      argv: ["decide", "--images=a.png", "--images=b.png", "--boolean=ok=Ok?"],
+      stdin: "",
+    });
   });
 
   test("rejects input the CLI would misread", () => {
@@ -83,9 +87,11 @@ describe("toolArgv", () => {
     expect(toolArgv(tools, "ai_text", { prompt: "-rf" })).toEqual({
       error: `argument 'prompt' must not start with "-"`,
     });
-    expect(toolArgv(tools, "ai_video_start", { prompt: "x" })).toEqual({
-      error: "missing required argument 'output' for ai_video_start",
-    });
+    for (const output of [undefined, ""]) {
+      expect(toolArgv(tools, "ai_video_start", { output })).toEqual({
+        error: "missing required argument 'output' for ai_video_start",
+      });
+    }
     expect(
       toolArgv(tools, "ai_decide", {
         questions: [{ ...choice, choices: ["a,b", "c"] }],
@@ -147,6 +153,10 @@ describe("toolResult", () => {
       content: [{ text: '{"success":false}\nprovider failed' }],
     });
     expect(run({ stdout: "not JSON" })).toMatchObject({ isError: true });
+    expect(run({ code: 13 })).toMatchObject({
+      isError: true,
+      content: [{ text: "exited with code 13" }],
+    });
     expect(run({ timedOut: true })).toMatchObject({
       isError: true,
       content: [{ text: "timed out after 250ms" }],
@@ -171,9 +181,12 @@ test("serves JSON-RPC over stdio and matches the plain CLI output", async () => 
     },
     { method: "tools/call", id: 5, params: { name: "nope" } },
   ];
-  const input = requests
-    .map((request) => JSON.stringify({ jsonrpc: "2.0", ...request }) + "\n")
-    .join("");
+  const input =
+    requests
+      .map((request) => JSON.stringify({ jsonrpc: "2.0", ...request }) + "\n")
+      .join("") +
+    '{"jsonrpc":"1.0","id":6,"method":"ping"}\n' +
+    '{"jsonrpc":"2.0","id":{"bad":true},"method":"ping"}\n';
   const [server, models] = await Promise.all([
     fixture.run(["mcp"], { built: true, input: Buffer.from(input) }),
     fixture.run(["models", "--json"], { built: true }),
@@ -187,7 +200,9 @@ test("serves JSON-RPC over stdio and matches the plain CLI output", async () => 
   );
 
   expect(server.exitCode).toBe(0);
-  expect(responses.size).toBe(5);
+  expect(responses.size).toBe(7);
+  expect(responses.get(6).error.code).toBe(-32600);
+  expect(responses.get(null).error.code).toBe(-32600);
   expect(
     responses.get(2).result.tools.map((tool: { name: string }) => tool.name)
   ).toEqual(PROFILES.core);
@@ -197,4 +212,24 @@ test("serves JSON-RPC over stdio and matches the plain CLI output", async () => 
     content: [{ text: expect.stringContaining("--profile media") }],
   });
   expect(responses.get(5).error.code).toBe(-32602);
+});
+
+test("kills a child that outlives its timeout", async () => {
+  const call = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: "ai_models", arguments: { timeoutMs: 500 } },
+  };
+  const server = await fixture.run(["mcp"], {
+    built: true,
+    mode: "hang",
+    input: Buffer.from(JSON.stringify(call) + "\n"),
+  });
+
+  expect(server.exitCode).toBe(0);
+  expect(JSON.parse(server.stdout).result).toEqual({
+    content: [{ type: "text", text: "timed out after 500ms" }],
+    isError: true,
+  });
 });

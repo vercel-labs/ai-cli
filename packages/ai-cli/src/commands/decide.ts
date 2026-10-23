@@ -101,7 +101,8 @@ export function registerDecideCommand(program: Command) {
     .option(
       "-i, --images <path-or-url>",
       "Image file part after stdin in the decision state (repeatable)",
-      collectImageReference
+      collectImageReference,
+      []
     )
     .option(
       "-m, --model <model>",
