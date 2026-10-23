@@ -1,0 +1,144 @@
+---
+title: MCP
+description: Run ai-cli as a stdio MCP server with typed tools for every command.
+order: 4.5
+---
+
+`ai mcp` starts a stdio MCP server that exposes every `ai` command as a typed
+tool. It speaks newline-delimited JSON-RPC 2.0 over stdin and stdout and
+supports MCP 2025-11-25 tools. Diagnostics go to stderr.
+
+```bash
+ai mcp
+ai mcp --profile media
+ai mcp --profile all
+```
+
+`--profile core|media|all` selects the tools to expose. `core` is the default.
+
+## Profiles
+
+| Tool | Profile | CLI command |
+| --- | --- | --- |
+| `ai_text` | core | `ai text` |
+| `ai_image` | core | `ai image` |
+| `ai_decide` | core | `ai decide` |
+| `ai_models` | core | `ai models` |
+| `ai_video_start` | media | `ai video start` |
+| `ai_video_status` | media | `ai video status` |
+| `ai_audio_speak` | media | `ai audio speak` |
+| `ai_audio_transcribe` | media | `ai audio transcribe` |
+
+`media` contains the four media tools. `all` contains all eight tools.
+
+## Results
+
+Tool results are the command's JSON output. Generation tools return a manifest
+with the saved file paths. `ai_text` and `ai_audio_transcribe` return a file path
+to read. If you do not pass `output`, files are written to the call's `cwd`, or
+to `AI_CLI_OUTPUT_DIR` when it is set.
+
+Tool failures return an error result with the command's diagnostic.
+
+## Inputs
+
+Each tool's inputs are its command's own flags, named in camelCase
+(`--aspect-ratio` becomes `aspectRatio`) with the same descriptions as
+`--help`. Repeatable flags take a string array, and on/off flags take a boolean.
+Connection and terminal-only flags (`--headers`, `--base-url`,
+`--team-id-or-slug`, `--quiet`, `--no-preview`, `--no-play`, `--no-waveform`)
+are left out; pass them through `extraArgs` when needed.
+
+Every tool also accepts these inputs:
+
+| Input | Type | Description |
+| --- | --- | --- |
+| `cwd` | string | Working directory for the run |
+| `extraArgs` | string[] | Extra CLI flags appended last |
+| `timeoutMs` | integer | Timeout from 1 to 2147483647 (default `600000`) |
+
+## Decide
+
+`ai_decide` takes a non-empty `questions` array. Each question has an `id`,
+`type`, and `question`. `type` is `boolean`, `choice`, or `score`. A `choice`
+requires `choices`; a `score` requires `levels`. IDs must not contain `=`, and
+choices and levels must not contain commas.
+
+```json
+{
+  "questions": [
+    {
+      "id": "refund",
+      "type": "boolean",
+      "question": "Refund requested?"
+    },
+    {
+      "id": "team",
+      "type": "choice",
+      "question": "Which team?",
+      "choices": ["billing", "support"]
+    },
+    {
+      "id": "tone",
+      "type": "score",
+      "question": "How positive?",
+      "levels": ["angry", "neutral", "happy"]
+    }
+  ],
+  "state": "Customer asks for a refund."
+}
+```
+
+The optional `state` string is written to stdin. The result is the command's
+JSON output.
+
+## Video
+
+`ai_video_start` returns immediately and requires `output`, which receives the
+operation file. Pass that same path as `operationFile` to `ai_video_status` to
+check the job. Set `download: true` to save completed videos, and pass `output`
+to choose where they are written.
+
+## Configuration
+
+Point your MCP client at the `ai` binary. In opencode, add this to
+`opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ai": {
+      "type": "local",
+      "command": ["ai", "mcp", "--profile", "all"],
+      "environment": {
+        "AI_GATEWAY_API_KEY": "...",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      },
+      "timeout": 600000
+    }
+  }
+}
+```
+
+opencode cuts tool calls at 30 seconds unless `timeout` is raised. The example
+sets it to `600000` milliseconds.
+
+For a client that uses the common `mcpServers` shape:
+
+```json
+{
+  "mcpServers": {
+    "ai": {
+      "command": "ai",
+      "args": ["mcp"],
+      "env": {
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+Set `AI_CLI_OUTPUT_DIR` to an absolute path so generated files land in a stable
+directory that the MCP client can read.

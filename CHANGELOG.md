@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- Add `ai mcp`, a stdio MCP server for the CLI tools.
+
 ## 0.7.0
 
 <!-- release:start -->

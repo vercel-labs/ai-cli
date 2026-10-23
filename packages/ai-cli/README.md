@@ -28,6 +28,7 @@ ai audio speak "Thanks for trying ai-cli"
 ai audio transcribe recording.mp3
 ai decide --boolean "refund=Refund requested?" < ticket.txt
 ai models                          # list available models
+ai mcp --profile all               # start MCP server
 ```
 
 ### Piping and References
@@ -521,6 +522,40 @@ Providers
   anthropic  1M       1.4s     49tps       99.9%
   bedrock    1M       1.4s     56tps       99.9%
 ```
+
+### mcp
+
+`ai mcp` starts a newline-delimited JSON-RPC MCP server over stdin and stdout.
+The default profile is `core`; use `--profile core|media|all` to select tools:
+
+- `core`: `ai_text`, `ai_image`, `ai_decide`, `ai_models`
+- `media`: `ai_video_start`, `ai_video_status`, `ai_audio_speak`, `ai_audio_transcribe`
+- `all`: all eight tools
+
+Tool inputs are the command's own flags in camelCase (`--aspect-ratio` becomes
+`aspectRatio`), minus connection and terminal-only flags. Every tool also accepts `cwd` (working directory), `extraArgs` (CLI flags appended
+last), and `timeoutMs` (default 600000). Tool results contain the command JSON,
+including file paths for generated output. Without an output path, files are
+written to the call's `cwd` or `AI_CLI_OUTPUT_DIR`.
+
+Configure OpenCode in `opencode.json`:
+
+```json
+{
+  "mcp": {
+    "ai": {
+      "type": "local",
+      "command": ["ai", "mcp", "--profile", "all"],
+      "environment": {
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      },
+      "timeout": 600000
+    }
+  }
+}
+```
+
+OpenCode cuts calls off after 30 seconds unless `timeout` is raised.
 
 ### Multi-Model Comparison
 
