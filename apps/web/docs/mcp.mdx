@@ -23,16 +23,21 @@ The server reads your key from its environment, like every `ai` command. Set
 starts the client. The key is never a tool input, so agents cannot read it or
 send it elsewhere.
 
-Claude Code:
+Most clients (`mcpServers`):
 
-```bash
-claude mcp add ai -e AI_GATEWAY_API_KEY=your-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
-```
-
-Codex:
-
-```bash
-codex mcp add ai --env AI_GATEWAY_API_KEY=your-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```json
+{
+  "mcpServers": {
+    "ai": {
+      "command": "ai",
+      "args": ["mcp"],
+      "env": {
+        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
 ```
 
 opencode (`opencode.json`):
@@ -54,21 +59,16 @@ opencode (`opencode.json`):
 }
 ```
 
-Other clients (`mcpServers`):
+Claude Code:
 
-```json
-{
-  "mcpServers": {
-    "ai": {
-      "command": "ai",
-      "args": ["mcp"],
-      "env": {
-        "AI_GATEWAY_API_KEY": "your-key",
-        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
-      }
-    }
-  }
-}
+```bash
+claude mcp add ai -e AI_GATEWAY_API_KEY=your-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
+
+Codex:
+
+```bash
+codex mcp add ai --env AI_GATEWAY_API_KEY=your-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
 ```
 
 | Variable | Purpose |

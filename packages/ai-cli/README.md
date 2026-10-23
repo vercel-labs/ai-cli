@@ -525,42 +525,8 @@ Providers
 
 ### mcp
 
-`ai mcp` runs an MCP server over stdio, so agents can call every `ai` command as
-a typed tool. The server reads `AI_GATEWAY_API_KEY` from its environment: set it
-in your MCP client's config, or export it in the shell that starts the client.
-
-Claude Code:
-
-```bash
-claude mcp add ai -e AI_GATEWAY_API_KEY=your-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
-```
-
-Codex:
-
-```bash
-codex mcp add ai --env AI_GATEWAY_API_KEY=your-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
-```
-
-opencode (`opencode.json`):
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "ai": {
-      "type": "local",
-      "command": ["ai", "mcp"],
-      "environment": {
-        "AI_GATEWAY_API_KEY": "your-key",
-        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
-      },
-      "timeout": 600000
-    }
-  }
-}
-```
-
-Other clients (`mcpServers`):
+`ai mcp` runs an MCP server over stdio so agents can call `ai` commands as typed
+tools. Add it to your MCP client with your AI Gateway key:
 
 ```json
 {
@@ -577,27 +543,8 @@ Other clients (`mcpServers`):
 }
 ```
 
-| Variable | Purpose |
-| --- | --- |
-| `AI_GATEWAY_API_KEY` | AI Gateway key. Required. |
-| `AI_CLI_OUTPUT_DIR` | Absolute directory for generated files. Without it, files land in each call's `cwd`. |
-| `AI_GATEWAY_BASE_URL`, `AI_GATEWAY_TEAM_ID_OR_SLUG` | Optional Gateway overrides. Agents cannot set these. |
-
-Add `--profile all` to the command for the video and audio tools. opencode stops
-tool calls after 30 seconds unless `timeout` is raised, as in the example.
-
-Profiles pick the tools:
-
-- `core` (default): `ai_text`, `ai_image`, `ai_decide`, `ai_models`
-- `media`: `ai_video_start`, `ai_video_status`, `ai_audio_speak`, `ai_audio_transcribe`
-- `all`: all eight
-
-How tools behave:
-
-- Inputs are the command's own flags in camelCase (`--aspect-ratio` becomes `aspectRatio`).
-- Every tool also takes `cwd`, `extraArgs` (extra CLI flags), and `timeoutMs` (default `600000`).
-- Results are the command's JSON output. Generated files come back as paths.
-- Gateway connection flags (`--base-url`, `--headers`, `--team-id-or-slug`) are rejected, even in `extraArgs`.
+See [MCP](https://ai-cli.dev/docs/mcp) for Claude Code, Codex, and opencode setup,
+profiles, and tools.
 
 ### Multi-Model Comparison
 
