@@ -525,28 +525,33 @@ Providers
 
 ### mcp
 
-`ai mcp` starts a newline-delimited JSON-RPC MCP server over stdin and stdout.
-The default profile is `core`; use `--profile core|media|all` to select tools:
+`ai mcp` runs an MCP server over stdio, so agents can call every `ai` command as
+a typed tool. The server reads `AI_GATEWAY_API_KEY` from its environment: set it
+in your MCP client's config, or export it in the shell that starts the client.
 
-- `core`: `ai_text`, `ai_image`, `ai_decide`, `ai_models`
-- `media`: `ai_video_start`, `ai_video_status`, `ai_audio_speak`, `ai_audio_transcribe`
-- `all`: all eight tools
+Claude Code:
 
-Tool inputs are the command's own flags in camelCase (`--aspect-ratio` becomes
-`aspectRatio`), minus terminal-only flags. Gateway connection flags (`--base-url`, `--headers`, `--team-id-or-slug`) are rejected, even in `extraArgs`; set `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG` in the server environment. Every tool also accepts `cwd` (working directory), `extraArgs` (CLI flags appended
-last), and `timeoutMs` (default 600000). Tool results contain the command JSON,
-including file paths for generated output. Without an output path, files are
-written to the call's `cwd` or `AI_CLI_OUTPUT_DIR`.
+```bash
+claude mcp add ai -e AI_GATEWAY_API_KEY=your-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
 
-Configure OpenCode in `opencode.json`:
+Codex:
+
+```bash
+codex mcp add ai --env AI_GATEWAY_API_KEY=your-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
+
+opencode (`opencode.json`):
 
 ```json
 {
+  "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "ai": {
       "type": "local",
-      "command": ["ai", "mcp", "--profile", "all"],
+      "command": ["ai", "mcp"],
       "environment": {
+        "AI_GATEWAY_API_KEY": "your-key",
         "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
       },
       "timeout": 600000
@@ -555,7 +560,44 @@ Configure OpenCode in `opencode.json`:
 }
 ```
 
-OpenCode cuts calls off after 30 seconds unless `timeout` is raised.
+Other clients (`mcpServers`):
+
+```json
+{
+  "mcpServers": {
+    "ai": {
+      "command": "ai",
+      "args": ["mcp"],
+      "env": {
+        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `AI_GATEWAY_API_KEY` | AI Gateway key. Required. |
+| `AI_CLI_OUTPUT_DIR` | Absolute directory for generated files. Without it, files land in each call's `cwd`. |
+| `AI_GATEWAY_BASE_URL`, `AI_GATEWAY_TEAM_ID_OR_SLUG` | Optional Gateway overrides. Agents cannot set these. |
+
+Add `--profile all` to the command for the video and audio tools. opencode stops
+tool calls after 30 seconds unless `timeout` is raised, as in the example.
+
+Profiles pick the tools:
+
+- `core` (default): `ai_text`, `ai_image`, `ai_decide`, `ai_models`
+- `media`: `ai_video_start`, `ai_video_status`, `ai_audio_speak`, `ai_audio_transcribe`
+- `all`: all eight
+
+How tools behave:
+
+- Inputs are the command's own flags in camelCase (`--aspect-ratio` becomes `aspectRatio`).
+- Every tool also takes `cwd`, `extraArgs` (extra CLI flags), and `timeoutMs` (default `600000`).
+- Results are the command's JSON output. Generated files come back as paths.
+- Gateway connection flags (`--base-url`, `--headers`, `--team-id-or-slug`) are rejected, even in `extraArgs`.
 
 ### Multi-Model Comparison
 

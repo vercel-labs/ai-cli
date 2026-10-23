@@ -16,6 +16,70 @@ ai mcp --profile all
 
 `--profile core|media|all` selects the tools to expose. `core` is the default.
 
+## Setup
+
+The server reads your key from its environment, like every `ai` command. Set
+`AI_GATEWAY_API_KEY` in your MCP client's config, or export it in the shell that
+starts the client. The key is never a tool input, so agents cannot read it or
+send it elsewhere.
+
+Claude Code:
+
+```bash
+claude mcp add ai -e AI_GATEWAY_API_KEY=your-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
+
+Codex:
+
+```bash
+codex mcp add ai --env AI_GATEWAY_API_KEY=your-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
+
+opencode (`opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ai": {
+      "type": "local",
+      "command": ["ai", "mcp"],
+      "environment": {
+        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      },
+      "timeout": 600000
+    }
+  }
+}
+```
+
+Other clients (`mcpServers`):
+
+```json
+{
+  "mcpServers": {
+    "ai": {
+      "command": "ai",
+      "args": ["mcp"],
+      "env": {
+        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `AI_GATEWAY_API_KEY` | AI Gateway key. Required. |
+| `AI_CLI_OUTPUT_DIR` | Absolute directory for generated files. Without it, files land in each call's `cwd`. |
+| `AI_GATEWAY_BASE_URL`, `AI_GATEWAY_TEAM_ID_OR_SLUG` | Optional Gateway overrides. Agents cannot set these. |
+
+Add `--profile all` to the command for the video and audio tools. opencode stops
+tool calls after 30 seconds unless `timeout` is raised, as in the example.
+
 ## Profiles
 
 | Tool | Profile | CLI command |
@@ -100,47 +164,3 @@ JSON output.
 operation file. Pass that same path as `operationFile` to `ai_video_status` to
 check the job. Set `download: true` to save completed videos, and pass `output`
 to choose where they are written.
-
-## Configuration
-
-Point your MCP client at the `ai` binary. In opencode, add this to
-`opencode.json`:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "ai": {
-      "type": "local",
-      "command": ["ai", "mcp", "--profile", "all"],
-      "environment": {
-        "AI_GATEWAY_API_KEY": "...",
-        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
-      },
-      "timeout": 600000
-    }
-  }
-}
-```
-
-opencode cuts tool calls at 30 seconds unless `timeout` is raised. The example
-sets it to `600000` milliseconds.
-
-For a client that uses the common `mcpServers` shape:
-
-```json
-{
-  "mcpServers": {
-    "ai": {
-      "command": "ai",
-      "args": ["mcp"],
-      "env": {
-        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
-      }
-    }
-  }
-}
-```
-
-Set `AI_CLI_OUTPUT_DIR` to an absolute path so generated files land in a stable
-directory that the MCP client can read.
