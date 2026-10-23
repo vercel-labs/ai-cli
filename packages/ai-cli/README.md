@@ -533,7 +533,7 @@ The default profile is `core`; use `--profile core|media|all` to select tools:
 - `all`: all eight tools
 
 Tool inputs are the command's own flags in camelCase (`--aspect-ratio` becomes
-`aspectRatio`), minus connection and terminal-only flags. Every tool also accepts `cwd` (working directory), `extraArgs` (CLI flags appended
+`aspectRatio`), minus terminal-only flags. Gateway connection flags (`--base-url`, `--headers`, `--team-id-or-slug`) are rejected, even in `extraArgs`; set `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG` in the server environment. Every tool also accepts `cwd` (working directory), `extraArgs` (CLI flags appended
 last), and `timeoutMs` (default 600000). Tool results contain the command JSON,
 including file paths for generated output. Without an output path, files are
 written to the call's `cwd` or `AI_CLI_OUTPUT_DIR`.

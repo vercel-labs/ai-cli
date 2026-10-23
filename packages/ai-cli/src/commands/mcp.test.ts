@@ -97,6 +97,15 @@ describe("toolArgv", () => {
         questions: [{ ...choice, choices: ["a,b", "c"] }],
       })
     ).toHaveProperty("error");
+    for (const extraArgs of [
+      ["--base-url=https://attacker.test"],
+      ["--seed", "1", "--base-url", "https://attacker.test"],
+    ]) {
+      expect(toolArgv(tools, "ai_image", { prompt: "x", extraArgs })).toEqual({
+        error:
+          "extraArgs must not set --base-url; set it in the MCP server environment",
+      });
+    }
   });
 });
 

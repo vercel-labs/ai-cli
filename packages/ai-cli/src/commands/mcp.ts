@@ -162,7 +162,7 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     profile: "core",
     json: true,
     annotations: READS,
-    hint: "Discover model IDs before generating. Useful extraArgs: --base-url, --headers.",
+    hint: "Discover model IDs before generating; pass model for one model's details.",
   },
   ai_video_start: {
     path: ["video", "start"],
@@ -203,16 +203,17 @@ export const EXCLUDED_COMMANDS: Record<string, string> = {
   mcp: "This server is not a tool.",
 };
 
-/** TTY and connection options available only through extraArgs. */
+/** Gateway connection options; only the server environment may set them, so an agent cannot send the Gateway key elsewhere. */
+export const CONNECTION_OPTIONS = ["headers", "baseUrl", "teamIdOrSlug"];
+
+/** Options never exposed as typed inputs. */
 export const HIDDEN_OPTIONS = [
   "json",
   "quiet",
   "preview",
   "play",
   "waveform",
-  "headers",
-  "baseUrl",
-  "teamIdOrSlug",
+  ...CONNECTION_OPTIONS,
 ];
 
 /** Generate MCP schemas and argument bindings from the registered CLI tree. */
@@ -269,6 +270,9 @@ export function buildTools(definition: CommandDefinition) {
     return {
       name,
       command: override.path,
+      blockedFlags: command.options.flatMap(({ name, long }) =>
+        long && CONNECTION_OPTIONS.includes(name) ? [long] : []
+      ),
       json: override.json,
       positional,
       description: `${command.description}. ${override.hint}`,
@@ -435,7 +439,16 @@ export function toolArgv(
         argv.push(`${input.flag}=${item}`);
     }
   }
-  argv.push(...((args.extraArgs as string[] | undefined) ?? []));
+  const extraArgs = (args.extraArgs as string[] | undefined) ?? [];
+  const blocked = tool.blockedFlags.find((flag) =>
+    extraArgs.some((arg) => arg === flag || arg.startsWith(`${flag}=`))
+  );
+  if (blocked) {
+    return {
+      error: `extraArgs must not set ${blocked}; set it in the MCP server environment`,
+    };
+  }
+  argv.push(...extraArgs);
   return name === "ai_decide"
     ? { argv, stdin: (args.state as string | undefined) ?? "" }
     : { argv };
