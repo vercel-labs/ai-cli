@@ -87,6 +87,9 @@ describe("toolArgv", () => {
     expect(toolArgv(tools, "ai_text", { prompt: "-rf" })).toEqual({
       error: `argument 'prompt' must not start with "-"`,
     });
+    expect(toolArgv(tools, "ai_models", { extraArgs: "" })).toEqual({
+      error: "argument 'extraArgs' must be an array of strings",
+    });
     for (const output of [undefined, ""]) {
       expect(toolArgv(tools, "ai_video_start", { output })).toEqual({
         error: "missing required argument 'output' for ai_video_start",

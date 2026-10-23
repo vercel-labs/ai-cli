@@ -409,8 +409,9 @@ export function toolArgv(
   if (tool.json) argv.push("--json");
   for (const [key, input] of Object.entries(inputs)) {
     const value = args[key];
-    if (value === undefined || value === "") {
-      if (tool.inputSchema.required.includes(key))
+    const required = tool.inputSchema.required.includes(key);
+    if (value === undefined || (required && value === "")) {
+      if (required)
         return { error: `missing required argument '${key}' for ${name}` };
       continue;
     }
@@ -723,7 +724,13 @@ export async function runMcp(program: Command, args: string[]): Promise<void> {
       return;
     }
     if (!Object.hasOwn(request, "id")) return;
-    const task = respond(request);
+    const task = respond(request).catch((error: unknown) =>
+      rpcError(
+        request.id,
+        -32603,
+        error instanceof Error ? error.message : String(error)
+      )
+    );
     pending.add(task);
     void task.finally(() => pending.delete(task));
   });
