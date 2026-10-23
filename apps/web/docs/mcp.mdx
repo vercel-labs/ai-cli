@@ -23,7 +23,24 @@ The server reads your key from its environment, like every `ai` command. Set
 starts the client. The key is never a tool input, so agents cannot read it or
 send it elsewhere.
 
-Most clients (`mcpServers`):
+fx (`~/.fx/mcp.json`):
+
+```json
+{
+  "mcp": {
+    "ai": {
+      "type": "local",
+      "command": ["ai", "mcp"],
+      "environment": {
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+Other clients (`mcpServers`):
 
 ```json
 {
@@ -32,7 +49,7 @@ Most clients (`mcpServers`):
       "command": "ai",
       "args": ["mcp"],
       "env": {
-        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
         "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
       }
     }
@@ -50,7 +67,7 @@ opencode (`opencode.json`):
       "type": "local",
       "command": ["ai", "mcp"],
       "environment": {
-        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
         "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
       },
       "timeout": 600000
@@ -62,18 +79,18 @@ opencode (`opencode.json`):
 Claude Code:
 
 ```bash
-claude mcp add ai -e AI_GATEWAY_API_KEY=your-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+claude mcp add ai -e AI_GATEWAY_API_KEY=your-vercel-ai-gateway-api-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
 ```
 
 Codex:
 
 ```bash
-codex mcp add ai --env AI_GATEWAY_API_KEY=your-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+codex mcp add ai --env AI_GATEWAY_API_KEY=your-vercel-ai-gateway-api-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
 ```
 
 | Variable | Purpose |
 | --- | --- |
-| `AI_GATEWAY_API_KEY` | AI Gateway key. Required. |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway API key. Required. |
 | `AI_CLI_OUTPUT_DIR` | Absolute directory for generated files. Without it, files land in each call's `cwd`. |
 | `AI_GATEWAY_BASE_URL`, `AI_GATEWAY_TEAM_ID_OR_SLUG` | Optional Gateway overrides. Agents cannot set these. |
 

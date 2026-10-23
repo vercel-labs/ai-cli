@@ -526,7 +526,7 @@ Providers
 ### mcp
 
 `ai mcp` runs an MCP server over stdio so agents can call `ai` commands as typed
-tools. Add it to your MCP client with your AI Gateway key:
+tools. Add it to your MCP client with your Vercel AI Gateway API key:
 
 ```json
 {
@@ -535,7 +535,7 @@ tools. Add it to your MCP client with your AI Gateway key:
       "command": "ai",
       "args": ["mcp"],
       "env": {
-        "AI_GATEWAY_API_KEY": "your-key",
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
         "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
       }
     }
@@ -543,8 +543,7 @@ tools. Add it to your MCP client with your AI Gateway key:
 }
 ```
 
-See [MCP](https://ai-cli.dev/docs/mcp) for Claude Code, Codex, and opencode setup,
-profiles, and tools.
+See [MCP](https://ai-cli.dev/docs/mcp) for configuring MCP clients, profiles, and tools.
 
 ### Multi-Model Comparison
 
