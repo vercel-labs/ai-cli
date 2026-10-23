@@ -19,9 +19,9 @@ ai mcp --profile all
 ## Setup
 
 The server reads your key from its environment, like every `ai` command. Set
-`AI_GATEWAY_API_KEY` in your MCP client's config, or export it in the shell that
-starts the client. The key is never a tool input, so agents cannot read it or
-send it elsewhere.
+`AI_GATEWAY_API_KEY` in your MCP client's config, as below. Many clients do not
+pass your shell environment to MCP servers. The key is never a tool input, so
+agents cannot read it or send it elsewhere.
 
 fx (`~/.fx/mcp.json`):
 
