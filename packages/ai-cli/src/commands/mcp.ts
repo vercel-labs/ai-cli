@@ -126,21 +126,21 @@ interface ToolOverride {
 
 /** Command mappings and agent hints that the CLI definitions cannot supply. */
 export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
-  ai_text: {
+  text: {
     path: ["text"],
     profile: "core",
     json: true,
     annotations: WRITES,
     hint: "Returns JSON metadata with a saved file path to read; without output the file is written to cwd (or AI_CLI_OUTPUT_DIR). Useful extraArgs: --format, --max-tokens.",
   },
-  ai_image: {
+  image: {
     path: ["image"],
     profile: "core",
     json: true,
     annotations: WRITES,
-    hint: "Returns a JSON manifest with saved file paths; without output files are written to cwd (or AI_CLI_OUTPUT_DIR). Pass a returned file path to ai_decide images. Useful extraArgs: --seed, --mask.",
+    hint: "Returns a JSON manifest with saved file paths; without output files are written to cwd (or AI_CLI_OUTPUT_DIR). Pass a returned file path to the decide tool's images. Useful extraArgs: --seed, --mask.",
   },
-  ai_decide: {
+  decide: {
     path: ["decide"],
     profile: "core",
     json: false,
@@ -157,29 +157,29 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       "questions",
     ],
   },
-  ai_models: {
+  models: {
     path: ["models"],
     profile: "core",
     json: true,
     annotations: READS,
     hint: "Discover model IDs before generating; pass model for one model's details.",
   },
-  ai_video_start: {
+  video_start: {
     path: ["video", "start"],
     profile: "media",
     json: false,
     annotations: WRITES,
-    hint: "Set output and pass that file path to ai_video_status. Useful extraArgs: --seed, --resolution.",
+    hint: "Set output and pass that file path to the video_status tool. Useful extraArgs: --seed, --resolution.",
     required: ["output"],
   },
-  ai_video_status: {
+  video_status: {
     path: ["video", "status"],
     profile: "media",
     json: false,
     annotations: { ...WRITES, idempotentHint: true },
     hint: "Set download to save completed videos. Useful extraArgs: --download-max-bytes, --max-retries.",
   },
-  ai_audio_speak: {
+  audio_speak: {
     path: ["audio", "speak"],
     profile: "media",
     json: true,
@@ -187,7 +187,7 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     hint: "Returns JSON metadata with saved file paths; without output files are written to cwd (or AI_CLI_OUTPUT_DIR). Useful extraArgs: --format, --speed.",
     required: ["text"],
   },
-  ai_audio_transcribe: {
+  audio_transcribe: {
     path: ["audio", "transcribe"],
     profile: "media",
     json: true,
@@ -450,7 +450,7 @@ export function toolArgv(
     };
   }
   argv.push(...extraArgs);
-  return name === "ai_decide"
+  return name === "decide"
     ? { argv, stdin: (args.state as string | undefined) ?? "" }
     : { argv };
 }

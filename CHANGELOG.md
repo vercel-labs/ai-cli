@@ -4,7 +4,7 @@
 
 ### New Features
 
-- Add `ai mcp`, a stdio MCP server that exposes `ai` commands as typed tools (`ai_text`, `ai_image`, `ai_decide`, `ai_models`; `--profile media` or `all` adds video and audio). Tool inputs come from each command's own flags, and every call runs the same `ai` binary. The server reads `AI_GATEWAY_API_KEY` from its environment and rejects Gateway connection flags from agents.
+- Add `ai mcp`, a stdio MCP server that exposes `ai` commands as typed tools (`text`, `image`, `decide`, `models`; `--profile media` or `all` adds video and audio). Tool inputs come from each command's own flags, and every call runs the same `ai` binary. The server reads `AI_GATEWAY_API_KEY` from its environment and rejects Gateway connection flags from agents.
 
 ## 0.7.0
 

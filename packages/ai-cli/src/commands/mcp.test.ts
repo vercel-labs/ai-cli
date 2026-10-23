@@ -32,7 +32,7 @@ function run(overrides: Partial<Parameters<typeof toolResult>[0]>) {
 describe("toolArgv", () => {
   test("encodes typed inputs as CLI argv", () => {
     expect(
-      toolArgv(tools, "ai_text", {
+      toolArgv(tools, "text", {
         prompt: "hi",
         system: "--version",
         image: ["a.png", "b.png"],
@@ -48,7 +48,7 @@ describe("toolArgv", () => {
       ],
     });
     expect(
-      toolArgv(tools, "ai_video_start", {
+      toolArgv(tools, "video_start", {
         output: "op.json",
         generateAudio: false,
       })
@@ -59,7 +59,7 @@ describe("toolArgv", () => {
 
   test("encodes decide questions as flags and state as stdin", () => {
     expect(
-      toolArgv(tools, "ai_decide", {
+      toolArgv(tools, "decide", {
         questions: [{ ...choice, choices: ["a", "b"] }],
         state: "x",
       })
@@ -68,7 +68,7 @@ describe("toolArgv", () => {
       stdin: "x",
     });
     expect(
-      toolArgv(tools, "ai_decide", {
+      toolArgv(tools, "decide", {
         questions: [{ id: "ok", type: "boolean", question: "Ok?" }],
         images: ["a.png", "b.png"],
       })
@@ -79,24 +79,24 @@ describe("toolArgv", () => {
   });
 
   test("rejects input the CLI would misread", () => {
-    expect(toolArgv(tools, "ai_text", { foo: 1 })).toEqual({
+    expect(toolArgv(tools, "text", { foo: 1 })).toEqual({
       error: expect.stringMatching(
-        /^unknown argument 'foo' for ai_text; valid: prompt, /
+        /^unknown argument 'foo' for text; valid: prompt, /
       ),
     });
-    expect(toolArgv(tools, "ai_text", { prompt: "-rf" })).toEqual({
+    expect(toolArgv(tools, "text", { prompt: "-rf" })).toEqual({
       error: `argument 'prompt' must not start with "-"`,
     });
-    expect(toolArgv(tools, "ai_models", { extraArgs: "" })).toEqual({
+    expect(toolArgv(tools, "models", { extraArgs: "" })).toEqual({
       error: "argument 'extraArgs' must be an array of strings",
     });
     for (const output of [undefined, ""]) {
-      expect(toolArgv(tools, "ai_video_start", { output })).toEqual({
-        error: "missing required argument 'output' for ai_video_start",
+      expect(toolArgv(tools, "video_start", { output })).toEqual({
+        error: "missing required argument 'output' for video_start",
       });
     }
     expect(
-      toolArgv(tools, "ai_decide", {
+      toolArgv(tools, "decide", {
         questions: [{ ...choice, choices: ["a,b", "c"] }],
       })
     ).toHaveProperty("error");
@@ -104,7 +104,7 @@ describe("toolArgv", () => {
       ["--base-url=https://attacker.test"],
       ["--seed", "1", "--base-url", "https://attacker.test"],
     ]) {
-      expect(toolArgv(tools, "ai_image", { prompt: "x", extraArgs })).toEqual({
+      expect(toolArgv(tools, "image", { prompt: "x", extraArgs })).toEqual({
         error:
           "extraArgs must not set --base-url; set it in the MCP server environment",
       });
@@ -184,12 +184,12 @@ test("serves JSON-RPC over stdio and matches the plain CLI output", async () => 
     {
       method: "tools/call",
       id: 3,
-      params: { name: "ai_models", arguments: {} },
+      params: { name: "models", arguments: {} },
     },
     {
       method: "tools/call",
       id: 4,
-      params: { name: "ai_video_start", arguments: { output: "op.json" } },
+      params: { name: "video_start", arguments: { output: "op.json" } },
     },
     { method: "tools/call", id: 5, params: { name: "nope" } },
   ];
@@ -231,7 +231,7 @@ test("kills a child that outlives its timeout", async () => {
     jsonrpc: "2.0",
     id: 1,
     method: "tools/call",
-    params: { name: "ai_models", arguments: { timeoutMs: 500 } },
+    params: { name: "models", arguments: { timeoutMs: 500 } },
   };
   const server = await fixture.run(["mcp"], {
     built: true,
