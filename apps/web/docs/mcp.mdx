@@ -108,7 +108,7 @@ Point your MCP client at the `ai` binary. In opencode, add this to
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "ai": {
+    "cli": {
       "type": "local",
       "command": ["ai", "mcp", "--profile", "all"],
       "environment": {
@@ -121,7 +121,7 @@ Point your MCP client at the `ai` binary. In opencode, add this to
 }
 ```
 
-opencode cuts tool calls at 30 seconds unless `timeout` is raised. The example
+opencode prefixes tool names with the server key, so the `cli` key gives `cli_ai_text`; a key of `ai` would give `ai_ai_text`. It also cuts tool calls at 30 seconds unless `timeout` is raised. The example
 sets it to `600000` milliseconds.
 
 For a client that uses the common `mcpServers` shape:
