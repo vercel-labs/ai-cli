@@ -543,7 +543,7 @@ Configure OpenCode in `opencode.json`:
 ```json
 {
   "mcp": {
-    "cli": {
+    "ai": {
       "type": "local",
       "command": ["ai", "mcp", "--profile", "all"],
       "environment": {
@@ -555,7 +555,7 @@ Configure OpenCode in `opencode.json`:
 }
 ```
 
-OpenCode prefixes tool names with the server key (`cli_ai_text` here) and cuts calls off after 30 seconds unless `timeout` is raised.
+OpenCode cuts calls off after 30 seconds unless `timeout` is raised.
 
 ### Multi-Model Comparison
 
