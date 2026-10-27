@@ -181,7 +181,7 @@ export async function mediaSettings(
     Parameters<typeof generateImage>[0]["providerOptions"]
   >;
   const teamIdOrSlug =
-    opts.teamIdOrSlug ?? process.env.AI_GATEWAY_TEAM_ID_OR_SLUG;
+    opts.teamIdOrSlug ?? (process.env.AI_GATEWAY_TEAM_ID_OR_SLUG || undefined);
   const gateway = createGateway({
     baseURL,
     teamIdOrSlug,

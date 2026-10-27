@@ -16,6 +16,7 @@ let calls = 0;
 globalThis.fetch = async (url, init) => {
   if (!String(url).endsWith('/decision-model')) throw new Error('Unexpected network request');
   appendFileSync(process.env.TEST_REQUESTS, JSON.stringify(JSON.parse(init.body)) + '\\n');
+  appendFileSync(process.env.TEST_REQUESTS + '.meta', JSON.stringify({ url: String(url), headers: Object.fromEntries(new Headers(init.headers)) }) + '\\n');
   calls++;
   const status = calls <= Number(process.env.TEST_FAIL_FIRST || 0) ? 503 : Number(process.env.TEST_STATUS || 200);
   return new Response(JSON.stringify(status === 200 ? JSON.parse(process.env.TEST_RESPONSE) : { error: 'provider unavailable' }), { status, headers: { 'content-type': 'application/json' } });
@@ -60,6 +61,7 @@ async function run(
 ) {
   const requestPath = join(directory, `requests-${crypto.randomUUID()}.jsonl`);
   writeFileSync(requestPath, "");
+  writeFileSync(requestPath + ".meta", "");
   const { stdout, stderr, exitCode } = await runNode(
     ["--import", "tsx", "--import", preload, "src/index.ts", command, ...args],
     {
@@ -75,12 +77,17 @@ async function run(
     },
     input
   );
+  const meta = readFileSync(requestPath + ".meta", "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
   const requests = readFileSync(requestPath, "utf8")
     .trim()
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
-  return { stdout, stderr, exitCode, requests };
+  return { stdout, stderr, exitCode, requests, meta };
 }
 
 describe("decide CLI", () => {
@@ -406,5 +413,59 @@ describe("decide CLI", () => {
     );
     expect(retry.exitCode).toBe(0);
     expect(retry.requests).toHaveLength(2);
+  });
+
+  describe("gateway connection options", () => {
+    const teamHeader = "x-vercel-ai-gateway-team";
+    const ask = ["--boolean", "refund=Refund requested?"];
+    const answers = { answers: { refund: mixedAnswers.refund } };
+
+    test("--team-id-or-slug, --base-url, and --headers reach the decision request", async () => {
+      const headers = join(directory, "headers.json");
+      writeFileSync(headers, JSON.stringify({ "x-custom": "yes" }));
+      const result = await run(
+        [
+          ...ask,
+          "--team-id-or-slug",
+          "flag-team",
+          "--base-url",
+          "https://custom.example/v4/ai",
+          "--headers",
+          headers,
+        ],
+        "text",
+        answers
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.meta).toHaveLength(1);
+      expect(result.meta[0].url).toBe(
+        "https://custom.example/v4/ai/decision-model"
+      );
+      expect(result.meta[0].headers[teamHeader]).toBe("flag-team");
+      expect(result.meta[0].headers["x-custom"]).toBe("yes");
+    });
+
+    test("AI_GATEWAY_TEAM_ID_OR_SLUG and AI_GATEWAY_BASE_URL are honored", async () => {
+      const result = await run(ask, "text", answers, {
+        AI_GATEWAY_TEAM_ID_OR_SLUG: "env-team",
+        AI_GATEWAY_BASE_URL: "https://env.example/v4/ai",
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.meta[0].url).toBe(
+        "https://env.example/v4/ai/decision-model"
+      );
+      expect(result.meta[0].headers[teamHeader]).toBe("env-team");
+    });
+
+    test("the flag wins over the environment", async () => {
+      const result = await run(
+        [...ask, "--team-id-or-slug", "flag-team"],
+        "text",
+        answers,
+        { AI_GATEWAY_TEAM_ID_OR_SLUG: "env-team" }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.meta[0].headers[teamHeader]).toBe("flag-team");
+    });
   });
 });
