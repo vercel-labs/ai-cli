@@ -37,6 +37,7 @@ interface DecideOptions extends QuestionOptions {
   headers?: string;
   baseUrl?: string;
   teamIdOrSlug?: string;
+  scope?: string;
 }
 
 async function readTextFile(path: string, flag: string): Promise<string> {
@@ -139,6 +140,7 @@ export function registerDecideCommand(program: Command) {
         headers: options.headers,
         baseUrl: options.baseUrl,
         teamIdOrSlug: options.teamIdOrSlug,
+        scope: options.scope,
       });
       const questions = buildQuestions(
         options,

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New Features
+
+- `--scope <team>` selects the Gateway team (ID or slug) on commands with Gateway connection options. `--team-id-or-slug` is still accepted and deprecated; `--scope` wins if both are passed.
+
 ### Bug Fixes
 
 - `ai decide` now accepts `--base-url`, `--team-id-or-slug`, and `--headers`, and honors `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG`, so decision requests and short model name lookup use the selected Gateway team.

@@ -20,6 +20,7 @@ export interface MediaOptions {
   headers?: string;
   baseUrl?: string;
   teamIdOrSlug?: string;
+  scope?: string;
   quiet?: boolean;
   json?: boolean;
   concurrency?: string;
@@ -34,7 +35,8 @@ export function addGatewayConnectionOptions(command: Command): Command {
       "--base-url <url>",
       "Gateway baseURL (default: SDK gateway endpoint)"
     )
-    .option("--team-id-or-slug <team>", "Gateway teamIdOrSlug");
+    .option("--scope <team>", "Gateway team ID or slug")
+    .option("--team-id-or-slug <team>", "Deprecated: use --scope");
 }
 
 export function addGatewayOptions(command: Command): Command {
@@ -181,7 +183,9 @@ export async function mediaSettings(
     Parameters<typeof generateImage>[0]["providerOptions"]
   >;
   const teamIdOrSlug =
-    opts.teamIdOrSlug ?? (process.env.AI_GATEWAY_TEAM_ID_OR_SLUG || undefined);
+    opts.scope ??
+    opts.teamIdOrSlug ??
+    (process.env.AI_GATEWAY_TEAM_ID_OR_SLUG || undefined);
   const gateway = createGateway({
     baseURL,
     teamIdOrSlug,

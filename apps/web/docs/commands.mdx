@@ -53,7 +53,8 @@ Both also support these request controls:
 --headers <path>            JSON object of HTTP headers
 --max-retries <n>            SDK maxRetries (default: 2; 0 disables retries)
 --base-url <url>             Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
---team-id-or-slug <team>     Gateway teamIdOrSlug
+--scope <team>               Gateway team ID or slug
+--team-id-or-slug <team>     Deprecated: use --scope
 ```
 
 For example, `image-options.json` can contain:
@@ -402,7 +403,7 @@ Text, JSON objects, and arrays remain one shared state.
 Use `-i, --images` to add images to the state, `--questions` for structured instructions and criteria, `--input auto|text|json`
 to control parsing, `--model` to choose one evaluation model, `--provider-options`
 for the SDK’s provider-specific settings, `--max-retries` or `--timeout` for request controls,
-and `--base-url`, `--team-id-or-slug`, or `--headers <json-file>` for Gateway connection settings.
+and `--base-url`, `--scope`, or `--headers <json-file>` for Gateway connection settings.
 
 See [Decide](/docs/decide) for every flag, the question-file schema, probability
 semantics, and examples of using the answers in scripts. Valid evaluations exit
@@ -450,7 +451,7 @@ ai models anthropic/claude-opus-4.6 --json
 Models are fetched live from the AI Gateway.
 JSON preserves native metadata, including `video_capabilities`, `modalities`,
 and `supported_specifications`. Model discovery also accepts `--base-url`,
-`--team-id-or-slug`, and `--headers <json-file>` for Gateway connection settings.
+`--scope`, and `--headers <json-file>` for Gateway connection settings.
 
 ---
 

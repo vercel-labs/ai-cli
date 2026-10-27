@@ -467,5 +467,25 @@ describe("decide CLI", () => {
       expect(result.exitCode).toBe(0);
       expect(result.meta[0].headers[teamHeader]).toBe("flag-team");
     });
+
+    test("--scope sets the team header", async () => {
+      const result = await run(
+        [...ask, "--scope", "scope-team"],
+        "text",
+        answers
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.meta[0].headers[teamHeader]).toBe("scope-team");
+    });
+
+    test("--scope wins over --team-id-or-slug", async () => {
+      const result = await run(
+        [...ask, "--team-id-or-slug", "old-team", "--scope", "scope-team"],
+        "text",
+        answers
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.meta[0].headers[teamHeader]).toBe("scope-team");
+    });
   });
 });
