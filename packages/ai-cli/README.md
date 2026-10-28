@@ -47,7 +47,7 @@ You type the prompt. Everything else is picked from setting chips under the prom
 | Ctrl+C | Clear the prompt or leave settings; quit on an empty prompt |
 | Ctrl+D | Quit |
 
-Add a prompt to a mode command to run it right away, for example `/image a red boat`. Use `@last` in a prompt to pass the last output as the input image, for example `make it drift @last` after `/video`. Text replies print in the transcript. Images and video first frames show as thumbnails in terminals with Kitty graphics support. Click one, or run `/gallery`, to browse every image from the session; Enter picks the shown image as `@last`. Files are saved as one-shot commands save them.
+Add a prompt to a mode command to run it right away, for example `/image a red boat`. Use `@last` in a prompt to pass the last generated image as the input image, for example `make it drift @last` after `/video`. Text replies print in the transcript. Images and video first frames show as thumbnails in terminals with Kitty graphics support. Click one, or run `/gallery`, to browse every image from the session; Enter picks the shown image as `@last`. Files are saved as one-shot commands save them.
 
 While the UI runs it takes over mouse input, so the scroll wheel and plain drag-select go to the UI. Ctrl+C during a generation quits the UI.
 

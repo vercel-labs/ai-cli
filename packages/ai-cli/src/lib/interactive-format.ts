@@ -14,7 +14,11 @@ export function truncate(text: string, width: number): string {
 }
 
 export function wrap(text: string, width: number): string[] {
-  return text.split("\n").flatMap((paragraph) => {
+  return text.split("\n").flatMap((source) => {
+    if (source.length <= width) return [source];
+    const indent = source.match(/^\s*/)![0].slice(0, Math.floor(width / 2));
+    const paragraph = source.trimStart();
+    width -= indent.length;
     const lines: string[] = [];
     let line = "";
     const words = paragraph
@@ -27,6 +31,6 @@ export function wrap(text: string, width: number): string[] {
       } else line = line ? `${line} ${word}` : word;
     }
     lines.push(line);
-    return lines;
+    return lines.map((item) => indent + item);
   });
 }

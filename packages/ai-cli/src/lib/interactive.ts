@@ -42,7 +42,7 @@ const HELP = [
   "←/→  ↑/↓         choose a setting, change its value",
   "Enter            open the full list (type to filter); Esc goes back",
   "/                commands: /image /video /text /model /n /ratio /gallery ...",
-  "@last            put it in a prompt to use the last output as input",
+  "@last            put it in a prompt to use the last image as input",
   "Ctrl+D           quit",
 ];
 
@@ -62,6 +62,7 @@ class Tui {
   private picker?: Picker;
   private prompt = new Prompt();
   private busy?: Busy;
+  private working = false;
   private last?: string;
   private gallery: string[] = [];
   private done?: () => void;
@@ -82,10 +83,11 @@ class Tui {
       this.done = resolve;
     });
     close();
-    if (this.busy) process.exit(130);
+    if (this.working) process.exit(130);
   }
 
   private async click(x: number, y: number): Promise<void> {
+    if (this.working) return;
     const file = this.terminal.imageAt(x, y);
     const start = file ? this.gallery.indexOf(file) : -1;
     if (start >= 0) await this.openGallery(start);
@@ -210,11 +212,20 @@ class Tui {
     const mode = this.settings.mode;
     this.picker = { field, options: [], filter: "", index: 0, loading: true };
     this.render();
-    const ids = await modelOptions(mode);
+    let ids: string[];
+    try {
+      ids = await modelOptions(mode);
+    } catch (error) {
+      this.picker = undefined;
+      return this.print(`  ${red(message(error))}\n\n`);
+    }
     if (this.picker?.field !== "model" || this.settings.mode !== mode) return;
     this.picker.options = ids;
     this.picker.loading = false;
-    this.picker.index = Math.max(0, ids.indexOf(current));
+    this.picker.index = Math.max(
+      0,
+      filteredOptions(this.picker).indexOf(current)
+    );
     this.render();
   }
 
@@ -227,14 +238,21 @@ class Tui {
     if (!this.prompt.value.startsWith("/") || this.prompt.value.includes(" "))
       return [];
     const typed = this.prompt.value.slice(1);
-    return COMMANDS.filter((command) => command.name.startsWith(typed));
+    const matches = COMMANDS.filter((command) =>
+      command.name.startsWith(typed)
+    );
+    this.prompt.menuIndex = Math.min(
+      this.prompt.menuIndex,
+      Math.max(0, matches.length - 1)
+    );
+    return matches;
   }
 
   private submit(menu: typeof COMMANDS): void {
     let line = this.prompt.value.trim();
     if (menu.length) line = `/${menu[this.prompt.menuIndex]!.name}`;
     if (!line) return;
-    if (this.busy && !line.startsWith("/")) return;
+    if (this.working && !line.startsWith("/")) return;
     this.prompt.remember(line);
     this.setInput("");
     if (line.startsWith("/")) void this.command(line);
@@ -247,7 +265,7 @@ class Tui {
     if (name === "image" || name === "video" || name === "text") {
       this.apply("mode", name);
       this.render();
-      if (arg && !this.busy) await this.generate(name, arg);
+      if (arg && !this.working) await this.generate(name, arg);
     } else if (
       name === "model" ||
       name === "n" ||
@@ -267,8 +285,13 @@ class Tui {
         );
       this.apply(field, arg);
       this.render();
-    } else if (name === "gallery") await this.openGallery();
-    else if (name === "clear") {
+    } else if (name === "gallery") {
+      if (this.working)
+        return this.print(
+          `  ${dim("The gallery opens when this generation finishes.")}\n\n`
+        );
+      await this.openGallery();
+    } else if (name === "clear") {
       this.terminal.clear();
       this.render();
     } else if (name === "help")
@@ -302,7 +325,7 @@ class Tui {
   private async generate(mode: Mode, raw: string): Promise<void> {
     const usesLast = /(^|\s)@last(?=\s|$)/.test(raw);
     if (usesLast && !this.last)
-      return this.print(`  ${red("@last has no file yet")}\n\n`);
+      return this.print(`  ${red("@last has no image yet")}\n\n`);
     const prompt = raw.replace(/(^|\s)@last(?=\s|$)/g, " ").trim();
     const count = mode === "text" ? 1 : this.settings.count;
     const argv = [mode, "-m", this.settings.model(mode), "--quiet"];
@@ -326,12 +349,14 @@ class Tui {
         .join("\n")}\n\n`
     );
     const start = Date.now();
+    this.working = true;
     this.busy = { mode, count, start, tick: 0, shimmer: -SHIMMER_PADDING };
     const timer = setInterval(() => {
       this.busy!.tick++;
       this.render();
     }, 80);
     const errors: string[] = [];
+    const captured: string[] = [];
     const notes: string[] = [];
     globalThis.AI_SDK_LOG_WARNINGS = ({ warnings }) => {
       for (const warning of warnings)
@@ -343,14 +368,14 @@ class Tui {
     };
     const write = process.stderr.write;
     process.stderr.write = ((chunk: string | Uint8Array) => {
-      errors.push(String(chunk));
+      captured.push(String(chunk));
       return true;
     }) as typeof write;
     savedOutputs.length = 0;
     try {
       await this.program.parseAsync(["node", "ai", ...argv]);
     } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
+      errors.push(message(error));
     } finally {
       await new Promise((resolve) => setImmediate(resolve));
       process.stderr.write = write;
@@ -358,7 +383,13 @@ class Tui {
       this.busy = undefined;
       process.exitCode = undefined;
     }
-    await this.showResult(mode, Date.now() - start, errors, notes);
+    for (const line of captured.join("").split("\n"))
+      if (line.trim() && !/warning/i.test(line)) errors.push(line);
+    try {
+      await this.showResult(mode, Date.now() - start, errors, notes);
+    } finally {
+      this.working = false;
+    }
   }
 
   private async showResult(
@@ -392,20 +423,18 @@ class Tui {
       };
       text += `${thumbnailGrid(pngs, width)}\n`;
     }
-    for (const line of errors.join("").split("\n"))
-      if (/error/i.test(line) && !/warning/i.test(line))
-        for (const part of wrap(line, width - 4)) text += `  ${red(part)}\n`;
+    for (const error of errors)
+      for (const part of wrap(error, width - 4)) text += `  ${red(part)}\n`;
     for (const note of notes)
       for (const part of wrap(`! ${note}`, width - 4))
         text += `  ${dim(part)}\n`;
     const files = outputs.map(({ file }) => basename(file)).join("  ");
     text += `  ${dim(truncate(`${formatElapsed(elapsedMs)} · ${this.settings.model(mode)}${files ? ` · ${files}` : ""}`, width - 3))}\n\n`;
-    if (outputs.length) this.last = outputs.at(-1)!.file;
-    this.gallery.push(
-      ...outputs
-        .filter(({ format }) => format === "image")
-        .map(({ file }) => file)
-    );
+    const images = outputs
+      .filter(({ format }) => format === "image")
+      .map(({ file }) => file);
+    this.last = images.at(-1) ?? this.last;
+    this.gallery.push(...images);
     this.print(text, grid);
   }
 
@@ -437,4 +466,8 @@ class Tui {
   private quit(): void {
     this.done?.();
   }
+}
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

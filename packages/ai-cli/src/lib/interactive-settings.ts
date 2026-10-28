@@ -1,4 +1,5 @@
 import { truncate } from "./interactive-format.js";
+import { mediaSettings } from "./media-options.js";
 import { DEFAULTS, fetchGatewayModels } from "./models.js";
 
 export type Mode = "image" | "video" | "text";
@@ -100,7 +101,9 @@ export function filteredOptions(picker?: Picker): string[] {
 }
 
 export async function modelOptions(mode: Mode): Promise<string[]> {
-  const catalog = await fetchGatewayModels();
+  const catalog = await fetchGatewayModels(
+    mode === "text" ? undefined : (await mediaSettings({})).catalogOptions
+  );
   const ids =
     mode === "image"
       ? [

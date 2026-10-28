@@ -19,8 +19,7 @@ export class Prompt {
       Math.max(0, this.historyIndex + delta)
     );
     this.historyIndex = index;
-    this.value = this.history[index] ?? "";
-    this.cursor = this.value.length;
+    this.set(this.history[index] ?? "");
   }
 
   remember(line: string): void {
@@ -29,9 +28,9 @@ export class Prompt {
   }
 
   edit(str: string | undefined, key: Key): boolean {
-    if (key.name === "left") this.cursor = Math.max(0, this.cursor - 1);
+    if (key.name === "left") this.cursor = step(this.value, this.cursor, -1);
     else if (key.name === "right")
-      this.cursor = Math.min(this.value.length, this.cursor + 1);
+      this.cursor = step(this.value, this.cursor, 1);
     else if (key.name === "home" || (key.ctrl && key.name === "a"))
       this.cursor = 0;
     else if (key.name === "end" || (key.ctrl && key.name === "e"))
@@ -44,14 +43,14 @@ export class Prompt {
       this.value = head + this.value.slice(this.cursor);
       this.cursor = head.length;
     } else if (key.name === "backspace") {
-      if (this.cursor > 0) {
-        this.value =
-          this.value.slice(0, this.cursor - 1) + this.value.slice(this.cursor);
-        this.cursor--;
-      }
+      const start = step(this.value, this.cursor, -1);
+      this.value = this.value.slice(0, start) + this.value.slice(this.cursor);
+      this.cursor = start;
+      this.menuIndex = 0;
     } else if (key.name === "delete")
       this.value =
-        this.value.slice(0, this.cursor) + this.value.slice(this.cursor + 1);
+        this.value.slice(0, this.cursor) +
+        this.value.slice(step(this.value, this.cursor, 1));
     else if (key.name === "escape") {
       this.set("");
       return true;
@@ -63,4 +62,15 @@ export class Prompt {
     } else return false;
     return true;
   }
+}
+
+/** Moves a string offset one code point left or right, so surrogate pairs stay whole. */
+function step(text: string, index: number, direction: -1 | 1): number {
+  if (direction < 0) {
+    if (index <= 0) return 0;
+    const low = text.charCodeAt(index - 1);
+    return low >= 0xdc00 && low <= 0xdfff && index > 1 ? index - 2 : index - 1;
+  }
+  if (index >= text.length) return text.length;
+  return text.codePointAt(index)! > 0xffff ? index + 2 : index + 1;
 }

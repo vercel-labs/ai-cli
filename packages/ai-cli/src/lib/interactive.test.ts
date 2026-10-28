@@ -83,6 +83,8 @@ async function session(
       .option("--aspect-ratio <ratio>", "Ratio")
       .option("--duration <seconds>", "Duration")
       .action((prompt, options: Record<string, unknown>) => {
+        if (prompt === "fail")
+          throw new Error("--base-url must be an HTTP(S) URL");
         calls.push({ mode, prompt, options });
       });
   }
@@ -214,6 +216,24 @@ test("moves through settings with Tab and Shift+Tab, wrapping back to the prompt
   });
 });
 
+test("shows every failure and survives stale menu selections and split mouse reports", async () => {
+  await session(async ({ send, calls, output }) => {
+    await send("fail\r");
+    expect(output()).toContain("--base-url must be an HTTP(S) URL");
+    await send("/text\r");
+    await send(`/${down.repeat(10)}\x7f${up}\r`);
+    await send("\x1b[<0;3;");
+    await send("5Mhello\r");
+    expect(calls).toEqual([
+      {
+        mode: "text",
+        prompt: "hello",
+        options: { model: DEFAULTS.text, quiet: true },
+      },
+    ]);
+  });
+});
+
 test("routes slash commands and preserves generation options across modes", async () => {
   await session(async ({ send, calls, output }) => {
     await send("/help\r");
@@ -221,7 +241,7 @@ test("routes slash commands and preserves generation options across modes", asyn
     await send("/gallery\r");
     expect(output()).toContain("No images yet.");
     await send("@last\r");
-    expect(output()).toContain("@last has no file yet");
+    expect(output()).toContain("@last has no image yet");
     expect(calls).toHaveLength(0);
     await send("/video\r/n 2\r/ratio 9:16\r/duration 6\r/model local/video\r");
     await send("--a scene\r");

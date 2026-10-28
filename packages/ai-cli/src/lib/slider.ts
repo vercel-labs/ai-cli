@@ -22,26 +22,34 @@ export async function pickImage(
     const rows = stderr.rows ?? 24;
     deleteImage(IMAGE_ID);
     stderr.write("\x1b[2J\x1b[H");
-    await displayImage(readFileSync(files[index]!), {
-      id: IMAGE_ID,
-      columns: stderr.columns ?? 80,
-      rows: rows - 2,
-    });
+    let label = basename(files[index]!);
+    try {
+      await displayImage(readFileSync(files[index]!), {
+        id: IMAGE_ID,
+        columns: stderr.columns ?? 80,
+        rows: rows - 2,
+      });
+    } catch {
+      label = `could not open ${label}`;
+    }
     stderr.write(
-      `\x1b[${rows};1H\x1b[K◀ ${index + 1}/${files.length} ▶  ${basename(files[index]!)}  ${dim("←/→ browse · enter pick · esc cancel")}`
+      `\x1b[${rows};1H\x1b[K◀ ${index + 1}/${files.length} ▶  ${label}  ${dim("←/→ browse · enter pick · esc cancel")}`
     );
   };
 
   stderr.write("\x1b[?1049h\x1b[?25l");
-  rendering = rendering.then(render);
-  const confirmed = await readArrows((delta) => {
-    index = (index + delta + files.length) % files.length;
+  try {
     rendering = rendering.then(render);
-  });
-  await rendering;
-  deleteImage(IMAGE_ID);
-  stderr.write("\x1b[?25h\x1b[?1049l");
-  return confirmed ? files[index] : undefined;
+    const confirmed = await readArrows((delta) => {
+      index = (index + delta + files.length) % files.length;
+      rendering = rendering.then(render);
+    });
+    await rendering;
+    return confirmed ? files[index] : undefined;
+  } finally {
+    deleteImage(IMAGE_ID);
+    stderr.write("\x1b[?25h\x1b[?1049l");
+  }
 }
 
 /** Calls onStep with -1 or 1 for ←/→ and resolves true on Enter, or false on Esc or Ctrl+C. */
