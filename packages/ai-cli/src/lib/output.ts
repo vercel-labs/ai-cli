@@ -18,7 +18,6 @@ const DEFAULT_EXTENSIONS: Record<OutputFormat, string> = {
   audio: ".mp3",
 };
 
-/** Files written by writeOutput in this process, in write order. */
 export const savedOutputs: Array<{ file: string; format: OutputFormat }> = [];
 
 export interface WriteOutputOptions {

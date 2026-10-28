@@ -19,12 +19,12 @@ function gray(level: number, text: string): string {
 }
 
 function wave(x: number, y: number, tick: number, phase: number): number {
-  const t = tick * 0.16;
-  const v =
-    Math.sin(x * 0.42 + t + phase) +
-    Math.sin(y * 0.9 - t * 0.7 + phase * 1.7) +
-    Math.sin((x * 0.5 + y * 1.1) * 0.6 + t * 0.5 - phase);
-  return (v + 3) / 6;
+  const time = tick * 0.16;
+  const value =
+    Math.sin(x * 0.42 + time + phase) +
+    Math.sin(y * 0.9 - time * 0.7 + phase * 1.7) +
+    Math.sin((x * 0.5 + y * 1.1) * 0.6 + time * 0.5 - phase);
+  return (value + 3) / 6;
 }
 
 function tile(
@@ -37,7 +37,7 @@ function tile(
   const filled = Math.floor((percent * BODY_ROWS) / 100);
   const label = ` ${percent}% `;
   const left = Math.floor((BODY_COLUMNS - label.length) / 2);
-  const edge = (s: string) => (color ? gray(240, s) : s);
+  const edge = (text: string) => (color ? gray(240, text) : text);
   const lines = [edge(`╭${"─".repeat(BODY_COLUMNS)}╮`)];
   for (let y = 0; y < BODY_ROWS; y++) {
     const span =
@@ -54,9 +54,10 @@ function tile(
         row += color ? gray(255, "█") : "█";
         continue;
       }
-      const v = wave(x, y, tick, phase);
-      const ch = RAMP[Math.min(RAMP.length - 1, Math.floor(v * RAMP.length))]!;
-      row += color ? gray(238 + Math.round(v * 8), ch) : ch;
+      const value = wave(x, y, tick, phase);
+      const character =
+        RAMP[Math.min(RAMP.length - 1, Math.floor(value * RAMP.length))]!;
+      row += color ? gray(238 + Math.round(value * 8), character) : character;
     }
     lines.push(`${edge("│")}${row}${edge("│")}`);
   }
@@ -77,17 +78,19 @@ export function loaderFrame(
     Math.floor(99 * (1 - Math.exp(-Math.max(0, opts.elapsedMs) / expected)))
   );
   const perRow = gridColumns(opts.width);
-  const out: string[] = [];
+  const lines: string[] = [];
   for (let start = 0; start < count; start += perRow) {
     const tiles = [];
-    for (let i = start; i < Math.min(count, start + perRow); i++) {
-      tiles.push(tile(i, opts.tick, percent, color));
+    for (let index = start; index < Math.min(count, start + perRow); index++) {
+      tiles.push(tile(index, opts.tick, percent, color));
     }
     for (let line = 0; line < THUMB_ROWS; line++) {
-      out.push(INDENT + tiles.map((t) => t[line]).join(" ".repeat(GAP)));
+      lines.push(
+        INDENT + tiles.map((tileLines) => tileLines[line]).join(" ".repeat(GAP))
+      );
     }
   }
-  return out;
+  return lines;
 }
 
 function placeholder(column: number): string {
@@ -99,7 +102,7 @@ function placeholder(column: number): string {
       : " ".repeat(BODY_COLUMNS)
   );
   const bar = "─".repeat(BODY_COLUMNS);
-  return [`╭${bar}╮`, ...body.map((b) => `│${b}│`), `╰${bar}╯`]
+  return [`╭${bar}╮`, ...body.map((line) => `│${line}│`), `╰${bar}╯`]
     .map((line) => `\x1b[${column}G${line}\x1b[1B`)
     .join("");
 }
@@ -110,12 +113,12 @@ export function thumbnailGrid(
   width: number
 ): string {
   const perRow = gridColumns(width);
-  let out = "";
+  let output = "";
   for (let start = 0; start < pngs.length; start += perRow) {
-    out += "\n".repeat(THUMB_ROWS) + `\x1b[${THUMB_ROWS}A`;
-    pngs.slice(start, start + perRow).forEach((png, i) => {
-      const column = INDENT.length + 1 + i * (THUMB_COLUMNS + GAP);
-      out += png
+    output += "\n".repeat(THUMB_ROWS) + `\x1b[${THUMB_ROWS}A`;
+    pngs.slice(start, start + perRow).forEach((png, index) => {
+      const column = INDENT.length + 1 + index * (THUMB_COLUMNS + GAP);
+      output += png
         ? `\x1b[${column}G` +
           kittyPlace(png, {
             columns: THUMB_COLUMNS,
@@ -124,7 +127,7 @@ export function thumbnailGrid(
           })
         : placeholder(column) + `\x1b[${THUMB_ROWS}A`;
     });
-    out += `\x1b[${THUMB_ROWS}B\x1b[1G`;
+    output += `\x1b[${THUMB_ROWS}B\x1b[1G`;
   }
-  return out;
+  return output;
 }

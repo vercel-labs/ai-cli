@@ -6,6 +6,7 @@ export const PAGE_TITLES: Record<string, string> = {
   models: "Models",
   configuration: "Configuration",
   single: "Piping & Output",
+  interactive: "Interactive Mode",
   images: "Inline Preview",
 };
 

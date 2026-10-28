@@ -1,21 +1,28 @@
 import sharp from "sharp";
 import { describe, expect, test } from "vitest";
 
-import { displayImage } from "./kitty.js";
+import { png as fixturePng } from "../test/media.js";
+import { displayImage, kittyPlace, type ImageBox } from "./kitty.js";
 
-async function capturePreview(buf: Buffer): Promise<{
+async function capturePreview(
+  buf: Buffer,
+  box?: ImageBox
+): Promise<{
   output: string;
   png: Buffer;
+  writes: string[];
 }> {
   const originalWrite = process.stderr.write;
   let output = "";
+  const writes: string[] = [];
   (process.stderr as { write: (chunk: string) => boolean }).write = (chunk) => {
+    writes.push(chunk);
     output += chunk;
     return true;
   };
 
   try {
-    await displayImage(buf);
+    await displayImage(buf, box);
   } finally {
     (process.stderr as { write: typeof originalWrite }).write = originalWrite;
   }
@@ -30,10 +37,76 @@ async function capturePreview(buf: Buffer): Promise<{
     })
     .join("");
 
-  return { output, png: Buffer.from(payload, "base64") };
+  return { output, png: Buffer.from(payload, "base64"), writes };
 }
 
 describe("displayImage", () => {
+  test.each([
+    { size: 3069, packets: [["a=T,f=100,m=0", 0, 4092]] },
+    { size: 3072, packets: [["a=T,f=100,m=0", 0, 4096]] },
+    {
+      size: 3075,
+      packets: [
+        ["a=T,f=100,m=1", 0, 4096],
+        ["m=0", 4096, 4100],
+      ],
+    },
+    {
+      size: 6144,
+      packets: [
+        ["a=T,f=100,m=1", 0, 4096],
+        ["m=0", 4096, 8192],
+      ],
+    },
+    {
+      size: 6147,
+      packets: [
+        ["a=T,f=100,m=1", 0, 4096],
+        ["m=1", 4096, 8192],
+        ["m=0", 8192, 8196],
+      ],
+    },
+  ] as const)(
+    "preserves packets and write order for $size bytes",
+    async ({ size, packets }) => {
+      const input = Buffer.concat([
+        fixturePng,
+        Buffer.alloc(size - fixturePng.length),
+      ]);
+      const encoded = input.toString("base64");
+      const expected = packets
+        .map(
+          ([control, start, end]) =>
+            `\x1b_G${control};${encoded.slice(start, end)}\x1b\\`
+        )
+        .join("");
+      const preview = await capturePreview(input);
+
+      expect(preview.writes).toEqual([expected, "\n"]);
+      expect(preview.png).toEqual(input);
+    }
+  );
+
+  test.each([
+    { columns: 22, rows: 10, fit: "r=10" },
+    { columns: 20, rows: 10, fit: "r=10" },
+    { columns: 10, rows: 10, fit: "c=10" },
+  ])(
+    "preserves boxed placement for $columns columns and $rows rows",
+    async ({ columns, rows, fit }) => {
+      const preview = await capturePreview(fixturePng, {
+        id: 0,
+        columns,
+        rows,
+      });
+
+      expect(preview.writes).toEqual([
+        `\x1b_Ga=T,f=100,i=0,q=2,${fit},m=0;${fixturePng.toString("base64")}\x1b\\`,
+        "\n",
+      ]);
+    }
+  );
+
   test("converts non-PNG images to PNG before sending Kitty data", async () => {
     const jpeg = await sharp({
       create: {
@@ -86,5 +159,15 @@ describe("displayImage", () => {
     expect(rendered.info.width).toBe(512);
     expect(rendered.info.height).toBe(256);
     expect([...rendered.data.subarray(0, 4)]).toEqual([255, 255, 255, 255]);
+  });
+});
+
+describe("kittyPlace", () => {
+  test("preserves cursor placement without an image id or trailing newline", () => {
+    expect(
+      kittyPlace(fixturePng, { columns: 22, rows: 10, keepCursor: true })
+    ).toBe(
+      `\x1b_Ga=T,f=100,q=2,C=1,r=10,m=0;${fixturePng.toString("base64")}\x1b\\`
+    );
   });
 });

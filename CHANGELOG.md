@@ -5,6 +5,11 @@
 ### New Features
 
 - `--scope <team>` selects the Gateway team (ID or slug) on commands with Gateway connection options. `--team-id-or-slug` is still accepted and deprecated; `--scope` wins if both are passed.
+- `ai -i` opens an interactive terminal UI for image, video, and text generation. You type the prompt and pick the mode, model, count, aspect ratio, and duration from setting chips.
+
+### Improvements
+
+- Image and video commands reuse the AI Gateway model catalog within a process instead of refetching it on every call.
 
 ### Bug Fixes
 

@@ -35,9 +35,13 @@ const SVG_FALLBACK_DENSITY = 300;
 /** Decodes the first keyframe of an MP4 into a PNG, or undefined on failure. */
 export async function videoFramePng(buf: Buffer): Promise<Buffer | undefined> {
   try {
-    const kf = extractKeyframe(new Uint8Array(buf));
-    if (!kf) return undefined;
-    const frame = await decodeIDR(kf.sps, kf.pps, kf.sliceData);
+    const keyframe = extractKeyframe(new Uint8Array(buf));
+    if (!keyframe) return undefined;
+    const frame = await decodeIDR(
+      keyframe.sps,
+      keyframe.pps,
+      keyframe.sliceData
+    );
     if (!frame) return undefined;
     return encodePNG(frame.yuv, frame.width, frame.height);
   } catch {
@@ -89,15 +93,15 @@ export async function toPng(buf: Buffer): Promise<Buffer | undefined> {
 
 function chunked(png: Buffer, params: string): string {
   const encoded = png.toString("base64");
-  let out = "";
-  for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
-    const chunk = encoded.slice(i, i + CHUNK_SIZE);
-    const isLast = i + CHUNK_SIZE >= encoded.length;
+  let output = "";
+  for (let offset = 0; offset < encoded.length; offset += CHUNK_SIZE) {
+    const chunk = encoded.slice(offset, offset + CHUNK_SIZE);
+    const isLast = offset + CHUNK_SIZE >= encoded.length;
     const control =
-      i === 0 ? `${params},m=${isLast ? 0 : 1}` : `m=${isLast ? 0 : 1}`;
-    out += `\x1b_G${control};${chunk}\x1b\\`;
+      offset === 0 ? `${params},m=${isLast ? 0 : 1}` : `m=${isLast ? 0 : 1}`;
+    output += `\x1b_G${control};${chunk}\x1b\\`;
   }
-  return out;
+  return output;
 }
 
 /** Returns the Kitty escape sequence that shows a PNG fitted inside a cell box. */

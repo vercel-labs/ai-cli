@@ -36,6 +36,11 @@ const navigation = [
       },
       {
         type: "item" as const,
+        title: "Interactive Mode",
+        href: "/docs/interactive",
+      },
+      {
+        type: "item" as const,
         title: "Inline Preview",
         href: "/docs/images",
       },

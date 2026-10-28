@@ -28,7 +28,28 @@ ai audio speak "Thanks for trying ai-cli"
 ai audio transcribe recording.mp3
 ai decide --boolean "refund=Refund requested?" < ticket.txt
 ai models                          # list available models
+ai -i                              # interactive terminal UI
 ```
+
+### Interactive mode
+
+`ai -i` (or `ai --interactive`) opens a full-width terminal UI for image, video, and text. Bare `ai` still prints help, and every one-shot command is unchanged. Without a terminal (piped), it exits with `Error: --interactive needs a terminal`.
+
+You type the prompt. Everything else is picked from setting chips under the prompt bar: mode (image, video, text), model, count (1 or 2), aspect ratio, and duration (video only). Models come from the AI Gateway catalog for the current mode.
+
+| Key | Action |
+| --- | --- |
+| Enter | Generate |
+| Tab | Move to the next setting chip, and back to the prompt after the last one (Shift+Tab goes back). ←/→ also move, ↑/↓ change the value, Enter opens the full list |
+| `/` | Open the command menu: `/image`, `/video`, `/text`, `/model`, `/n`, `/ratio`, `/duration`, `/gallery`, `/clear`, `/help`, `/exit` |
+| ↑/↓ | Recall prompt history |
+| Esc | Clear the prompt |
+| Ctrl+C | Clear the prompt or leave settings; quit on an empty prompt |
+| Ctrl+D | Quit |
+
+Add a prompt to a mode command to run it right away, for example `/image a red boat`. Use `@last` in a prompt to pass the last output as the input image, for example `make it drift @last` after `/video`. Text replies print in the transcript. Images and video first frames show as thumbnails in terminals with Kitty graphics support. Click one, or run `/gallery`, to browse every image from the session; Enter picks the shown image as `@last`. Files are saved as one-shot commands save them.
+
+While the UI runs it takes over mouse input, so the scroll wheel and plain drag-select go to the UI. Ctrl+C during a generation quits the UI.
 
 ### Piping and References
 

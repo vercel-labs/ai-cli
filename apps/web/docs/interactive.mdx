@@ -1,0 +1,109 @@
+---
+title: Interactive Mode
+description: A full-width terminal UI for image, video, and text generation.
+order: 7.5
+---
+
+## Start it
+
+```bash
+ai -i
+```
+
+`ai --interactive` does the same. Bare `ai` still prints help, and every one-shot command works as before. If there is no terminal (for example, the output is piped), `-i` exits with `Error: --interactive needs a terminal`.
+
+## Layout
+
+- A header line.
+- The transcript. Each prompt shows as `│ prompt`, followed by its result and a dim line with the elapsed time, model, and saved file names.
+- At the bottom: the prompt bar, a footer of setting chips (for example `image · openai/gpt-image-1-mini · 2 images · 16:9`), and a dim line of key hints.
+
+## Settings
+
+You only type the prompt. Everything else is picked from the setting chips.
+
+| Mode | Chips |
+| --- | --- |
+| image | mode, model, count, aspect ratio |
+| video | mode, model, count, aspect ratio, duration |
+| text | mode, model |
+
+Press Tab to move to the first chip. It works with or without text in the prompt bar.
+
+- Tab moves to the next chip, and back to the prompt after the last one. Shift+Tab goes the other way.
+- ←/→ also choose a chip.
+- ↑/↓ cycle its value.
+- Enter opens the full list. Type to filter, use ↑/↓, press Enter to apply, or Esc to go back.
+- Typing any character returns to the prompt.
+
+Values:
+
+- **Model**: only models from the AI Gateway catalog for the current mode.
+- **Count**: 1 or 2. One-shot `--n` is unchanged and has no maximum.
+- **Image aspect ratio**: any, 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, 21:9.
+- **Video aspect ratio**: any, 16:9, 9:16, 1:1.
+- **Video duration**: any, 4, 5, 6, 8, or 10 seconds.
+
+## Commands
+
+Type `/` to open a command menu under the prompt.
+
+| Command | What it does |
+| --- | --- |
+| `/image`, `/video`, `/text` | Switch mode. Add a prompt to run it right away, for example `/image a red boat`. |
+| `/model`, `/n`, `/ratio`, `/duration` | Open the matching list, or pass a value. |
+| `/gallery` | Open the slider at the newest image. |
+| `/clear` | Clear the transcript. |
+| `/help` | Show help. |
+| `/exit` | Quit. |
+
+## Keys
+
+| Key | Action |
+| --- | --- |
+| Enter | Generate |
+| ↑/↓ | Recall prompt history |
+| Esc | Clear the prompt |
+| Ctrl+C | Clear the prompt or leave settings. Quits on an empty prompt. |
+| Ctrl+D | Quit |
+
+## Generating
+
+Each image or video shows an animated ASCII tile shaped like the Vercel triangle. It fills up with a progress percentage. The percentage is an estimate, not real progress. Text shows a spinner.
+
+Text replies print in the transcript. Images and video first frames show as thumbnails in terminals with Kitty graphics support. See [Inline Preview](/docs/images) for the list. Files are saved to the current directory (or `AI_CLI_OUTPUT_DIR`) the same way one-shot commands save them.
+
+Model warnings, such as a setting the model does not support, show as a dim note under the result.
+
+## Gallery
+
+Click a thumbnail to open a full-screen slider at that image. `/gallery` opens the same slider at the newest image.
+
+- ←/→ browse every image from the session.
+- Enter picks the image as `@last`.
+- Esc closes the slider.
+
+## Using @last
+
+`@last` in a prompt uses the last output, or the image picked in the slider, as the input image.
+
+```text
+/video
+make it drift @last
+```
+
+In text mode:
+
+```text
+what color is this? @last
+```
+
+## Limits
+
+- While the UI runs it takes over mouse input. The scroll wheel and plain drag-select go to the UI. Shift+drag still selects in Ghostty.
+- Resizing the window can make thumbnail clicks miss.
+- Ctrl+C during a generation quits the UI.
+
+<Callout type="tip">
+  Interactive mode is for people. Scripts and agents should use the one-shot commands.
+</Callout>
