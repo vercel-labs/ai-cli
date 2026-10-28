@@ -6,7 +6,7 @@ export type Modality =
   | "transcription"
   | "evaluation";
 
-const DEFAULTS: Record<Modality, string> = {
+export const DEFAULTS: Record<Modality, string> = {
   text: process.env.AI_CLI_TEXT_MODEL ?? "openai/gpt-5.5",
   image: process.env.AI_CLI_IMAGE_MODEL ?? "openai/gpt-image-2",
   video: process.env.AI_CLI_VIDEO_MODEL ?? "bytedance/seedance-2.0",
@@ -97,7 +97,7 @@ interface RawGatewayModel {
   };
 }
 
-let cached: Promise<GatewayModels> | null = null;
+const cache = new Map<string, Promise<GatewayModels>>();
 
 function emptyGatewayModels(): GatewayModels {
   return {
@@ -133,18 +133,26 @@ export function fetchGatewayModels(options?: {
   baseURL?: string;
   headers?: Record<string, string>;
 }): Promise<GatewayModels> {
-  if (options) return doFetch(options);
-  if (!cached) {
-    cached = doFetch().catch((err) => {
-      cached = null;
-      throw err;
-    });
+  const key = JSON.stringify([options?.baseURL, options?.headers ?? {}]);
+  let models = cache.get(key);
+  if (!models) {
+    models = doFetch(options).then(
+      (result) => {
+        if (!result.available) cache.delete(key);
+        return result;
+      },
+      (err: unknown) => {
+        cache.delete(key);
+        throw err;
+      }
+    );
+    cache.set(key, models);
   }
-  return cached;
+  return models;
 }
 
 export function resetGatewayCache(): void {
-  cached = null;
+  cache.clear();
 }
 
 async function doFetch(options?: {
@@ -245,7 +253,6 @@ async function doFetch(options?: {
     result.all = result.lookup.filter((e) => e.capabilities.length > 0);
     result.available = true;
   } catch {
-    cached = null;
     process.stderr.write("Warning: could not fetch models from AI Gateway\n");
     return emptyGatewayModels();
   }

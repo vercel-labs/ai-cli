@@ -78,21 +78,12 @@ export function registerTextCommand(program: Command) {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
       const imageReferenceInputs = opts.image ?? [];
-      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
-        process.stderr.write(
-          "Error: prompt, stdin, or image is required (provide a prompt, --image, or pipe text/image via stdin)\n"
+      if (!prompt && !stdin && imageReferenceInputs.length === 0)
+        throw new Error(
+          "prompt, stdin, or image is required (provide a prompt, --image, or pipe text/image via stdin)"
         );
-        process.exit(1);
-      }
 
-      let referenceImages: ImageReference[] = [];
-      try {
-        referenceImages = await loadImageReferences(imageReferenceInputs);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
-        process.exit(1);
-      }
+      const referenceImages = await loadImageReferences(imageReferenceInputs);
 
       const stdinBytes = stdin ? new Uint8Array(stdin) : undefined;
       const stdinIsImage = stdinBytes ? isLikelyImage(stdinBytes) : false;
@@ -147,8 +138,7 @@ export function registerTextCommand(program: Command) {
             : DEFAULT_CONCURRENCY,
         }
       );
-      if (failed === total) process.exit(1);
-      if (failed > 0) process.exit(2);
+      if (failed) process.exitCode = failed === total ? 1 : 2;
     }
   );
 }

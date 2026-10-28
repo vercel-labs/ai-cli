@@ -32,63 +32,102 @@ const SVG_PREVIEW_SIZE = 512;
 const SVG_BASE_DENSITY = 72;
 const SVG_FALLBACK_DENSITY = 300;
 
-export async function displayVideoFrame(buf: Buffer): Promise<void> {
+/** Decodes the first keyframe of an MP4 into a PNG, or undefined on failure. */
+export async function videoFramePng(buf: Buffer): Promise<Buffer | undefined> {
   try {
     const kf = extractKeyframe(new Uint8Array(buf));
-    if (!kf) return;
+    if (!kf) return undefined;
     const frame = await decodeIDR(kf.sps, kf.pps, kf.sliceData);
-    if (!frame) return;
-    const png = encodePNG(frame.yuv, frame.width, frame.height);
-    await displayImage(png);
+    if (!frame) return undefined;
+    return encodePNG(frame.yuv, frame.width, frame.height);
   } catch {
-    // Preview is best-effort; skip silently on any failure
+    return undefined;
   }
 }
 
-export async function displayImage(buf: Buffer): Promise<void> {
-  let preview = buf;
-  const isPng = hasPngSignature(buf);
-  if (!isPng) {
-    try {
-      const { default: sharp } = await import("sharp");
-      const image = sharp(buf);
-      const metadata = await image.metadata();
-      if (metadata.format === "svg") {
-        const longestSide = Math.max(metadata.width ?? 0, metadata.height ?? 0);
-        const density =
-          longestSide > 0
-            ? Math.max(
-                SVG_BASE_DENSITY,
-                Math.ceil((SVG_BASE_DENSITY * SVG_PREVIEW_SIZE) / longestSide)
-              )
-            : SVG_FALLBACK_DENSITY;
-        preview = await sharp(buf, { density })
-          .resize({
-            width: SVG_PREVIEW_SIZE,
-            height: SVG_PREVIEW_SIZE,
-            fit: "inside",
-          })
-          .flatten({ background: "#ffffff" })
-          .png()
-          .toBuffer();
-      } else {
-        preview = await image.png().toBuffer();
-      }
-    } catch {
-      // Preview is best-effort; skip unsupported or invalid image formats.
-      return;
-    }
-  }
+export async function displayVideoFrame(buf: Buffer): Promise<void> {
+  const png = await videoFramePng(buf);
+  if (png) await displayImage(png);
+}
 
-  const encoded = preview.toString("base64");
+/** A Kitty image id and the cell box the preview must fit inside. */
+export interface ImageBox {
+  id: number;
+  columns: number;
+  rows: number;
+}
+
+/** Converts any sharp-readable image (including SVG) to PNG, or undefined on failure. */
+export async function toPng(buf: Buffer): Promise<Buffer | undefined> {
+  if (hasPngSignature(buf)) return buf;
+  try {
+    const { default: sharp } = await import("sharp");
+    const image = sharp(buf);
+    const metadata = await image.metadata();
+    if (metadata.format !== "svg") return await image.png().toBuffer();
+    const longestSide = Math.max(metadata.width ?? 0, metadata.height ?? 0);
+    const density =
+      longestSide > 0
+        ? Math.max(
+            SVG_BASE_DENSITY,
+            Math.ceil((SVG_BASE_DENSITY * SVG_PREVIEW_SIZE) / longestSide)
+          )
+        : SVG_FALLBACK_DENSITY;
+    return await sharp(buf, { density })
+      .resize({
+        width: SVG_PREVIEW_SIZE,
+        height: SVG_PREVIEW_SIZE,
+        fit: "inside",
+      })
+      .flatten({ background: "#ffffff" })
+      .png()
+      .toBuffer();
+  } catch {
+    return undefined;
+  }
+}
+
+function chunked(png: Buffer, params: string): string {
+  const encoded = png.toString("base64");
+  let out = "";
   for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
     const chunk = encoded.slice(i, i + CHUNK_SIZE);
     const isLast = i + CHUNK_SIZE >= encoded.length;
     const control =
-      i === 0 ? `a=T,f=100,m=${isLast ? 0 : 1}` : `m=${isLast ? 0 : 1}`;
-    process.stderr.write(`\x1b_G${control};${chunk}\x1b\\`);
+      i === 0 ? `${params},m=${isLast ? 0 : 1}` : `m=${isLast ? 0 : 1}`;
+    out += `\x1b_G${control};${chunk}\x1b\\`;
   }
+  return out;
+}
+
+/** Returns the Kitty escape sequence that shows a PNG fitted inside a cell box. */
+export function kittyPlace(
+  png: Buffer,
+  box: { columns: number; rows: number; id?: number; keepCursor?: boolean }
+): string {
+  const width = png.readUInt32BE(16);
+  const height = png.readUInt32BE(20);
+  const fit =
+    box.rows * 2 * width <= box.columns * height
+      ? `r=${box.rows}`
+      : `c=${box.columns}`;
+  const id = box.id === undefined ? "" : `,i=${box.id}`;
+  const keep = box.keepCursor ? ",C=1" : "";
+  return chunked(png, `a=T,f=100${id},q=2${keep},${fit}`);
+}
+
+export async function displayImage(buf: Buffer, box?: ImageBox): Promise<void> {
+  const preview = await toPng(buf);
+  if (!preview) return;
+  process.stderr.write(
+    box ? kittyPlace(preview, box) : chunked(preview, "a=T,f=100")
+  );
   process.stderr.write("\n");
+}
+
+/** Removes a Kitty image placed with an id and frees its data. */
+export function deleteImage(id: number): void {
+  process.stderr.write(`\x1b_Ga=d,d=I,i=${id},q=2\x1b\\`);
 }
 
 function hasPngSignature(buf: Buffer): boolean {
