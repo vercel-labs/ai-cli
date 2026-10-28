@@ -1,4 +1,4 @@
-import { truncate } from "./interactive-format.js";
+import { captureStderr, truncate } from "./interactive-format.js";
 import { mediaSettings } from "./media-options.js";
 import { DEFAULTS, fetchGatewayModels } from "./models.js";
 
@@ -101,9 +101,17 @@ export function filteredOptions(picker?: Picker): string[] {
 }
 
 export async function modelOptions(mode: Mode): Promise<string[]> {
-  const catalog = await fetchGatewayModels(
-    mode === "text" ? undefined : (await mediaSettings({})).catalogOptions
-  );
+  const release = captureStderr(() => {});
+  let catalog;
+  try {
+    catalog = await fetchGatewayModels(
+      mode === "text" ? undefined : (await mediaSettings({})).catalogOptions
+    );
+  } finally {
+    release();
+  }
+  if (!catalog.available)
+    throw new Error("Could not load models from AI Gateway");
   const ids =
     mode === "image"
       ? [

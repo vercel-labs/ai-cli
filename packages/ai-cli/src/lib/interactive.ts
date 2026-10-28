@@ -3,7 +3,15 @@ import { basename } from "node:path";
 import type { Key } from "node:readline";
 
 import type { Command } from "./command.js";
-import { bold, dim, red, truncate, wrap } from "./interactive-format.js";
+import {
+  bold,
+  captureStderr,
+  dim,
+  plain,
+  red,
+  truncate,
+  wrap,
+} from "./interactive-format.js";
 import { Prompt } from "./interactive-input.js";
 import { liveLines, type Busy } from "./interactive-render.js";
 import {
@@ -86,6 +94,12 @@ class Tui {
     if (this.working) process.exit(130);
   }
 
+  private safely(work: Promise<void>): void {
+    work.catch((error: unknown) =>
+      this.print(`  ${red(plain(message(error)))}\n\n`)
+    );
+  }
+
   private async click(x: number, y: number): Promise<void> {
     if (this.working) return;
     const file = this.terminal.imageAt(x, y);
@@ -139,7 +153,7 @@ class Tui {
         (this.chip + (key.name === "left" ? -1 : 1) + fields.length) %
         fields.length;
     else if (key.name === "up" || key.name === "down") {
-      if (field === "model") return void this.openPicker(field);
+      if (field === "model") return this.safely(this.openPicker(field));
       const options = this.settings.optionsFor(field);
       const index = options.indexOf(this.settings.current(field));
       this.apply(
@@ -150,7 +164,7 @@ class Tui {
         ]!
       );
     } else if (key.name === "return" || key.name === "space")
-      return void this.openPicker(field);
+      return this.safely(this.openPicker(field));
     else if (key.name === "tab") {
       const next = this.chip + (key.shift ? -1 : 1);
       if (next < 0 || next >= fields.length) this.focus = "input";
@@ -252,11 +266,18 @@ class Tui {
     let line = this.prompt.value.trim();
     if (menu.length) line = `/${menu[this.prompt.menuIndex]!.name}`;
     if (!line) return;
-    if (this.working && !line.startsWith("/")) return;
+    if (
+      this.working &&
+      (!line.startsWith("/") || /^\/(image|video|text)\s+\S/.test(line))
+    )
+      return;
     this.prompt.remember(line);
     this.setInput("");
-    if (line.startsWith("/")) void this.command(line);
-    else void this.generate(this.settings.mode, line);
+    this.safely(
+      line.startsWith("/")
+        ? this.command(line)
+        : this.generate(this.settings.mode, line)
+    );
   }
 
   private async command(line: string): Promise<void> {
@@ -265,7 +286,7 @@ class Tui {
     if (name === "image" || name === "video" || name === "text") {
       this.apply("mode", name);
       this.render();
-      if (arg && !this.working) await this.generate(name, arg);
+      if (arg) await this.generate(name, arg);
     } else if (
       name === "model" ||
       name === "n" ||
@@ -311,11 +332,15 @@ class Tui {
       );
     this.terminal.paused = true;
     this.terminal.mouse(false);
-    const picked = await pickImage(this.gallery, start);
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    this.terminal.mouse(true);
-    this.terminal.paused = false;
+    let picked: string | undefined;
+    try {
+      picked = await pickImage(this.gallery, start);
+    } finally {
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+      this.terminal.mouse(true);
+      this.terminal.paused = false;
+    }
     if (picked) {
       this.last = picked;
       this.print(`  ${dim(`@last is now ${basename(picked)}`)}\n\n`);
@@ -328,7 +353,8 @@ class Tui {
       return this.print(`  ${red("@last has no image yet")}\n\n`);
     const prompt = raw.replace(/(^|\s)@last(?=\s|$)/g, " ").trim();
     const count = mode === "text" ? 1 : this.settings.count;
-    const argv = [mode, "-m", this.settings.model(mode), "--quiet"];
+    const model = this.settings.model(mode);
+    const argv = [mode, "-m", model, "--quiet"];
     if (mode !== "text") {
       argv.push("--no-preview", "--n", String(count));
       if (this.settings.ratios[mode] !== "auto")
@@ -366,11 +392,7 @@ class Tui {
           );
         else if (warning.type === "other") notes.push(warning.message);
     };
-    const write = process.stderr.write;
-    process.stderr.write = ((chunk: string | Uint8Array) => {
-      captured.push(String(chunk));
-      return true;
-    }) as typeof write;
+    const release = captureStderr((text) => captured.push(text));
     savedOutputs.length = 0;
     try {
       await this.program.parseAsync(["node", "ai", ...argv]);
@@ -378,22 +400,23 @@ class Tui {
       errors.push(message(error));
     } finally {
       await new Promise((resolve) => setImmediate(resolve));
-      process.stderr.write = write;
+      release();
       clearInterval(timer);
       this.busy = undefined;
       process.exitCode = undefined;
     }
     for (const line of captured.join("").split("\n"))
-      if (line.trim() && !/warning/i.test(line)) errors.push(line);
+      if (line.trim() && !/^\(node:\d+\)|^Warning:|--trace-warnings/.test(line))
+        errors.push(line);
     try {
-      await this.showResult(mode, Date.now() - start, errors, notes);
+      await this.showResult(model, Date.now() - start, errors, notes);
     } finally {
       this.working = false;
     }
   }
 
   private async showResult(
-    mode: Mode,
+    model: string,
     elapsedMs: number,
     errors: string[],
     notes: string[]
@@ -404,7 +427,7 @@ class Tui {
     let grid: GridPlacement | undefined;
     for (const { file, format } of outputs)
       if (format === "md" || format === "txt")
-        text += `${wrap(readFileSync(file, "utf8").trim(), width - 4)
+        text += `${wrap(plain(readFileSync(file, "utf8")).trim(), width - 4)
           .map((line) => `  ${line}`)
           .join("\n")}\n\n`;
     const media = outputs.filter(
@@ -424,12 +447,13 @@ class Tui {
       text += `${thumbnailGrid(pngs, width)}\n`;
     }
     for (const error of errors)
-      for (const part of wrap(error, width - 4)) text += `  ${red(part)}\n`;
+      for (const part of wrap(plain(error), width - 4))
+        text += `  ${red(part)}\n`;
     for (const note of notes)
-      for (const part of wrap(`! ${note}`, width - 4))
+      for (const part of wrap(plain(`! ${note}`), width - 4))
         text += `  ${dim(part)}\n`;
     const files = outputs.map(({ file }) => basename(file)).join("  ");
-    text += `  ${dim(truncate(`${formatElapsed(elapsedMs)} · ${this.settings.model(mode)}${files ? ` · ${files}` : ""}`, width - 3))}\n\n`;
+    text += `  ${dim(truncate(`${formatElapsed(elapsedMs)} · ${model}${files ? ` · ${files}` : ""}`, width - 3))}\n\n`;
     const images = outputs
       .filter(({ format }) => format === "image")
       .map(({ file }) => file);

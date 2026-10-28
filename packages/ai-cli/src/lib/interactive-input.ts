@@ -64,13 +64,18 @@ export class Prompt {
   }
 }
 
-/** Moves a string offset one code point left or right, so surrogate pairs stay whole. */
+const graphemes = new Intl.Segmenter();
+
+/** Moves a string offset one user-visible character left or right, so emoji, flags and accents stay whole. */
 function step(text: string, index: number, direction: -1 | 1): number {
-  if (direction < 0) {
-    if (index <= 0) return 0;
-    const low = text.charCodeAt(index - 1);
-    return low >= 0xdc00 && low <= 0xdfff && index > 1 ? index - 2 : index - 1;
-  }
-  if (index >= text.length) return text.length;
-  return text.codePointAt(index)! > 0xffff ? index + 2 : index + 1;
+  const bounds = [
+    0,
+    ...Array.from(
+      graphemes.segment(text),
+      ({ index: start, segment }) => start + segment.length
+    ),
+  ];
+  return direction < 0
+    ? (bounds.findLast((bound) => bound < index) ?? 0)
+    : (bounds.find((bound) => bound > index) ?? text.length);
 }

@@ -1,10 +1,18 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
 import { afterEach, expect, test, vi } from "vitest";
 
+import { registerImageCommand } from "../commands/image.js";
+import { registerTextCommand } from "../commands/text.js";
+import { registerVideoCommand } from "../commands/video.js";
+import { pngBase64 } from "../test/media.js";
 import { Command } from "./command.js";
 import { runInteractive } from "./interactive.js";
 import { DEFAULTS, resetGatewayCache } from "./models.js";
+import { writeOutput } from "./output.js";
 
 const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
 const left = "\x1b[D";
@@ -29,7 +37,8 @@ async function session(
       prompt: unknown;
       options: Record<string, unknown>;
     }>;
-  }) => Promise<void>
+  }) => Promise<void>,
+  record?: (mode: string) => Promise<void>
 ) {
   const stdin = Object.assign(new PassThrough(), { setRawMode: vi.fn() });
   vi.spyOn(process, "stdin", "get").mockReturnValue(
@@ -72,22 +81,42 @@ async function session(
     options: Record<string, unknown>;
   }> = [];
   const program = new Command().name("ai");
-  for (const mode of ["image", "video", "text"]) {
-    program
-      .command(mode)
-      .argument("[prompt]", "Prompt")
-      .option("-m, --model <model>", "Model")
-      .option("--quiet", "Quiet")
-      .option("--no-preview", "Disable preview")
-      .option("--n <count>", "Count")
-      .option("--aspect-ratio <ratio>", "Ratio")
-      .option("--duration <seconds>", "Duration")
-      .action((prompt, options: Record<string, unknown>) => {
-        if (prompt === "fail")
-          throw new Error("--base-url must be an HTTP(S) URL");
-        calls.push({ mode, prompt, options });
-      });
-  }
+  if (record) {
+    registerImageCommand(program);
+    registerVideoCommand(program);
+    registerTextCommand(program);
+    const registered = (
+      program as unknown as {
+        commands: Array<{
+          commandName: string;
+          action: Command["action"];
+        }>;
+      }
+    ).commands;
+    for (const mode of ["image", "video", "text"])
+      registered
+        .find((command) => command.commandName === mode)!
+        .action(async (prompt: unknown, options: Record<string, unknown>) => {
+          calls.push({ mode, prompt, options });
+          await record(mode);
+        });
+  } else
+    for (const mode of ["image", "video", "text"]) {
+      program
+        .command(mode)
+        .argument("[prompt]", "Prompt")
+        .option("-m, --model <model>", "Model")
+        .option("--quiet", "Quiet")
+        .option("--no-preview", "Disable preview")
+        .option("--n <count>", "Count")
+        .option("--aspect-ratio <ratio>", "Ratio")
+        .option("--duration <seconds>", "Duration")
+        .action((prompt, options: Record<string, unknown>) => {
+          if (prompt === "fail")
+            throw new Error("--base-url must be an HTTP(S) URL");
+          calls.push({ mode, prompt, options });
+        });
+    }
   const send = async (keys: string) => {
     stdin.emit("data", Buffer.from(keys));
     if (keys === "\x1b")
@@ -276,4 +305,68 @@ test("routes slash commands and preserves generation options across modes", asyn
     await send("/clear\r");
     expect(output()).toContain("\x1b[2J\x1b[3J\x1b[H");
   });
+});
+
+test("passes flags the real commands accept and feeds results back through @last", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "ai-cli-interactive-"));
+  vi.stubEnv("AI_CLI_OUTPUT_DIR", directory);
+  try {
+    await session(
+      async ({ send, calls, output }) => {
+        await send("/n 2\r/ratio 16:9\r");
+        await send("a cat\r");
+        expect(output()).toContain("image-1.png");
+        await send("/text\r");
+        await send("describe @last\r");
+        expect(output()).toContain("A cat on a mat.");
+        expect(output()).toContain("text-1.md");
+        await send("/video\r/ratio 9:16\r/duration 6\r");
+        await send("animate @last\r");
+        await send("/text\r");
+        await send("again @last\r");
+        await send("/image\r");
+        await send("edit @last\r");
+        expect(calls.map(({ mode }) => mode)).toEqual([
+          "image",
+          "text",
+          "video",
+          "text",
+          "image",
+        ]);
+        const image = join(directory, "image-1.png");
+        expect(calls[0]!.options).toMatchObject({
+          n: "2",
+          aspectRatio: "16:9",
+          preview: false,
+          quiet: true,
+        });
+        expect(calls[1]!.options.image).toEqual([image]);
+        expect(calls[2]!.options).toMatchObject({
+          image: [image],
+          aspectRatio: "9:16",
+          duration: "6",
+        });
+        expect(calls[3]!.options.image).toEqual([image]);
+        expect(calls[4]!.options.images).toEqual([image]);
+      },
+      async (mode) => {
+        if (mode === "text")
+          await writeOutput({
+            data: "A cat on a mat.",
+            format: "md",
+            outputId: "text-1",
+            quiet: true,
+          });
+        else
+          await writeOutput({
+            data: Buffer.from(pngBase64, "base64"),
+            format: "image",
+            outputId: "image-1",
+            quiet: true,
+          });
+      }
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -104,7 +104,7 @@ export class Terminal {
         if (!this.onRow) return match;
         this.onRow(Number(row));
       } else if (kind === "M" && button === "0")
-        void onClick(Number(x), Number(y));
+        onClick(Number(x), Number(y)).catch(() => {});
       return "";
     });
   }
@@ -152,6 +152,12 @@ export class Terminal {
     row: number;
     col: number;
   }): void {
+    const overflow = Math.max(
+      0,
+      lines.length - ((process.stdout.rows ?? 24) - 1)
+    );
+    lines = lines.slice(Math.min(overflow, row));
+    row -= Math.min(overflow, row);
     const up = lines.length - 1 - row;
     const width = (process.stdout.columns ?? 80) - 1;
     process.stdout.write(

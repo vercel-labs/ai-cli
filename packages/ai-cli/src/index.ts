@@ -26,13 +26,14 @@ registerDecideCommand(program);
 registerModelsCommand(program);
 
 const [flag, ...extra] = process.argv.slice(2);
-const interactive =
-  (flag === "-i" || flag === "--interactive") && extra.length === 0;
-const run = !interactive
-  ? program.parseAsync(process.argv)
-  : process.stdin.isTTY && process.stdout.isTTY
-    ? runInteractive(program, pkg.version)
-    : Promise.reject(new Error("--interactive needs a terminal"));
+const run =
+  flag !== "-i" && flag !== "--interactive"
+    ? program.parseAsync(process.argv)
+    : extra.length
+      ? Promise.reject(new Error("--interactive takes no other arguments"))
+      : process.stdin.isTTY && process.stdout.isTTY && process.stderr.isTTY
+        ? runInteractive(program, pkg.version)
+        : Promise.reject(new Error("--interactive needs a terminal"));
 
 run.catch((err: unknown) => {
   const args = process.argv.slice(2);
