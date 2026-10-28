@@ -111,7 +111,10 @@ The command calls AI SDK's `experimental_decide`: stdin maps to `state`,
 and typed flags build its named `questions`. `--choices` creates a Choice
 `criteria` map; `--levels` creates a Score `criteria` array. The file form uses
 the SDK question schema directly. Jev is the default evaluation model; other
-supported evaluation models use the same interface.
+supported evaluation models use the same interface. Gateway connection options
+(`--base-url`, `--scope`, `--headers`) and the matching
+`AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG` variables apply, with flags
+winning over environment variables.
 
 Pass images with `-i, --images` (paths, data URLs, or public URLs; repeatable). They follow stdin
 as file parts in the same state, in order; stdin is optional when images are given:
@@ -248,7 +251,8 @@ Both image and video generation support these request controls:
 --headers <path>            JSON object of HTTP headers
 --max-retries <n>            SDK maxRetries (default: 2; 0 disables retries)
 --base-url <url>             Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
---team-id-or-slug <team>     Gateway teamIdOrSlug
+--scope <team>               Gateway team ID or slug
+--team-id-or-slug <team>     Deprecated: use --scope
 ```
 
 For example, `image-options.json` can contain:
@@ -494,7 +498,8 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
 --creator <name>         Filter by creator (e.g. openai, google)
 --json                   JSON including native Gateway capabilities and metadata
 --base-url <url>         Gateway baseURL
---team-id-or-slug <team> Gateway teamIdOrSlug
+--scope <team>           Gateway team ID or slug
+--team-id-or-slug <team> Deprecated: use --scope
 --headers <path>         JSON HTTP headers
 ```
 
@@ -556,8 +561,8 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | Variable | Description |
 |---|---|
 | `AI_GATEWAY_API_KEY` | AI Gateway authentication key |
-| `AI_GATEWAY_BASE_URL` | Gateway baseURL for image/video generation and model discovery; overridden by `--base-url` |
-| `AI_GATEWAY_TEAM_ID_OR_SLUG` | Gateway team for image/video and models; overridden by `--team-id-or-slug` |
+| `AI_GATEWAY_BASE_URL` | Gateway baseURL for decide, image/video generation, and model discovery; overridden by `--base-url` |
+| `AI_GATEWAY_TEAM_ID_OR_SLUG` | Gateway team for decide, image/video, and models; overridden by `--scope` |
 | `OPENAI_API_KEY` | Provider-specific key (or other provider keys) |
 | `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
 | `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
