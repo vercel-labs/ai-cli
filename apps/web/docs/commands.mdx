@@ -78,9 +78,11 @@ and [Gateway provider options](https://vercel.com/docs/ai-gateway/models-and-pro
 Gemini image models use `generateText`. Set their resolution with
 `{"google":{"imageConfig":{"imageSize":"4K"}}}` in the provider-options file.
 `--aspect-ratio` merges into `google.imageConfig.aspectRatio` without removing
-`imageSize`. `--size`, `--mask`, `--max-images-per-call`, and `--n` other than 1
-are rejected for `generateText`; that API can still return multiple image files,
-which are all saved. Other language image models use provider-specific controls.
+`imageSize`. `--size`, `--mask`, and `--max-images-per-call` are rejected for
+`generateText`. `--n` makes one `generateText` call per requested image, and JSON
+results list each call in `calls`. A fixed `--seed` may return the same image
+each time. A single call can still return multiple image files, which are all
+saved. Other language image models use provider-specific controls.
 
 `--api generateText` selects a language model explicitly; `--api generateImage`
 selects a dedicated image model. If discovery fails, returns an invalid catalog,

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Support `--n` for image models that use `generateText`, such as Gemini. ai-cli now makes one call per requested image instead of rejecting `--n` other than 1, so `--n` works the same across image models.
+
 ## 0.7.0
 
 <!-- release:start -->

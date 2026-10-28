@@ -274,6 +274,28 @@ describe("SDK image generation", () => {
     expect(output.images[0].id).toBe(output.response.id);
   });
 
+  test("repeats generateText calls for --n", async () => {
+    const result = await generate([
+      "scene",
+      "-m",
+      "google/gemini-3-pro-image",
+      "--n",
+      "2",
+      "--json",
+      "-o",
+      join(fixture.directory, "gemini-n/"),
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(
+      result.requests.filter((item) => item.route.endsWith("/language-model"))
+    ).toHaveLength(2);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(true);
+    expect(output.calls).toHaveLength(2);
+    expect(output.images).toHaveLength(4);
+    expect(output.calls[0].images[0].file).toBe(output.images[0].file);
+  });
+
   test("routes Arrow SVG models through generateText without an explicit API", async () => {
     for (const name of ["arrow-2", "arrow-2-telos"]) {
       const result = await generate(

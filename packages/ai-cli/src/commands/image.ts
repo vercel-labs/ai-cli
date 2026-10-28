@@ -151,9 +151,9 @@ export function registerImageCommand(program: Command) {
         explicitApi === "generateText" ||
         (!explicitApi && languageIds.has(model));
       if (models.some(usesText)) {
-        if (size || mask || maxImagesPerCall !== undefined || settings.n !== 1)
+        if (size || mask || maxImagesPerCall !== undefined)
           throw new Error(
-            "generateText does not support --size, --mask, --max-images-per-call or --n other than 1; use --provider-options for model-specific image settings"
+            "generateText does not support --size, --mask or --max-images-per-call; use --provider-options for model-specific image settings"
           );
         if (
           aspectRatio &&
@@ -175,75 +175,93 @@ export function registerImageCommand(program: Command) {
             abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
           };
           if (usesText(modelId)) {
-            const result = await generateText({
-              ...textOptions,
-              ...common,
-              model: settings.gateway(modelId),
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    ...images.map((image) => ({
-                      type: "image" as const,
-                      image,
-                    })),
-                    { type: "text", text: prompt ?? "Generate an image" },
-                  ],
-                },
-              ],
-              providerOptions: mergeOptions(
-                languageImageProviderOptions(
-                  modelId.split("/")[0],
-                  aspectRatio
-                ) ?? {},
-                settings.providerOptions
-              ) as typeof settings.providerOptions,
+            const generateOnce = async () => {
+              const result = await generateText({
+                ...textOptions,
+                ...common,
+                model: settings.gateway(modelId),
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      ...images.map((image) => ({
+                        type: "image" as const,
+                        image,
+                      })),
+                      { type: "text", text: prompt ?? "Generate an image" },
+                    ],
+                  },
+                ],
+                providerOptions: mergeOptions(
+                  languageImageProviderOptions(
+                    modelId.split("/")[0],
+                    aspectRatio
+                  ) ?? {},
+                  settings.providerOptions
+                ) as typeof settings.providerOptions,
+              });
+              const artifacts = result.files
+                .filter((file) => file.mediaType.startsWith("image/"))
+                .map((file) => artifact(file, result.response.id));
+              artifacts.push(
+                ...toolImages(
+                  result.toolResults,
+                  textOptions.tools,
+                  result.response.id
+                )
+              );
+              if (artifacts.length === 0 && SVG_IMAGE_MODEL_IDS.has(modelId)) {
+                const svg = extractSvgImage(result.text);
+                if (svg)
+                  artifacts.push({
+                    data: svg,
+                    mediaType: "image/svg+xml",
+                    id: result.response.id,
+                  });
+              }
+              const {
+                messages: _messages,
+                body: _body,
+                ...response
+              } = result.response;
+              return {
+                artifacts,
+                text: result.text,
+                usage: result.usage,
+                totalUsage: result.totalUsage,
+                warnings: result.warnings,
+                providerMetadata: result.providerMetadata,
+                response,
+                finishReason: result.finishReason,
+                // Tool image bytes live in artifacts, not in the diagnostic manifest.
+                toolResults: result.toolResults.map((item) => ({
+                  ...item,
+                  output:
+                    textOptions.tools?.[item.toolName]?.id ===
+                      "openai.image_generation" &&
+                    typeof item.output === "object" &&
+                    item.output !== null &&
+                    "result" in item.output
+                      ? { ...item.output, result: "[saved as image]" }
+                      : item.output,
+                })),
+              };
+            };
+            if (settings.n === 1) return generateOnce();
+            const batches = await runMediaBatches(settings.n, 1, generateOnce);
+            const calls = batches.flatMap(({ result }) => {
+              if (!result) return [];
+              const { artifacts, ...call } = result;
+              return [{ images: artifacts, ...call }];
             });
-            const artifacts = result.files
-              .filter((file) => file.mediaType.startsWith("image/"))
-              .map((file) => artifact(file, result.response.id));
-            artifacts.push(
-              ...toolImages(
-                result.toolResults,
-                textOptions.tools,
-                result.response.id
-              )
-            );
-            if (artifacts.length === 0 && SVG_IMAGE_MODEL_IDS.has(modelId)) {
-              const svg = extractSvgImage(result.text);
-              if (svg)
-                artifacts.push({
-                  data: svg,
-                  mediaType: "image/svg+xml",
-                  id: result.response.id,
-                });
-            }
-            const {
-              messages: _messages,
-              body: _body,
-              ...response
-            } = result.response;
             return {
-              artifacts,
-              text: result.text,
-              usage: result.usage,
-              totalUsage: result.totalUsage,
-              warnings: result.warnings,
-              providerMetadata: result.providerMetadata,
-              response,
-              finishReason: result.finishReason,
-              // Tool image bytes live in artifacts, not in the diagnostic manifest.
-              toolResults: result.toolResults.map((item) => ({
-                ...item,
-                output:
-                  textOptions.tools?.[item.toolName]?.id ===
-                    "openai.image_generation" &&
-                  typeof item.output === "object" &&
-                  item.output !== null &&
-                  "result" in item.output
-                    ? { ...item.output, result: "[saved as image]" }
-                    : item.output,
-              })),
+              artifacts: calls.flatMap((call) => call.images),
+              text: calls
+                .map((call) => call.text)
+                .filter(Boolean)
+                .join("\n"),
+              calls,
+              failures: batchFailures(batches),
             };
           }
           const batches = await runMediaBatches(
@@ -300,9 +318,7 @@ export function registerImageCommand(program: Command) {
               providerMetadata: result.providerMetadata,
               responses: result.responses,
             })),
-            failures: batches.flatMap(({ index, requested, error }) =>
-              error ? [{ kind: "batch" as const, index, requested, error }] : []
-            ),
+            failures: batchFailures(batches),
           };
         },
         {
@@ -313,6 +329,14 @@ export function registerImageCommand(program: Command) {
         }
       );
     }
+  );
+}
+
+function batchFailures(
+  batches: Awaited<ReturnType<typeof runMediaBatches<unknown>>>
+) {
+  return batches.flatMap(({ index, requested, error }) =>
+    error ? [{ kind: "batch" as const, index, requested, error }] : []
   );
 }
 
