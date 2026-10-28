@@ -35,6 +35,8 @@ When making any user-facing change (new command, new flag, changed behavior, ren
 
 A user-facing change without matching README and website/docs updates is incomplete.
 
+Use the `technical-writer` skill (`.agents/skills/technical-writer/SKILL.md`) when you write or edit prose for this repo, including docs pages, READMEs, changelog entries, commit messages, PR descriptions, and issues.
+
 ## Releasing
 
 Releases are prepared in a single PR by bumping `packages/ai-cli/package.json` and
