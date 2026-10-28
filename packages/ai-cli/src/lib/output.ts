@@ -18,6 +18,8 @@ const DEFAULT_EXTENSIONS: Record<OutputFormat, string> = {
   audio: ".mp3",
 };
 
+export const savedOutputs: Array<{ file: string; format: OutputFormat }> = [];
+
 export interface WriteOutputOptions {
   data: Buffer | string;
   format: OutputFormat;
@@ -130,6 +132,7 @@ export async function writeOutput(
     filePath = resolve(filePath);
     mkdirSync(dirname(filePath), { recursive: true });
     writeFileSync(filePath, buf);
+    savedOutputs.push({ file: filePath, format });
     if (!quiet) process.stderr.write(`Saved to ${filePath}\n`);
     if (shouldDisplay) await showPreview(format, buf);
     return filePath;
@@ -147,6 +150,7 @@ export async function writeOutput(
   const path = resolve(filename);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, buf);
+  savedOutputs.push({ file: path, format });
   if (!quiet) process.stderr.write(`Saved to ${path}\n`);
   if (shouldDisplay) await showPreview(format, buf);
   return path;

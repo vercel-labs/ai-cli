@@ -1,0 +1,372 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { PassThrough } from "node:stream";
+
+import { afterEach, expect, test, vi } from "vitest";
+
+import { registerImageCommand } from "../commands/image.js";
+import { registerTextCommand } from "../commands/text.js";
+import { registerVideoCommand } from "../commands/video.js";
+import { pngBase64 } from "../test/media.js";
+import { Command } from "./command.js";
+import { runInteractive } from "./interactive.js";
+import { DEFAULTS, resetGatewayCache } from "./models.js";
+import { writeOutput } from "./output.js";
+
+const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
+const left = "\x1b[D";
+const right = "\x1b[C";
+const up = "\x1b[A";
+const down = "\x1b[B";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  resetGatewayCache();
+});
+
+async function session(
+  exercise: (ui: {
+    send: (keys: string) => Promise<void>;
+    frame: () => string;
+    output: () => string;
+    calls: Array<{
+      mode: string;
+      prompt: unknown;
+      options: Record<string, unknown>;
+    }>;
+  }) => Promise<void>,
+  record?: (mode: string) => Promise<void>
+) {
+  const stdin = Object.assign(new PassThrough(), { setRawMode: vi.fn() });
+  vi.spyOn(process, "stdin", "get").mockReturnValue(
+    stdin as unknown as typeof process.stdin
+  );
+  const stdout = Object.assign(new PassThrough(), { columns: 100, rows: 40 });
+  vi.spyOn(process, "stdout", "get").mockReturnValue(
+    stdout as unknown as typeof process.stdout
+  );
+  vi.stubEnv("NO_COLOR", "1");
+  vi.stubEnv("AI_CLI_PREVIEW", "0");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              { id: "acme/zeta", type: "image" },
+              { id: "acme/alpha", type: "image" },
+              { id: "other/alpha", type: "image" },
+            ],
+          })
+        )
+    )
+  );
+  resetGatewayCache();
+  const writes: string[] = [];
+  vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    const text = String(chunk);
+    writes.push(text);
+    if (text.includes("\x1b[6n")) stdin.emit("data", Buffer.from("\x1b[1;1R"));
+    return true;
+  });
+  const warnings = globalThis.AI_SDK_LOG_WARNINGS;
+  const exitCode = process.exitCode;
+  const calls: Array<{
+    mode: string;
+    prompt: unknown;
+    options: Record<string, unknown>;
+  }> = [];
+  const program = new Command().name("ai");
+  if (record) {
+    registerImageCommand(program);
+    registerVideoCommand(program);
+    registerTextCommand(program);
+    const registered = (
+      program as unknown as {
+        commands: Array<{
+          commandName: string;
+          action: Command["action"];
+        }>;
+      }
+    ).commands;
+    for (const mode of ["image", "video", "text"])
+      registered
+        .find((command) => command.commandName === mode)!
+        .action(async (prompt: unknown, options: Record<string, unknown>) => {
+          calls.push({ mode, prompt, options });
+          await record(mode);
+        });
+  } else
+    for (const mode of ["image", "video", "text"]) {
+      program
+        .command(mode)
+        .argument("[prompt]", "Prompt")
+        .option("-m, --model <model>", "Model")
+        .option("--quiet", "Quiet")
+        .option("--no-preview", "Disable preview")
+        .option("--n <count>", "Count")
+        .option("--aspect-ratio <ratio>", "Ratio")
+        .option("--duration <seconds>", "Duration")
+        .action((prompt, options: Record<string, unknown>) => {
+          if (prompt === "fail")
+            throw new Error("--base-url must be an HTTP(S) URL");
+          calls.push({ mode, prompt, options });
+        });
+    }
+  const send = async (keys: string) => {
+    stdin.emit("data", Buffer.from(keys));
+    if (keys === "\x1b")
+      await new Promise((resolve) => setTimeout(resolve, 550));
+    await turn();
+    await turn();
+  };
+  const running = runInteractive(program, "test");
+  try {
+    await turn();
+    await exercise({
+      send,
+      calls,
+      frame: () =>
+        [...writes].reverse().find((text) => text.includes("\x1b[J")) ?? "",
+      output: () => writes.join(""),
+    });
+  } finally {
+    await send("\x03");
+    await send("\x03");
+    await send("\x04");
+    await running;
+    globalThis.AI_SDK_LOG_WARNINGS = warnings;
+    process.exitCode = exitCode;
+    stdin.destroy();
+    stdout.destroy();
+  }
+  expect(stdin.setRawMode.mock.calls.map(([enabled]) => enabled)).toEqual([
+    true,
+    false,
+  ]);
+  expect(stdin.listenerCount("data")).toBe(0);
+}
+
+test("edits prompts and recalls submitted history through terminal keys", async () => {
+  await session(async ({ send, calls, frame }) => {
+    await send(`cat${left}\x7fr${right}!\r`);
+    expect(calls[0]?.prompt).toBe("crt!");
+    await send("second\r");
+    await send(up);
+    expect(frame()).toContain("│ second");
+    await send(up);
+    expect(frame()).toContain("│ crt!");
+    await send(`${down}${down}`);
+    expect(frame()).toContain("Describe an image");
+    await send(`${up}\x01X\x05\x7f\r`);
+    expect(calls.map(({ prompt }) => prompt)).toEqual([
+      "crt!",
+      "second",
+      "Xsecon",
+    ]);
+    await send("discard this\x03");
+    expect(frame()).toContain("Describe an image");
+    expect(calls).toHaveLength(3);
+    await send("xcat\x1b[H\x1b[3~\x1b[F!\x04");
+    await send("\r");
+    expect(calls[3]?.prompt).toBe("cat!");
+    await send(`red blue tail${left.repeat(5)}\x17green\r`);
+    expect(calls[4]?.prompt).toBe("red green tail");
+    await send(`discard everything${left}\x15fresh\r`);
+    expect(calls[5]?.prompt).toBe("fresh");
+    await send("/te\tcompleted\r");
+    expect(calls[6]).toEqual({
+      mode: "text",
+      prompt: "completed",
+      options: { model: DEFAULTS.text, quiet: true },
+    });
+  });
+});
+
+test("changes settings and filters pickers, with Escape and Ctrl+C cancelling", async () => {
+  await session(async ({ send, calls, frame }) => {
+    await send(`\t${right}${right}${up}${right}\r16`);
+    expect(frame()).toContain("16:9");
+    expect(frame()).not.toContain("21:9");
+    await send("\r");
+    await send("\x1b");
+    await send("first\r");
+    expect(calls[0]?.options).toMatchObject({ n: "2", aspectRatio: "16:9" });
+    await send("/model\r");
+    await send("ALPHAx\x7f");
+    expect(frame()).not.toContain("acme/zeta");
+    expect(frame().indexOf("acme/alpha")).toBeLessThan(
+      frame().indexOf("other/alpha")
+    );
+    await send(`${up}\r`);
+    await send("\x03");
+    await send("selected\r");
+    expect(calls[1]?.options.model).toBe("other/alpha");
+    await send("/model\r");
+    await send("zeta");
+    await send("\x1b");
+    await send("\x03");
+    await send("cancelled\r");
+    expect(calls[2]?.options.model).toBe("other/alpha");
+    await send("/model\r");
+    await send("zeta\x03");
+    await send("also cancelled\r");
+    expect(calls[3]?.options.model).toBe("other/alpha");
+    await send(`\t${left.repeat(2)}${down} ${up}\r${down}handoff\r`);
+    expect(calls[4]).toEqual({
+      mode: "image",
+      prompt: "handoff",
+      options: {
+        model: "other/alpha",
+        quiet: true,
+        preview: false,
+        n: "1",
+        aspectRatio: "16:9",
+      },
+    });
+  });
+});
+
+test("moves through settings with Tab and Shift+Tab, wrapping back to the prompt", async () => {
+  await session(async ({ send, calls }) => {
+    await send(`\t\t\t${up}\t\tfirst\r`);
+    expect(calls[0]).toMatchObject({ prompt: "first", options: { n: "2" } });
+    await send(`\x1b[Z${up}`);
+    await send("\x1b");
+    await send("second\r");
+    expect(calls[1]).toMatchObject({
+      prompt: "second",
+      options: { n: "2", aspectRatio: "1:1" },
+    });
+  });
+});
+
+test("shows every failure and survives stale menu selections and split mouse reports", async () => {
+  await session(async ({ send, calls, output }) => {
+    await send("fail\r");
+    expect(output()).toContain("--base-url must be an HTTP(S) URL");
+    await send("/text\r");
+    await send(`/${down.repeat(10)}\x7f${up}\r`);
+    await send("\x1b[<0;3;");
+    await send("5Mhello\r");
+    expect(calls).toEqual([
+      {
+        mode: "text",
+        prompt: "hello",
+        options: { model: DEFAULTS.text, quiet: true },
+      },
+    ]);
+  });
+});
+
+test("routes slash commands and preserves generation options across modes", async () => {
+  await session(async ({ send, calls, output }) => {
+    await send("/help\r");
+    expect(output()).toContain("Ctrl+D           quit");
+    await send("/gallery\r");
+    expect(output()).toContain("No images yet.");
+    await send("@last\r");
+    expect(output()).toContain("@last has no image yet");
+    expect(calls).toHaveLength(0);
+    await send("/video\r/n 2\r/ratio 9:16\r/duration 6\r/model local/video\r");
+    await send("--a scene\r");
+    await send("/text answer this\r");
+    await send("/ratio 1:1\r");
+    expect(output()).toContain("/ratio does not apply to text");
+    await send("/image draw this\r");
+    expect(calls).toEqual([
+      {
+        mode: "video",
+        prompt: "--a scene",
+        options: {
+          model: "local/video",
+          quiet: true,
+          preview: false,
+          n: "2",
+          aspectRatio: "9:16",
+          duration: "6",
+        },
+      },
+      {
+        mode: "text",
+        prompt: "answer this",
+        options: { model: DEFAULTS.text, quiet: true },
+      },
+      {
+        mode: "image",
+        prompt: "draw this",
+        options: { model: DEFAULTS.image, quiet: true, preview: false, n: "2" },
+      },
+    ]);
+    await send("/clear\r");
+    expect(output()).toContain("\x1b[2J\x1b[3J\x1b[H");
+  });
+});
+
+test("passes flags the real commands accept and feeds results back through @last", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "ai-cli-interactive-"));
+  vi.stubEnv("AI_CLI_OUTPUT_DIR", directory);
+  try {
+    await session(
+      async ({ send, calls, output }) => {
+        await send("/n 2\r/ratio 16:9\r");
+        await send("a cat\r");
+        expect(output()).toContain("image-1.png");
+        await send("/text\r");
+        await send("describe @last\r");
+        expect(output()).toContain("A cat on a mat.");
+        expect(output()).toContain("text-1.md");
+        await send("/video\r/ratio 9:16\r/duration 6\r");
+        await send("animate @last\r");
+        await send("/text\r");
+        await send("again @last\r");
+        await send("/image\r");
+        await send("edit @last\r");
+        expect(calls.map(({ mode }) => mode)).toEqual([
+          "image",
+          "text",
+          "video",
+          "text",
+          "image",
+        ]);
+        const image = join(directory, "image-1.png");
+        expect(calls[0]!.options).toMatchObject({
+          n: "2",
+          aspectRatio: "16:9",
+          preview: false,
+          quiet: true,
+        });
+        expect(calls[1]!.options.image).toEqual([image]);
+        expect(calls[2]!.options).toMatchObject({
+          image: [image],
+          aspectRatio: "9:16",
+          duration: "6",
+        });
+        expect(calls[3]!.options.image).toEqual([image]);
+        expect(calls[4]!.options.images).toEqual([image]);
+      },
+      async (mode) => {
+        if (mode === "text")
+          await writeOutput({
+            data: "A cat on a mat.",
+            format: "md",
+            outputId: "text-1",
+            quiet: true,
+          });
+        else
+          await writeOutput({
+            data: Buffer.from(pngBase64, "base64"),
+            format: "image",
+            outputId: "image-1",
+            quiet: true,
+          });
+      }
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

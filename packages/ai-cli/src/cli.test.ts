@@ -53,6 +53,15 @@ describe("cli integration", () => {
     expect(stdout).not.toContain("evaluate");
   });
 
+  test("-i needs a terminal and takes no other arguments", async () => {
+    const piped = await run("-i");
+    expect(piped.exitCode).toBe(1);
+    expect(piped.stderr).toContain("--interactive needs a terminal");
+    const extra = await run("-i", "image");
+    expect(extra.exitCode).toBe(1);
+    expect(extra.stderr).toContain("--interactive takes no other arguments");
+  });
+
   test("--version exits 0 and prints semver", async () => {
     const { exitCode, stdout } = await run("--version");
     expect(exitCode).toBe(0);

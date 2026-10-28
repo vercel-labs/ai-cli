@@ -120,6 +120,21 @@ describe("resolveModels multi", () => {
 });
 
 describe("fetchGatewayModels", () => {
+  test("caches the catalog per URL and headers, but not failed fetches", async () => {
+    mockGateway([{ id: "openai/gpt-5", type: "language", owned_by: "openai" }]);
+    await fetchGatewayModels();
+    await fetchGatewayModels({ baseURL: undefined, headers: {} });
+    await fetchGatewayModels({ headers: { "x-vercel-ai-gateway-team": "a" } });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    resetGatewayCache();
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    mockGatewayError();
+    expect((await fetchGatewayModels()).available).toBe(false);
+    mockGateway([{ id: "openai/gpt-5", type: "language", owned_by: "openai" }]);
+    expect((await fetchGatewayModels()).available).toBe(true);
+    stderr.mockRestore();
+  });
+
   test("evaluation models are discoverable and short names resolve", async () => {
     mockGateway([
       { id: "typesafe-ai/jev", type: "evaluation", owned_by: "typesafe-ai" },

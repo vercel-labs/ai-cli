@@ -8,13 +8,15 @@ import { registerModelsCommand } from "./commands/models.js";
 import { registerTextCommand } from "./commands/text.js";
 import { registerVideoCommand } from "./commands/video.js";
 import { CliUsageError, Command } from "./lib/command.js";
+import { runInteractive } from "./lib/interactive.js";
 
 const program = new Command();
 
 program
   .name("ai")
   .description("Generate anything from your terminal")
-  .version(pkg.version);
+  .version(pkg.version)
+  .option("-i, --interactive", "Open the interactive terminal UI");
 
 registerTextCommand(program);
 registerImageCommand(program);
@@ -23,7 +25,17 @@ registerAudioCommand(program);
 registerDecideCommand(program);
 registerModelsCommand(program);
 
-program.parseAsync(process.argv).catch((err: unknown) => {
+const [flag, ...extra] = process.argv.slice(2);
+const run =
+  flag !== "-i" && flag !== "--interactive"
+    ? program.parseAsync(process.argv)
+    : extra.length
+      ? Promise.reject(new Error("--interactive takes no other arguments"))
+      : process.stdin.isTTY && process.stdout.isTTY && process.stderr.isTTY
+        ? runInteractive(program, pkg.version)
+        : Promise.reject(new Error("--interactive needs a terminal"));
+
+run.catch((err: unknown) => {
   const args = process.argv.slice(2);
   const flags = args.slice(
     0,

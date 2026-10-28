@@ -36,6 +36,8 @@ ai audio transcribe recording.mp3        # transcribe audio
 ai models --type audio                   # list speech and transcription models
 ```
 
+`ai -i` opens an interactive UI for people. Agents should use the one-shot commands above.
+
 ## Key Flags
 
 For image and video, use these flags:
