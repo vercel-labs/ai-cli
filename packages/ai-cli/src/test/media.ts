@@ -26,6 +26,7 @@ const png = ${JSON.stringify(pngBase64)};
 const mode = process.env.TEST_MODE;
 let statuses = 0;
 let imageCalls = 0;
+let textCalls = 0;
 globalThis.fetch = async (url, init) => {
   const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
   const headers = Object.fromEntries(new Headers(init?.headers));
@@ -59,6 +60,7 @@ globalThis.fetch = async (url, init) => {
     providerMetadata: { openai: { images: Array.from({ length: count }, () => ({ revisedPrompt: 'revised' })) }, gateway: { cost: '0.123' } }
   }, { headers: { 'x-request-id': 'image-id' } });
   }
+  if (route.endsWith('/language-model') && mode === 'partial-text-batch' && ++textCalls === 2) return Response.json({ error: { message: 'one text call failed' } }, { status: 503 });
   if (route.endsWith('/language-model')) return Response.json({
     content: mode === 'tool' ? [
       { type: 'tool-call', toolCallId: 'call-1', toolName: 'image_generation', input: '{}', providerExecuted: true },

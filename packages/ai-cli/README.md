@@ -63,10 +63,11 @@ Generation commands support:
 When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped.
 For image and video `--n`, fewer returned outputs than requested are reported as
 an incomplete result with a nonzero exit code. Available media is still saved.
-When a batching limit splits generation into calls, successful calls are saved
-even if another call fails. For `generateImage` and video generation, JSON
-results include successful call diagnostics in `batches` and failed call or
-download details in `failures`.
+When a batching limit or `generateText` `--n` splits generation into calls,
+successful calls are saved even if another call fails. For `generateImage` and
+video generation, JSON results include successful call diagnostics in `batches`.
+For `generateText` with `--n` above 1, they are in `calls`. Failed call or
+download details are in `failures`.
 For image/video generation, exit 1 means every model result is unsuccessful,
 including a partial result that saved files. Exit 2 means some models succeeded
 and others did not. Input validation errors also exit 1.
@@ -275,7 +276,8 @@ Gemini image models use `generateText`. Set their resolution with
 `--aspect-ratio` merges into `google.imageConfig.aspectRatio` without removing
 `imageSize`. `--size`, `--mask`, and `--max-images-per-call` are rejected for
 `generateText`. `--n` makes one `generateText` call per requested image, and JSON
-results list each call in `calls`. A fixed `--seed` may return the same image
+results list each call in `calls`. `--concurrency` also limits how many of those
+calls run at once. A fixed `--seed` may return the same image
 each time. A single call can still return multiple image files, which are all
 saved. Other language image models use provider-specific controls.
 

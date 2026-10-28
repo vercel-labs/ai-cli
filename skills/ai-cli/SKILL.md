@@ -74,8 +74,10 @@ unknown image model is missing from the catalog, provide a full model ID and
 `--api`. Quiver Arrow 2 SVG language-image models can route through
 `generateText` when the catalog is available even if absent from its image list.
 `--generate-text-options <path>` selects `generateText` and accepts JSON SDK
-settings and provider tools. That API rejects `--size`, `--mask`,
-`--max-images-per-call`, and `--n` other than 1. For Gemini image size, use
+settings and provider tools. That API rejects `--size`, `--mask`, and
+`--max-images-per-call`. `--n` makes one `generateText` call per requested
+image, up to `--concurrency` at once, and JSON lists each call in `calls`.
+For Gemini image size, use
 `{"google":{"imageConfig":{"imageSize":"4K"}}}` in `--provider-options`.
 
 Provider-specific quality, style, and output format belong in a JSON file, for
@@ -283,7 +285,8 @@ Key fields (additional SDK diagnostics are included):
 ```
 
 Image/video results include `images` or `videos` arrays with every artifact.
-`generateImage` results include `calls`; batched image/video results include
+`generateImage` results, and `generateText` results with `--n` above 1, include
+`calls`; batched image/video results include
 `batches` and any `failures`. Usage, provider metadata, and responses are kept
 when available. `--json` keeps stdout parseable and saves artifacts to files
 even when stdout is piped.

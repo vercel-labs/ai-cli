@@ -248,7 +248,17 @@ export function registerImageCommand(program: Command) {
               };
             };
             if (settings.n === 1) return generateOnce();
-            const batches = await runMediaBatches(settings.n, 1, generateOnce);
+            const batches = await runMediaBatches(
+              settings.n,
+              1,
+              async () => {
+                const result = await generateOnce();
+                if (!result.artifacts.length)
+                  throw new Error(`Model ${modelId} did not return any images`);
+                return result;
+              },
+              settings.concurrency
+            );
             const calls = batches.flatMap(({ result }) => {
               if (!result) return [];
               const { artifacts, ...call } = result;
@@ -260,6 +270,18 @@ export function registerImageCommand(program: Command) {
                 .map((call) => call.text)
                 .filter(Boolean)
                 .join("\n"),
+              usage: {
+                inputTokens: sumImageUsage(
+                  calls.map((call) => call.usage.inputTokens)
+                ),
+                outputTokens: sumImageUsage(
+                  calls.map((call) => call.usage.outputTokens)
+                ),
+                totalTokens: sumImageUsage(
+                  calls.map((call) => call.usage.totalTokens)
+                ),
+              },
+              warnings: calls.flatMap((call) => call.warnings ?? []),
               calls,
               failures: batchFailures(batches),
             };
