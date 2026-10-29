@@ -48,3 +48,7 @@ Tests use Vitest on Node.js. CLI builds use esbuild and copy the OpenH264 WebAss
 Linting and formatting use Oxlint and Oxfmt directly. Run `npm run format` to format CLI sources, or `npm run lint -- -- --fix` to apply automatic lint fixes. The optional pre-commit hook in `.githooks/` runs the workspace formatter; enable it with `git config core.hooksPath .githooks`.
 
 Before adding a dependency, check its latest version with `npm view <package> version`, then install the specific version with `npm install --save-exact --workspace ai-cli <package>@<version>` (add `-D` for a development dependency). Commit the updated `package-lock.json` with dependency changes.
+
+## Writing with AI coding agents
+
+If an AI coding agent writes any of your contribution's prose, it must use the [`technical-writer` skill](.agents/skills/technical-writer/SKILL.md). That covers docs pages, READMEs, changelog entries, commit messages, PR descriptions, and issues. The skill sets the voice and editorial standards for this repo and asks agents to check technical claims against the source. Agents that read this repo's `AGENTS.md` pick up the requirement automatically.
