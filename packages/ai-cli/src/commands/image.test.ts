@@ -274,6 +274,82 @@ describe("SDK image generation", () => {
     expect(output.images[0].id).toBe(output.response.id);
   });
 
+  test("repeats generateText calls for --n", async () => {
+    const result = await generate([
+      "scene",
+      "-m",
+      "google/gemini-3-pro-image",
+      "--n",
+      "2",
+      "--json",
+      "-o",
+      join(fixture.directory, "gemini-n/"),
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(
+      result.requests.filter((item) => item.route.endsWith("/language-model"))
+    ).toHaveLength(2);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(true);
+    expect(output.calls).toHaveLength(2);
+    expect(output.images).toHaveLength(4);
+    expect(output.calls[0].images[0].file).toBe(output.images[0].file);
+  });
+
+  test("gives every queued --n call the full --timeout", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "-m",
+        "google/gemini-3-pro-image",
+        "--n",
+        "3",
+        "--concurrency",
+        "1",
+        "--timeout",
+        "1",
+        "--json",
+        "-o",
+        join(fixture.directory, "gemini-timeout/"),
+      ],
+      "slow-text"
+    );
+    expect(result.exitCode).toBe(0);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(true);
+    expect(output.calls).toHaveLength(3);
+    expect(output.images).toHaveLength(6);
+  });
+
+  test("keeps successful generateText calls when another --n call fails", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "-m",
+        "google/gemini-3-pro-image",
+        "--n",
+        "3",
+        "--concurrency",
+        "1",
+        "--json",
+        "-o",
+        join(fixture.directory, "gemini-partial/"),
+      ],
+      "partial-text-batch"
+    );
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(false);
+    expect(output.calls).toHaveLength(2);
+    expect(output.images).toHaveLength(4);
+    expect(output.usage.inputTokens).toBe(24);
+    expect(output.failures).toEqual([
+      expect.objectContaining({ kind: "batch", index: 2, requested: 1 }),
+    ]);
+    for (const image of output.images)
+      expect(readFileSync(image.file).toString("base64")).toBe(pngBase64);
+  });
+
   test("routes Arrow SVG models through generateText without an explicit API", async () => {
     for (const name of ["arrow-2", "arrow-2-telos"]) {
       const result = await generate(

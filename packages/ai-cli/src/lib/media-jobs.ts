@@ -28,7 +28,8 @@ export interface MediaResult {
 export async function runMediaBatches<T>(
   n: number,
   maxPerCall: number | undefined,
-  generate: (count: number) => Promise<T>
+  generate: (count: number) => Promise<T>,
+  concurrency = Infinity
 ): Promise<
   Array<
     | { index: number; requested: number; result: T; error?: never }
@@ -44,7 +45,7 @@ export async function runMediaBatches<T>(
   const counts = Array.from({ length: Math.ceil(n / perCall) }, (_, index) =>
     Math.min(perCall, n - index * perCall)
   );
-  const outcomes = await Promise.allSettled(counts.map(generate));
+  const outcomes = await pMap(counts, generate, concurrency);
   return outcomes.map((outcome, index) => ({
     index: index + 1,
     requested: counts[index]!,
