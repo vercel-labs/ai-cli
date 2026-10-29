@@ -204,7 +204,12 @@ export const EXCLUDED_COMMANDS: Record<string, string> = {
 };
 
 /** Gateway connection options; only the server environment may set them, so an agent cannot send the Gateway key elsewhere. */
-export const CONNECTION_OPTIONS = ["headers", "baseUrl", "teamIdOrSlug"];
+export const CONNECTION_OPTIONS = [
+  "headers",
+  "baseUrl",
+  "teamIdOrSlug",
+  "scope",
+];
 
 /** Options never exposed as typed inputs. */
 export const HIDDEN_OPTIONS = [

@@ -5,6 +5,13 @@
 ### New Features
 
 - Add `ai mcp`, a stdio MCP server that exposes `ai` commands as typed tools (`text`, `image`, `decide`, `models`; `--profile media` or `all` adds video and audio). Tool inputs come from each command's own flags, and every call runs the same `ai` binary. The server reads `AI_GATEWAY_API_KEY` from its environment and rejects Gateway connection flags from agents.
+- `--scope <team>` selects the Gateway team (ID or slug) on commands with Gateway connection options. `--team-id-or-slug` is still accepted and deprecated; `--scope` wins if both are passed.
+
+### Bug Fixes
+
+- `ai decide` now accepts `--base-url`, `--team-id-or-slug`, and `--headers`, and honors `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG`, so decision requests and short model name lookup use the selected Gateway team.
+- `ai decide` requests now send the same `http-referer` and `x-title` headers as other commands.
+- An empty `AI_GATEWAY_TEAM_ID_OR_SLUG` is treated as unset instead of sending an empty team header.
 
 ## 0.7.0
 

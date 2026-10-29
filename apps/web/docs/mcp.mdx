@@ -128,7 +128,7 @@ Each tool's inputs are its command's own flags, named in camelCase
 `--help`. Repeatable flags take a string array, and on/off flags take a boolean.
 Terminal-only flags (`--quiet`, `--no-preview`, `--no-play`, `--no-waveform`)
 are left out. Gateway connection flags (`--base-url`, `--headers`,
-`--team-id-or-slug`) are rejected, including in `extraArgs`, so an agent cannot
+`--scope`, `--team-id-or-slug`) are rejected, including in `extraArgs`, so an agent cannot
 send your Gateway key to another endpoint. Set `AI_GATEWAY_BASE_URL` and
 `AI_GATEWAY_TEAM_ID_OR_SLUG` in the server environment instead.
 

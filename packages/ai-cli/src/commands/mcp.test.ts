@@ -112,6 +112,18 @@ describe("toolArgv", () => {
   });
 });
 
+test("keeps Gateway scope controlled by the MCP server environment", () => {
+  for (const tool of tools) {
+    expect(tool.inputSchema.properties).not.toHaveProperty("scope");
+  }
+  for (const extraArgs of [["--scope=other-team"], ["--scope", "other-team"]]) {
+    expect(toolArgv(tools, "image", { prompt: "x", extraArgs })).toEqual({
+      error:
+        "extraArgs must not set --scope; set it in the MCP server environment",
+    });
+  }
+});
+
 test("every CLI command and option is mapped, hidden, or excluded", () => {
   const runnable: string[] = [];
   const visit = (command: typeof definition, path: string[]) => {

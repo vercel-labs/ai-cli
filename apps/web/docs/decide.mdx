@@ -242,10 +242,14 @@ when changing instructions, criteria, or models.
 --provider-options <path> JSON object of provider names to option objects
 --max-retries <n>         Transient-error retries, including 0 (default: 2)
 --timeout <seconds>       Evaluation deadline including retries (default: 30)
+--base-url <url>          Gateway baseURL (default: SDK gateway endpoint)
+--scope <team>            Gateway team ID or slug
+--team-id-or-slug <team>  Deprecated: use --scope
+--headers <path>          JSON file of HTTP headers
 ```
 
-Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
-the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG` apply to `decide`; the flags override them.
+Override the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
 `typesafe-ai/jev`. Discover supported models with `ai models --type evaluation`.
 
 Provider options use the SDK's provider namespaces. For example, save
