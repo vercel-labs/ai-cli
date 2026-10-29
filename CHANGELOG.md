@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
+
+<!-- release:start -->
 
 ### New Features
 
@@ -13,9 +15,13 @@
 - `ai decide` requests now send the same `http-referer` and `x-title` headers as other commands.
 - An empty `AI_GATEWAY_TEAM_ID_OR_SLUG` is treated as unset instead of sending an empty team header.
 
-## 0.7.0
+### Contributors
 
-<!-- release:start -->
+- @lahfir
+
+<!-- release:end -->
+
+## 0.7.0
 
 ### New Features
 
@@ -28,8 +34,6 @@
 ### Contributors
 
 - @Railly
-
-<!-- release:end -->
 
 ## 0.6.1
 
