@@ -37,6 +37,10 @@ A user-facing change without matching README and website/docs updates is incompl
 
 Use the `technical-writer` skill (`.agents/skills/technical-writer/SKILL.md`) when you write or edit prose for this repo, including docs pages, READMEs, changelog entries, commit messages, PR descriptions, and issues.
 
+## MCP tools
+
+`ai mcp` generates its tool schemas from the CLI command definitions, so most flag changes need no MCP edit. When adding a command, map it in `TOOL_OVERRIDES` or list it in `EXCLUDED_COMMANDS` in `packages/ai-cli/src/commands/mcp.ts`; add a flag that agents should not see to `HIDDEN_OPTIONS`. The sync test in `mcp.test.ts` fails until you do. Update `apps/web/docs/mcp.mdx` and the README MCP section in the same PR when tools change.
+
 ## Releasing
 
 Releases are prepared in a single PR by bumping `packages/ai-cli/package.json` and

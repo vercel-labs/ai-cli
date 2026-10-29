@@ -1,0 +1,183 @@
+---
+title: MCP
+description: Run ai-cli as a stdio MCP server with typed tools for every command.
+order: 4.5
+---
+
+`ai mcp` starts a stdio MCP server that exposes every `ai` command as a typed
+tool. It speaks newline-delimited JSON-RPC 2.0 over stdin and stdout and
+supports MCP 2025-11-25 tools. Diagnostics go to stderr.
+
+```bash
+ai mcp
+ai mcp --profile media
+ai mcp --profile all
+```
+
+`--profile core|media|all` selects the tools to expose. `core` is the default.
+
+## Setup
+
+The server reads your key from its environment, like every `ai` command. Set
+`AI_GATEWAY_API_KEY` in your MCP client's config, as below. Many clients do not
+pass your shell environment to MCP servers. The key is never a tool input, so
+agents cannot read it or send it elsewhere.
+
+fx (`~/.fx/mcp.json`):
+
+```json
+{
+  "mcp": {
+    "ai": {
+      "type": "local",
+      "command": ["ai", "mcp"],
+      "environment": {
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+Other clients (`mcpServers`):
+
+```json
+{
+  "mcpServers": {
+    "ai": {
+      "command": "ai",
+      "args": ["mcp"],
+      "env": {
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+opencode (`opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ai": {
+      "type": "local",
+      "command": ["ai", "mcp"],
+      "environment": {
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      },
+      "timeout": 600000
+    }
+  }
+}
+```
+
+Claude Code:
+
+```bash
+claude mcp add ai -e AI_GATEWAY_API_KEY=your-vercel-ai-gateway-api-key -e AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
+
+Codex:
+
+```bash
+codex mcp add ai --env AI_GATEWAY_API_KEY=your-vercel-ai-gateway-api-key --env AI_CLI_OUTPUT_DIR=/absolute/output/dir -- ai mcp
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway API key. Required. |
+| `AI_CLI_OUTPUT_DIR` | Absolute directory for generated files. Without it, files land in each call's `cwd`. |
+| `AI_GATEWAY_BASE_URL`, `AI_GATEWAY_TEAM_ID_OR_SLUG` | Optional Gateway overrides. Agents cannot set these. |
+
+Add `--profile all` to the command for the video and audio tools. opencode stops
+tool calls after 30 seconds unless `timeout` is raised, as in the example.
+
+## Profiles
+
+| Tool | Profile | CLI command |
+| --- | --- | --- |
+| `text` | core | `ai text` |
+| `image` | core | `ai image` |
+| `decide` | core | `ai decide` |
+| `models` | core | `ai models` |
+| `video_start` | media | `ai video start` |
+| `video_status` | media | `ai video status` |
+| `audio_speak` | media | `ai audio speak` |
+| `audio_transcribe` | media | `ai audio transcribe` |
+
+`media` contains the four media tools. `all` contains all eight tools.
+
+## Results
+
+Tool results are the command's JSON output. Generation tools return a manifest
+with the saved file paths. `text` and `audio_transcribe` return a file path
+to read. If you do not pass `output`, files are written to the call's `cwd`, or
+to `AI_CLI_OUTPUT_DIR` when it is set.
+
+Tool failures return an error result with the command's diagnostic.
+
+## Inputs
+
+Each tool's inputs are its command's own flags, named in camelCase
+(`--aspect-ratio` becomes `aspectRatio`) with the same descriptions as
+`--help`. Repeatable flags take a string array, and on/off flags take a boolean.
+Terminal-only flags (`--quiet`, `--no-preview`, `--no-play`, `--no-waveform`)
+are left out. Gateway connection flags (`--base-url`, `--headers`,
+`--scope`, `--team-id-or-slug`) are rejected, including in `extraArgs`, so an agent cannot
+send your Gateway key to another endpoint. Set `AI_GATEWAY_BASE_URL` and
+`AI_GATEWAY_TEAM_ID_OR_SLUG` in the server environment instead.
+
+Every tool also accepts these inputs:
+
+| Input | Type | Description |
+| --- | --- | --- |
+| `cwd` | string | Working directory for the run |
+| `extraArgs` | string[] | Extra CLI flags appended last |
+| `timeoutMs` | integer | Timeout from 1 to 2147483647 (default `600000`) |
+
+## Decide
+
+`decide` takes a non-empty `questions` array. Each question has an `id`,
+`type`, and `question`. `type` is `boolean`, `choice`, or `score`. A `choice`
+requires `choices`; a `score` requires `levels`. IDs must not contain `=`, and
+choices and levels must not contain commas.
+
+```json
+{
+  "questions": [
+    {
+      "id": "refund",
+      "type": "boolean",
+      "question": "Refund requested?"
+    },
+    {
+      "id": "team",
+      "type": "choice",
+      "question": "Which team?",
+      "choices": ["billing", "support"]
+    },
+    {
+      "id": "tone",
+      "type": "score",
+      "question": "How positive?",
+      "levels": ["angry", "neutral", "happy"]
+    }
+  ],
+  "state": "Customer asks for a refund."
+}
+```
+
+The optional `state` string is written to stdin. The result is the command's
+JSON output.
+
+## Video
+
+`video_start` returns immediately and requires `output`, which receives the
+operation file. Pass that same path as `operationFile` to `video_status` to
+check the job. Set `download: true` to save completed videos, and pass `output`
+to choose where they are written.

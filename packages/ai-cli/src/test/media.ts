@@ -31,6 +31,7 @@ globalThis.fetch = async (url, init) => {
   const headers = Object.fromEntries(new Headers(init?.headers));
   const route = new URL(String(url)).pathname;
   appendFileSync(process.env.TEST_REQUESTS, JSON.stringify({ url: String(url), route, body, headers }) + '\\n');
+  if (mode === 'hang') return new Promise(() => setInterval(() => {}, 1000));
   if (route.endsWith('/models')) {
     if (mode === 'catalog-failure') return new Response('', { status: 503 });
     if (mode === 'catalog-malformed') return Response.json({ data: {} });

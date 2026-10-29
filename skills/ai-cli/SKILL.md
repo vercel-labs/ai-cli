@@ -34,7 +34,12 @@ ai video status operation.json --download -o ./clips/    # check and download it
 ai audio speak "hello"                   # generate speech
 ai audio transcribe recording.mp3        # transcribe audio
 ai models --type audio                   # list speech and transcription models
+ai mcp --profile core                    # start MCP server
 ```
+
+Agents can use MCP tools instead of shelling out: `text`, `image`,
+`decide`, and `models`. The media profile adds `video_start`,
+`video_status`, `audio_speak`, and `audio_transcribe`.
 
 ## Key Flags
 

@@ -22,6 +22,22 @@ interface OptionDefinition {
   defaultValue?: unknown;
 }
 
+export interface CommandDefinition {
+  name: string;
+  description: string;
+  runnable: boolean;
+  argument?: { name: string; required: boolean; description: string };
+  options: {
+    name: string;
+    long?: string;
+    description: string;
+    takesValue: boolean;
+    negated: boolean;
+    repeatable: boolean;
+  }[];
+  commands: CommandDefinition[];
+}
+
 export class CliUsageError extends Error {}
 
 export class Command {
@@ -119,6 +135,30 @@ export class Command {
     this.actionHandler = (argument, options) =>
       handler(argument as TArgument, options as TOptions);
     return this;
+  }
+
+  definition(): CommandDefinition {
+    return {
+      name: this.commandName,
+      description: this.commandDescription,
+      runnable: Boolean(this.actionHandler) || this.commands.length === 0,
+      argument: this.argumentDefinition
+        ? {
+            name: this.argumentDefinition.name,
+            required: this.argumentDefinition.syntax.startsWith("<"),
+            description: this.argumentDefinition.description,
+          }
+        : undefined,
+      options: this.options.map((option) => ({
+        name: option.name,
+        long: option.long,
+        description: optionDescription(option),
+        takesValue: option.valueName !== undefined,
+        negated: option.negated,
+        repeatable: Array.isArray(option.defaultValue),
+      })),
+      commands: this.commands.map((command) => command.definition()),
+    };
   }
 
   async parseAsync(argv: string[]): Promise<void> {

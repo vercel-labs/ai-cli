@@ -4,6 +4,7 @@
 
 ### New Features
 
+- Add `ai mcp`, a stdio MCP server that exposes `ai` commands as typed tools (`text`, `image`, `decide`, `models`; `--profile media` or `all` adds video and audio). Tool inputs come from each command's own flags, and every call runs the same `ai` binary. The server reads `AI_GATEWAY_API_KEY` from its environment and rejects Gateway connection flags from agents.
 - `--scope <team>` selects the Gateway team (ID or slug) on commands with Gateway connection options. `--team-id-or-slug` is still accepted and deprecated; `--scope` wins if both are passed.
 
 ### Bug Fixes

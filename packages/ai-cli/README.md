@@ -28,6 +28,7 @@ ai audio speak "Thanks for trying ai-cli"
 ai audio transcribe recording.mp3
 ai decide --boolean "refund=Refund requested?" < ticket.txt
 ai models                          # list available models
+ai mcp --profile all               # start MCP server
 ```
 
 ### Piping and References
@@ -526,6 +527,32 @@ Providers
   anthropic  1M       1.4s     49tps       99.9%
   bedrock    1M       1.4s     56tps       99.9%
 ```
+
+### mcp
+
+`ai mcp` runs an MCP server over stdio so agents can call `ai` commands as typed
+tools. Add it to your MCP client with your Vercel AI Gateway API key:
+
+```json
+{
+  "mcpServers": {
+    "ai": {
+      "command": "ai",
+      "args": ["mcp"],
+      "env": {
+        "AI_GATEWAY_API_KEY": "your-vercel-ai-gateway-api-key",
+        "AI_CLI_OUTPUT_DIR": "/absolute/output/dir"
+      }
+    }
+  }
+}
+```
+
+Set `AI_GATEWAY_TEAM_ID_OR_SLUG` in the server environment to select a Gateway
+team. Tools reject `--scope` and other Gateway connection flags, including in
+`extraArgs`.
+
+See [MCP](https://ai-cli.dev/docs/mcp) for configuring MCP clients, profiles, and tools.
 
 ### Multi-Model Comparison
 
