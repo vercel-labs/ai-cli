@@ -1,7 +1,5 @@
 import { readFile } from "node:fs/promises";
 
-import { gateway } from "@ai-sdk/gateway";
-
 import type { Command } from "../lib/command.js";
 import {
   buildQuestions,
@@ -20,6 +18,10 @@ import {
   collectImageReference,
   loadImageReferences,
 } from "../lib/image-references.js";
+import {
+  addGatewayConnectionOptions,
+  mediaSettings,
+} from "../lib/media-options.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { readStdin } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
@@ -32,6 +34,10 @@ interface DecideOptions extends QuestionOptions {
   providerOptions?: string;
   maxRetries: number;
   timeout: number;
+  headers?: string;
+  baseUrl?: string;
+  teamIdOrSlug?: string;
+  scope?: string;
 }
 
 async function readTextFile(path: string, flag: string): Promise<string> {
@@ -44,14 +50,17 @@ async function readTextFile(path: string, flag: string): Promise<string> {
   }
 }
 
-async function resolveEvaluationModel(userModel?: string): Promise<string> {
+async function resolveEvaluationModel(
+  catalogOptions: Awaited<ReturnType<typeof mediaSettings>>["catalogOptions"],
+  userModel?: string
+): Promise<string> {
   const models = resolveModels("evaluation", userModel);
   if (models.length !== 1 || models[0].includes(","))
     throw new Error("ai decide requires exactly one evaluation model");
   const model = models[0];
   if (model === "jev") return "typesafe-ai/jev";
   if (model.includes("/")) return model;
-  const known = (await fetchGatewayModels()).evaluation;
+  const known = (await fetchGatewayModels(catalogOptions)).evaluation;
   const resolved = resolveModels("evaluation", model, known)[0];
   if (!resolved.includes("/"))
     throw new Error(
@@ -101,7 +110,8 @@ export function registerDecideCommand(program: Command) {
     .option(
       "-i, --images <path-or-url>",
       "Image file part after stdin in the decision state (repeatable)",
-      collectImageReference
+      collectImageReference,
+      []
     )
     .option(
       "-m, --model <model>",
@@ -123,9 +133,16 @@ export function registerDecideCommand(program: Command) {
       parseMaxRetries,
       2
     );
+  addGatewayConnectionOptions(command);
 
   addTimeoutOption(command, 30_000).action(
     async (_: undefined, options: DecideOptions) => {
+      const { gateway, catalogOptions } = await mediaSettings({
+        headers: options.headers,
+        baseUrl: options.baseUrl,
+        teamIdOrSlug: options.teamIdOrSlug,
+        scope: options.scope,
+      });
       const questions = buildQuestions(
         options,
         options.questions
@@ -152,7 +169,7 @@ export function registerDecideCommand(program: Command) {
           : parseState(stdin, options.input),
         images
       );
-      const model = await resolveEvaluationModel(options.model);
+      const model = await resolveEvaluationModel(catalogOptions, options.model);
       const result = await evaluateState(state, questions, {
         model: gateway.decisionModel(model),
         timeoutMs: timeoutMs(options.timeout),

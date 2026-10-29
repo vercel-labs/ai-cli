@@ -37,6 +37,7 @@ export function Footer() {
               <span>ai text &quot;prompt&quot;</span>
               <span>ai audio speak &quot;text&quot;</span>
               <span>ai models</span>
+              <span>ai mcp</span>
             </div>
           </div>
 

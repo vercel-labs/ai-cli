@@ -31,6 +31,11 @@ const navigation = [
       { type: "item" as const, title: "Models", href: "/docs/models" },
       {
         type: "item" as const,
+        title: "MCP",
+        href: "/docs/mcp",
+      },
+      {
+        type: "item" as const,
         title: "Piping & Output",
         href: "/docs/single",
       },
