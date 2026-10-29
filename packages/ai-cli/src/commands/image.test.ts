@@ -296,6 +296,31 @@ describe("SDK image generation", () => {
     expect(output.calls[0].images[0].file).toBe(output.images[0].file);
   });
 
+  test("gives every queued --n call the full --timeout", async () => {
+    const result = await generate(
+      [
+        "scene",
+        "-m",
+        "google/gemini-3-pro-image",
+        "--n",
+        "3",
+        "--concurrency",
+        "1",
+        "--timeout",
+        "1",
+        "--json",
+        "-o",
+        join(fixture.directory, "gemini-timeout/"),
+      ],
+      "slow-text"
+    );
+    expect(result.exitCode).toBe(0);
+    const output = JSON.parse(result.stdout).results[0];
+    expect(output.success).toBe(true);
+    expect(output.calls).toHaveLength(3);
+    expect(output.images).toHaveLength(6);
+  });
+
   test("keeps successful generateText calls when another --n call fails", async () => {
     const result = await generate(
       [

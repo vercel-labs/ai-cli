@@ -62,15 +62,23 @@ globalThis.fetch = async (url, init) => {
   }, { headers: { 'x-request-id': 'image-id' } });
   }
   if (route.endsWith('/language-model') && mode === 'partial-text-batch' && ++textCalls === 2) return Response.json({ error: { message: 'one text call failed' } }, { status: 503 });
-  if (route.endsWith('/language-model')) return Response.json({
-    content: mode === 'tool' ? [
-      { type: 'tool-call', toolCallId: 'call-1', toolName: 'image_generation', input: '{}', providerExecuted: true },
-      { type: 'tool-result', toolCallId: 'call-1', toolName: 'image_generation', result: { result: png, outputFormat: 'webp', revisedPrompt: 'tool revised' } }
-    ] : mode === 'arrow-catalog' ? [ { type: 'text', text: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>' } ]
-      : [ { type: 'text', text: 'Two generated images' }, ...[1, 2].map(() => ({ type: 'file', data: { type: 'data', data: png }, mediaType: 'image/png' })) ],
-    finishReason: { unified: 'stop', raw: 'STOP' }, usage: { inputTokens: { total: 12 }, outputTokens: { total: 34 } }, warnings: [],
-    response: { id: 'language-id' }
-  });
+  if (route.endsWith('/language-model')) {
+    const respond = () => Response.json({
+      content: mode === 'tool' ? [
+        { type: 'tool-call', toolCallId: 'call-1', toolName: 'image_generation', input: '{}', providerExecuted: true },
+        { type: 'tool-result', toolCallId: 'call-1', toolName: 'image_generation', result: { result: png, outputFormat: 'webp', revisedPrompt: 'tool revised' } }
+      ] : mode === 'arrow-catalog' ? [ { type: 'text', text: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>' } ]
+        : [ { type: 'text', text: 'Two generated images' }, ...[1, 2].map(() => ({ type: 'file', data: { type: 'data', data: png }, mediaType: 'image/png' })) ],
+      finishReason: { unified: 'stop', raw: 'STOP' }, usage: { inputTokens: { total: 12 }, outputTokens: { total: 34 } }, warnings: [],
+      response: { id: 'language-id' }
+    });
+    if (mode !== 'slow-text') return respond();
+    // Slow enough that a timeout shared across queued --n calls would abort them.
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve(respond()), 400);
+      init?.signal?.addEventListener('abort', () => { clearTimeout(timer); reject(init.signal.reason); }, { once: true });
+    });
+  }
   if (route.endsWith('/video-model/start')) return Response.json({ operation: { id: 'job', n: body.n }, warnings: [], providerMetadata: { gateway: { asyncJob: { jobId: 'job' } } } });
   if (route.endsWith('/video-model/status')) {
     if (mode === 'stalled-status') return new Promise((resolve, reject) => {

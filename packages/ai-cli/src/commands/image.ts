@@ -168,17 +168,20 @@ export function registerImageCommand(program: Command) {
       await runMediaJobs(
         models,
         async (modelId) => {
-          const common = {
+          // Build request options per call so every image gets the full
+          // --timeout. A signal created once per model would start counting
+          // while calls wait behind --concurrency, aborting queued calls early.
+          const request = () => ({
             headers: settings.headers,
             seed: settings.seed,
             maxRetries: settings.maxRetries,
             abortSignal: AbortSignal.timeout(timeoutMs(opts.timeout)),
-          };
+          });
           if (usesText(modelId)) {
             const generateOnce = async () => {
               const result = await generateText({
                 ...textOptions,
-                ...common,
+                ...request(),
                 model: settings.gateway(modelId),
                 messages: [
                   {
@@ -291,7 +294,7 @@ export function registerImageCommand(program: Command) {
             maxImagesPerCall,
             (count) =>
               generateImage({
-                ...common,
+                ...request(),
                 model: settings.gateway.image(modelId),
                 prompt: imagePrompt,
                 n: count,
