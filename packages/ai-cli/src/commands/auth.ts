@@ -68,10 +68,13 @@ export function registerAuthCommands(program: Command): void {
       }
       apiKey = apiKey.trim();
       if (!apiKey) throw new Error("No API key provided.");
+      process.stderr.write("Checking key with AI Gateway...\n");
       if (!(await verifyKey(apiKey)))
-        throw new Error("AI Gateway rejected that key.");
+        throw new Error(
+          "Invalid API key: AI Gateway rejected it. Nothing was saved."
+        );
       await storeKey(apiKey);
-      process.stderr.write(`Saved to ${authPath()}\n`);
+      process.stderr.write(`Valid key. Saved to ${authPath()}\n`);
     });
 
   program
