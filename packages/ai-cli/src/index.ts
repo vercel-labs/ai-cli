@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 
 import { runMcp } from "./commands/mcp.js";
+import { applyStoredKey, authErrorMessage, isAuthError } from "./lib/auth.js";
 import { CliUsageError } from "./lib/command.js";
 import { createProgram } from "./program.js";
 
 const program = createProgram();
 
+if (!["login", "logout"].includes(process.argv[2] ?? ""))
+  await applyStoredKey();
+
 if (process.argv[2] === "mcp") {
   await runMcp(program, process.argv.slice(3));
 } else {
-  program.parseAsync(process.argv).catch((err: unknown) => {
+  program.parseAsync(process.argv).catch((caught: unknown) => {
+    const err = isAuthError(caught) ? new Error(authErrorMessage()) : caught;
     const args = process.argv.slice(2);
     const flags = args.slice(
       0,

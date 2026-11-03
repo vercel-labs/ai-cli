@@ -480,6 +480,24 @@ Use `--timeout <seconds>` to allow a longer request without changing models. The
 ai image --timeout 600 "a detailed sprite atlas"
 ```
 
+## login
+
+Save an AI Gateway API key to `~/.config/ai-cli/auth.json`. In a terminal, `ai login` opens the API keys page and prompts for the key without echoing it. Otherwise it reads the key from stdin. The key is checked against AI Gateway before it is saved. `AI_GATEWAY_API_KEY` takes priority over the saved key.
+
+```bash
+ai login
+ai login --no-browser
+echo "$KEY" | ai login
+```
+
+## logout
+
+Delete the key saved by `ai login`.
+
+```bash
+ai logout
+```
+
 ## Exit codes
 
 | Code | Meaning |

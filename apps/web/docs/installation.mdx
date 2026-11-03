@@ -19,52 +19,22 @@ yarn global add ai-cli
 
 ## API key
 
-ai-cli requires an API key for model access. Set one of the following environment variables:
+ai-cli uses a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) API key. Save one with:
 
-<Properties>
-  <Property name="AI_GATEWAY_API_KEY" type="string">
-    Vercel AI Gateway key. Provides access to all supported models through a single key.
-  </Property>
-  <Property name="OPENAI_API_KEY" type="string">
-    Provider-specific key. Use if you only need OpenAI models.
-  </Property>
-</Properties>
+```bash
+ai login
+```
 
-Get a gateway key from the [Vercel AI Gateway dashboard](https://vercel.com/docs/ai-gateway).
+`ai login` opens the [API keys page](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys), checks the key you paste, and saves it to `~/.config/ai-cli/auth.json`. You can also pipe the key in, which suits scripts:
+
+```bash
+echo "$AI_GATEWAY_API_KEY" | ai login
+```
+
+Or set the environment variable, which takes priority over the saved key:
 
 ```bash
 export AI_GATEWAY_API_KEY="your-key"
 ```
 
-Add this to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.) to persist across sessions.
-
-## Verify
-
-```bash
-ai text "hello"
-```
-
-If you see generated text, you're ready.
-
-## Requirements
-
-<Properties>
-  <Property name="Node.js" type="22+" required>
-    ai-cli runs on Node.js. Install from nodejs.org.
-  </Property>
-  <Property name="API key" type="string" required>
-    A Vercel AI Gateway key or provider-specific key.
-  </Property>
-</Properties>
-
-## Developing from source
-
-Repository development uses Node.js 24+ and npm. From the repository root:
-
-```bash
-npm ci
-npm run typecheck
-npm test
-npm run build
-npm run dev --workspace ai-cli -- --help
-```
+`ai logout` deletes the saved key.

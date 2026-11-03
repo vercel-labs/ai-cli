@@ -4,20 +4,13 @@ description: Common issues and how to resolve them.
 order: 8
 ---
 
-## Missing API key
+## Not signed in
 
 ```
-Error: No API key found
+Error: Not signed in to AI Gateway. Run `ai login`, or set AI_GATEWAY_API_KEY.
 ```
 
-Set one of the following environment variables:
-
-```bash
-export AI_GATEWAY_API_KEY="your-key"   # recommended — access to all models
-export OPENAI_API_KEY="sk-..."         # OpenAI models only
-```
-
-Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across sessions.
+Run `ai login` to save an API key, or set `AI_GATEWAY_API_KEY`. If the error says AI Gateway rejected a key, create a new one and run `ai login` again.
 
 ## Invalid model ID
 

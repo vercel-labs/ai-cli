@@ -12,16 +12,13 @@ and structured media inputs. There is no global config file.
 
 <Properties>
   <Property name="AI_GATEWAY_API_KEY" type="string">
-    Vercel AI Gateway API key. Provides access to all supported models.
+    Vercel AI Gateway API key. Takes priority over the key saved by `ai login`.
   </Property>
   <Property name="AI_GATEWAY_BASE_URL" type="string">
     Gateway baseURL for decide, image/video generation, and model discovery. Override with `--base-url`.
   </Property>
   <Property name="AI_GATEWAY_TEAM_ID_OR_SLUG" type="string">
     Gateway teamIdOrSlug for decide, image/video, and models. Override with `--scope`.
-  </Property>
-  <Property name="OPENAI_API_KEY" type="string">
-    Provider-specific key (or other provider keys like `ANTHROPIC_API_KEY`).
   </Property>
   <Property name="AI_CLI_TEXT_MODEL" type="string">
     Default text model. Overrides `openai/gpt-5.5`.

@@ -21,7 +21,7 @@ Use when you need to:
 
 ## Prerequisites
 
-Requires `AI_GATEWAY_API_KEY` or a provider-specific key (e.g. `OPENAI_API_KEY`) in the environment.
+Requires an AI Gateway API key, saved with `ai login` or set as `AI_GATEWAY_API_KEY`.
 
 ## Commands
 
