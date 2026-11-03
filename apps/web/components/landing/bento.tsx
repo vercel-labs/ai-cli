@@ -8,22 +8,22 @@ const items: readonly item[] = [
   {
     id: "001",
     title: "Inline preview",
-    body: "Generated images, video frames, and speech previews display directly in your terminal. Visual previews use the Kitty graphics protocol where supported, including images returned as JPEG or WebP.",
+    body: "Images and video frames render in terminals that support the Kitty graphics protocol, and speech plays back after it's saved.",
   },
   {
     id: "002",
-    title: "Agent-native output",
-    body: "Predictable behavior for scripts and agents. Selected records on stdout, generated artifacts in files or pipes, and JSON metadata for automation.",
+    title: "Predictable output",
+    body: "Progress and file paths go to stderr. Stdout carries the text, the piped artifact, or JSON metadata, so scripts and agents can parse it.",
   },
   {
     id: "003",
     title: "Live model discovery",
-    body: "Models are fetched directly from the AI Gateway — no hardcoded lists to maintain. Use short names or full provider/model IDs.",
+    body: "The model list comes from AI Gateway at run time, so new models work without a CLI update. Use short names like flux-2-pro or full IDs like bfl/flux-2-pro.",
   },
   {
     id: "004",
-    title: "Zero config",
-    body: "No config files, no init command, no setup wizard. Set an API key environment variable and start generating. Defaults work out of the box.",
+    title: "No config file",
+    body: "Set AI_GATEWAY_API_KEY and run a command. Each type has a default model, and env vars such as AI_CLI_IMAGE_MODEL change it.",
   },
 ];
 
@@ -77,13 +77,13 @@ export function Bento() {
         <div className="grid gap-10 border-b border-white/[0.06] pb-12 md:grid-cols-[1.2fr_0.8fr] md:pb-14">
           <div>
             <h2 className="text-balance text-3xl font-semibold tracking-tight text-white md:text-5xl leading-[1.05]">
-              Built for composability.
+              Made for scripts and agents.
             </h2>
           </div>
           <div className="md:pt-2">
             <p className="max-w-md text-pretty text-base leading-relaxed text-[#777]">
-              Generate content and make structured decisions in scripts, CI
-              pipelines, agent toolchains, or your terminal.
+              Run the same commands in a terminal, a CI job, or an agent's
+              tool loop.
             </p>
             <div className="mt-6">
               <div className="inline-flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 font-mono text-sm text-white/60">

@@ -8,7 +8,7 @@ export function Footer() {
               ai-cli
             </div>
             <div className="mt-3 text-sm text-white/40">
-              Generate text, images, video, and audio from your terminal.
+              Generate text, images, video, and audio, and make typed decisions from your terminal.
             </div>
             <a
               href="https://vercel.com"
@@ -36,6 +36,7 @@ export function Footer() {
               <span>ai video &quot;prompt&quot;</span>
               <span>ai text &quot;prompt&quot;</span>
               <span>ai audio speak &quot;text&quot;</span>
+              <span>ai decide --boolean &quot;id=question&quot;</span>
               <span>ai models</span>
               <span>ai mcp</span>
             </div>
@@ -50,6 +51,8 @@ export function Footer() {
               <span>stdin/stdout piping</span>
               <span>inline preview</span>
               <span>live model discovery</span>
+              <span>typed decisions</span>
+              <span>stdio MCP server</span>
             </div>
           </div>
 

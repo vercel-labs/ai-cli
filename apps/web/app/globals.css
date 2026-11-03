@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "fromsrc/styles/reset.css";
 
-@source "../node_modules/fromsrc/dist/**/*.js";
+@source "../../../node_modules/fromsrc/dist/**/*.js";
 
 @theme {
   --font-sans:

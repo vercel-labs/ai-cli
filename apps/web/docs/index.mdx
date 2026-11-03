@@ -58,8 +58,9 @@ Generate anything from your terminal. Create text, images, video, and audio, and
   <Card title="audio" description="Generate speech or transcribe audio." href="/docs/commands#audio" />
   <Card title="decide" description="Make decisions with named typed questions against shared stdin." href="/docs/decide" />
   <Card title="models" description="List available models from the gateway." href="/docs/commands#models" />
+  <Card title="mcp" description="Run every command as a typed tool over a stdio MCP server." href="/docs/mcp" />
 </Cards>
 
 <Callout type="tip">
-  ai-cli is designed to be used by both humans and agents. Predictable output behavior, JSON metadata mode, and stdin/stdout piping make it easy to integrate into any workflow.
+  ai-cli works the same for people and agents. Progress goes to stderr, results go to files or stdout, and `--json` returns metadata that scripts can parse.
 </Callout>
