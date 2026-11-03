@@ -7,7 +7,7 @@ import { createProgram } from "./program.js";
 
 const program = createProgram();
 
-if (!["login", "logout"].includes(process.argv[2] ?? ""))
+if (!["login", "logout", "mcp"].includes(process.argv[2] ?? ""))
   await applyStoredKey();
 
 if (process.argv[2] === "mcp") {
