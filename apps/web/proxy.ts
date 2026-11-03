@@ -10,6 +10,19 @@ import {
 import { applyDocsResponseHeaders } from "@/lib/docs-response-headers";
 import { config as geistdocsConfig } from "@/lib/geistdocs/config";
 
+// Same media types geistdocs uses for /docs, so every path negotiates alike.
+const MARKDOWN_MEDIA_TYPES = ["text/markdown", "text/x-markdown", "text/plain"];
+
+function wantsMarkdown(request: NextRequest): boolean {
+  return shouldServeMarkdown(request, { mediaTypes: MARKDOWN_MEDIA_TYPES })
+    .serve;
+}
+
+function isMarkdownRewrite(response: Response): boolean {
+  const target = response.headers.get("x-middleware-rewrite");
+  return target !== null && new URL(target, "https://ai-cli.dev").pathname.startsWith("/api/docs-md");
+}
+
 const localeProxy = createI18nMiddleware({
   defaultLanguage: "en",
   languages: ["en"],
@@ -61,10 +74,10 @@ export default async function proxy(
     !pathname.includes(".")
   ) {
     response = await geistdocsProxy(request, event);
-  } else if (pathname === "/" || shouldServeMarkdown(request).serve) {
+  } else if (pathname === "/" || wantsMarkdown(request)) {
     // The home page and unknown paths answer agents with Markdown (or a Markdown 404).
     response =
-      !isPrefetch(request) && shouldServeMarkdown(request).serve
+      !isPrefetch(request) && wantsMarkdown(request)
         ? NextResponse.rewrite(
             new URL(
               `/api/docs-md${pathname === "/" ? "" : pathname}`,
@@ -75,7 +88,9 @@ export default async function proxy(
   } else {
     return NextResponse.next();
   }
-  applyDocsResponseHeaders(response.headers);
+  applyDocsResponseHeaders(response.headers, {
+    markdown: isMarkdownRewrite(response),
+  });
   return response;
 }
 

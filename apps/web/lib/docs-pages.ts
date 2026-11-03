@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-export const DOCS_DIR = path.join(
+import type { Node } from "fumadocs-core/page-tree";
+
+import { geistdocsSource } from "./geistdocs/source";
+
+const DOCS_DIR = path.join(
   /* turbopackIgnore: true */ process.cwd(),
   "content",
   "docs"
@@ -15,6 +19,10 @@ export interface DocPage {
   readonly content: string;
 }
 
+type SourcePage = NonNullable<
+  ReturnType<typeof geistdocsSource.source.getPage>
+>;
+
 export function isSafePathSegments(segments: readonly string[]): boolean {
   return segments.every(
     (segment) =>
@@ -26,43 +34,34 @@ export function docsHref(slug: string): string {
   return slug ? `/docs/${slug}` : "/docs";
 }
 
-function parseDoc(name: string, raw: string): DocPage {
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
-  const fields = new Map<string, string>();
-  for (const line of match?.[1].split(/\r?\n/) ?? []) {
-    const separator = line.indexOf(":");
-    if (separator > 0) {
-      fields.set(
-        line.slice(0, separator).trim(),
-        line.slice(separator + 1).trim()
-      );
-    }
-  }
-  const title = fields.get("title");
+/** Page list and metadata come from fumadocs; the MDX body comes from the page's file. */
+async function toDoc(page: SourcePage): Promise<DocPage> {
+  const { title } = page.data;
   if (!title) {
-    throw new Error(`Missing title in content/docs/${name}.mdx`);
+    throw new Error(`Missing title in content/docs/${page.path}`);
   }
+  const raw = await readFile(path.join(DOCS_DIR, page.path), "utf8");
   return {
-    slug: name === "index" ? "" : name,
+    slug: page.slugs.join("/"),
     title,
-    description: fields.get("description"),
-    content: raw.slice(match?.[0].length ?? 0),
+    description: page.data.description,
+    content: raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ""),
   };
 }
 
-/** Page names in sidebar order, read from content/docs/meta.json. */
-async function pageNames(): Promise<string[]> {
-  const meta = JSON.parse(
-    await readFile(path.join(DOCS_DIR, "meta.json"), "utf8")
-  ) as { pages: string[] };
-  return meta.pages.filter((page) => !page.startsWith("---"));
-}
-
-async function readDoc(name: string): Promise<DocPage> {
-  return parseDoc(
-    name,
-    await readFile(path.join(DOCS_DIR, `${name}.mdx`), "utf8")
-  );
+function pageUrls(nodes: readonly Node[]): string[] {
+  return nodes.flatMap((node) => {
+    if (node.type === "page") {
+      return [node.url];
+    }
+    if (node.type === "folder") {
+      return [
+        ...(node.index ? [node.index.url] : []),
+        ...pageUrls(node.children),
+      ];
+    }
+    return [];
+  });
 }
 
 export async function getDoc(
@@ -71,10 +70,22 @@ export async function getDoc(
   if (!isSafePathSegments(segments)) {
     return null;
   }
-  const name = segments.length === 0 ? "index" : segments.join("/");
-  return (await pageNames()).includes(name) ? readDoc(name) : null;
+  // `/docs/index.md` names the docs index, which fumadocs stores under no slug.
+  const slugs = segments.length === 1 && segments[0] === "index" ? [] : segments;
+  const page = geistdocsSource.source.getPage([...slugs], "en");
+  return page ? toDoc(page) : null;
 }
 
+/** Every docs page in sidebar order, followed by pages the sidebar omits. */
 export async function publicDocs(): Promise<DocPage[]> {
-  return Promise.all((await pageNames()).map(readDoc));
+  const { source } = geistdocsSource;
+  const pages = source.getPages("en");
+  const order = pageUrls(source.getPageTree("en").children);
+  const rank = (url: string) => {
+    const index = order.indexOf(url);
+    return index === -1 ? order.length : index;
+  };
+  return Promise.all(
+    pages.toSorted((a, b) => rank(a.url) - rank(b.url)).map(toDoc)
+  );
 }
