@@ -19,9 +19,9 @@ export function Hero() {
             className="landing-fade-up mt-5 text-base text-[#888] leading-relaxed"
             style={{ animationDelay: "90ms" }}
           >
-            Generate text, images, video, and audio. Make typed decisions.
-            Composable commands, shell pipelines, and hundreds of models
-            for people and agents.
+            Generate text, images, video, and audio, and ask models typed
+            questions about your data. Commands read stdin, write files or
+            JSON, and run any model on AI Gateway.
           </p>
         </div>
 
