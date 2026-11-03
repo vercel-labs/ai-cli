@@ -56,11 +56,11 @@ export function registerAuthCommands(program: Command): void {
     .command("login")
     .description("Save an AI Gateway API key (prompts, or reads it from stdin)")
     .option("--no-browser", "Do not open the API keys page")
-    .action(async (_arg: unknown, opts: { browser: boolean }) => {
+    .action(async (_arg: unknown, opts: { browser?: boolean }) => {
       let apiKey: string;
       if (process.stdin.isTTY) {
         process.stderr.write(`Create an API key at ${API_KEYS_URL}\n`);
-        if (opts.browser) openBrowser(API_KEYS_URL);
+        if (opts.browser !== false) openBrowser(API_KEYS_URL);
         apiKey = await promptHidden("Paste your API key: ");
       } else {
         const input = await readStdin();
