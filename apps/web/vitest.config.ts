@@ -5,8 +5,8 @@ export default defineConfig({
   test: {
     server: {
       deps: {
-        // fromsrc publishes extensionless imports that need bundler resolution.
-        inline: ["fromsrc"],
+        // These packages publish extensionless Next.js imports that need bundler resolution.
+        inline: [/fumadocs-/, /@vercel\/geistdocs/],
       },
     },
   },

@@ -6,7 +6,7 @@ import { Window } from "./window";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pt-32 pb-0 md:pt-44 md:pb-0">
+    <section className="relative overflow-hidden pt-16 pb-0 md:pt-24 md:pb-0">
       <div className="mx-auto max-w-[1320px] px-6">
         <div className="max-w-[740px]">
           <h1

@@ -4,18 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "fumadocs-mdx",
     "dev": "next dev --turbopack",
+    "prebuild": "fumadocs-mdx",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@vercel/agent-readability": "0.5.1",
-    "fromsrc": "0.0.23",
+    "@vercel/agent-readability": "0.7.0",
+    "@vercel/geistdocs": "2.7.5",
+    "fumadocs-core": "16.2.2",
+    "fumadocs-mdx": "14.0.4",
     "geist": "^1.4.0",
     "next": "16.3.8",
-    "next-mdx-remote": "^6.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remark-gfm": "^4.0.1",

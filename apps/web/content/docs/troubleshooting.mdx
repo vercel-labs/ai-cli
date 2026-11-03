@@ -1,7 +1,6 @@
 ---
 title: Troubleshooting
 description: Common issues and how to resolve them.
-order: 8
 ---
 
 ## Missing API key
@@ -78,7 +77,7 @@ If the AI Gateway is unreachable, the `models` command will return an empty list
 
 Check your network connection and verify the gateway status at [vercel.com/status](https://www.vercel.com/status).
 
-## No output / empty response
+## No output / empty response [#no-output-empty-response]
 
 If a command exits with code 0 but produces no visible output, it likely wrote to a file. Check stderr for the "Saved to" message, or use `--json` to see structured metadata including the output path:
 
