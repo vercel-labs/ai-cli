@@ -16,20 +16,6 @@
   color: #0a0a0a;
 }
 
-html,
-body {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  overflow-x: hidden;
-}
-
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
 @keyframes landing-fade-up {
   from {
     opacity: 0;

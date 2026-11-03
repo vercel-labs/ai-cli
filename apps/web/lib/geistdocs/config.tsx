@@ -4,24 +4,7 @@ import { siteName, siteUrl } from "@/lib/site";
 
 function Logo() {
   return (
-    <span className="flex items-center gap-2">
-      <svg viewBox="0 0 24 24" className="size-5" fill="none" aria-hidden="true">
-        <path
-          d="M4 17L10 11L4 5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M12 19H20"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="text-sm font-semibold tracking-tight">{siteName}</span>
-    </span>
+    <span className="text-sm font-semibold tracking-tight">{siteName}</span>
   );
 }
 
