@@ -68,6 +68,12 @@ export function isAuthError(err: unknown): boolean {
   return err instanceof Error && err.name === "GatewayAuthenticationError";
 }
 
+/** Message for a failed generation, with the auth fix when the Gateway rejected the request. */
+export function errorMessage(err: unknown): string {
+  if (isAuthError(err)) return authErrorMessage();
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function authErrorMessage(): string {
   if (keySource === "env")
     return "AI Gateway rejected AI_GATEWAY_API_KEY. Check the key, or unset it and run `ai login`.";
