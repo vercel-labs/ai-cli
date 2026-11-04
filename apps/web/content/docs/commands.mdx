@@ -1,7 +1,6 @@
 ---
 title: Commands
 description: Full reference for all ai-cli commands and flags.
-order: 3
 ---
 
 ## image
@@ -10,14 +9,14 @@ Image and video option names follow AI SDK keys in kebab case. Nested options us
 JSON files with the SDK's original camelCase keys.
 
 ```text
--i, --images <path-or-url>   prompt.images reference (repeatable)
---mask <path-or-url>         prompt.mask for editing
--n, --n <n>                 Number of images per model (default: 1)
---max-images-per-call <n>    SDK batching limit
---size <widthxheight>                Image size, e.g. 1024x1024
---aspect-ratio <width:height>         Aspect ratio, e.g. 16:9
---api <api>                 generateImage or generateText (default: model catalog)
---generate-text-options <path> JSON generateText settings and provider tools
+-i, --images <path-or-url>      prompt.images reference (repeatable)
+--mask <path-or-url>            prompt.mask for editing
+-n, --n <n>                     Number of images per model (default: 1)
+--max-images-per-call <n>       SDK batching limit
+--size <widthxheight>           Image size, e.g. 1024x1024
+--aspect-ratio <width:height>   Aspect ratio, e.g. 16:9
+--api <api>                     generateImage or generateText (default: model catalog)
+--generate-text-options <path>  JSON generateText settings and provider tools
 ```
 
 Reference images and masks accept local paths, `file://`, HTTP(S), and data URLs.
@@ -49,13 +48,13 @@ and others did not. Input validation errors also exit 1.
 Both also support these request controls:
 
 ```text
---seed <integer>            SDK seed, including 0
---provider-options <path>   JSON providerOptions, keyed by provider name
---headers <path>            JSON object of HTTP headers
---max-retries <n>            SDK maxRetries (default: 2; 0 disables retries)
---base-url <url>             Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
---scope <team>               Gateway team ID or slug
---team-id-or-slug <team>     Deprecated: use --scope
+--seed <integer>           SDK seed, including 0
+--provider-options <path>  JSON providerOptions, keyed by provider name
+--headers <path>           JSON object of HTTP headers
+--max-retries <n>          SDK maxRetries (default: 2; 0 disables retries)
+--base-url <url>           Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
+--scope <team>             Gateway team ID or slug
+--team-id-or-slug <team>   Deprecated: use --scope
 ```
 
 For example, `image-options.json` can contain:
@@ -126,20 +125,20 @@ output remains supported, including inline previews.
 ## video
 
 ```text
--i, --image <path-or-url>     prompt.image (or pipe one image through stdin)
---frame-images <path>        JSON frameImages array
---input-references <path>    JSON inputReferences array
--n, --n <n>                  Number of videos per model (default: 1)
---max-videos-per-call <n>     SDK batching limit
---aspect-ratio <width:height|adaptive> SDK aspectRatio
---resolution <widthxheight>           SDK resolution, e.g. 1920x1080
---duration <seconds>         Positive duration, including fractional seconds
---fps <number>               Positive frames per second
---generate-audio             Request generated audio
---no-generate-audio          Disable generated audio (unset uses provider default)
---poll-interval-ms <ms>      SDK poll.intervalMs (default: 5000)
---poll-timeout-ms <ms>       SDK poll.timeoutMs (default: --timeout in milliseconds)
---download-max-bytes <bytes> SDK createDownload maxBytes (default: 2 GiB)
+-i, --image <path-or-url>               prompt.image (or pipe one image through stdin)
+--frame-images <path>                   JSON frameImages array
+--input-references <path>               JSON inputReferences array
+-n, --n <n>                             Number of videos per model (default: 1)
+--max-videos-per-call <n>               SDK batching limit
+--aspect-ratio <width:height|adaptive>  SDK aspectRatio
+--resolution <widthxheight>             SDK resolution, e.g. 1920x1080
+--duration <seconds>                    Positive duration, including fractional seconds
+--fps <number>                          Positive frames per second
+--generate-audio                        Request generated audio
+--no-generate-audio                     Disable generated audio (unset uses provider default)
+--poll-interval-ms <ms>                 SDK poll.intervalMs (default: 5000)
+--poll-timeout-ms <ms>                  SDK poll.timeoutMs (default: --timeout in milliseconds)
+--download-max-bytes <bytes>            SDK createDownload maxBytes (default: 2 GiB)
 ```
 
 Use the SDK's exact frame roles in `frames.json`:

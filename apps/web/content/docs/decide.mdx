@@ -1,7 +1,6 @@
 ---
 title: Decide
 description: Use AI SDK evaluation models with typed shell flags and SDK-shaped JSON results.
-order: 3.5
 ---
 
 `ai decide` brings AI SDK evaluation to the terminal. Ask typed questions about
@@ -230,22 +229,22 @@ when changing instructions, criteria, or models.
 ## Options
 
 ```text
---boolean <id=question>    P(true) question (repeatable)
---choice <id=question>     Categorical question (repeatable)
---choices <id=a,b,...>     Choices for the named question (repeatable)
---score <id=question>      Ordered-score question (repeatable)
---levels <id=low,...,high> Score levels for the named question (repeatable)
---questions <path>        JSON file of named typed questions
--i, --images <path-or-url> Image after stdin in the state (repeatable)
--m, --model <id>          One evaluation model (default: typesafe-ai/jev)
---input <format>          auto, text, or json (default: auto)
---provider-options <path> JSON object of provider names to option objects
---max-retries <n>         Transient-error retries, including 0 (default: 2)
---timeout <seconds>       Evaluation deadline including retries (default: 30)
---base-url <url>          Gateway baseURL (default: SDK gateway endpoint)
---scope <team>            Gateway team ID or slug
---team-id-or-slug <team>  Deprecated: use --scope
---headers <path>          JSON file of HTTP headers
+--boolean <id=question>     P(true) question (repeatable)
+--choice <id=question>      Categorical question (repeatable)
+--choices <id=a,b,...>      Choices for the named question (repeatable)
+--score <id=question>       Ordered-score question (repeatable)
+--levels <id=low,...,high>  Score levels for the named question (repeatable)
+--questions <path>          JSON file of named typed questions
+-i, --images <path-or-url>  Image after stdin in the state (repeatable)
+-m, --model <id>            One evaluation model (default: typesafe-ai/jev)
+--input <format>            auto, text, or json (default: auto)
+--provider-options <path>   JSON object of provider names to option objects
+--max-retries <n>           Transient-error retries, including 0 (default: 2)
+--timeout <seconds>         Evaluation deadline including retries (default: 30)
+--base-url <url>            Gateway baseURL (default: SDK gateway endpoint)
+--scope <team>              Gateway team ID or slug
+--team-id-or-slug <team>    Deprecated: use --scope
+--headers <path>            JSON file of HTTP headers
 ```
 
 Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_TEAM_ID_OR_SLUG` apply to `decide`; the flags override them.

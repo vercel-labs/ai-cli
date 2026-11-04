@@ -23,8 +23,26 @@ const scenes: readonly scene[] = [
         text: '$ ai image "a sunset" -m "openai/gpt-image-2,bfl/flux-2-pro"',
       },
       { tone: "plain", text: "" },
-      { tone: "ok", text: "Saved to /Users/you/resp_img_a-1.<format> (3.2s)" },
-      { tone: "ok", text: "Saved to /Users/you/resp_img_b-2.<format> (4.1s)" },
+      { tone: "ok", text: "Saved to /Users/you/resp_img_a-1.png (3.2s)" },
+      { tone: "ok", text: "Saved to /Users/you/resp_img_b-2.jpg (4.1s)" },
+    ],
+  },
+  {
+    name: "decide",
+    data: [
+      { tone: "input", text: "$ cat ticket.txt | ai decide \\" },
+      { tone: "input", text: '    --boolean "refund=Refund requested?" \\' },
+      { tone: "input", text: '    --choice "team=Which team?" --choices "team=billing,support" \\' },
+      { tone: "input", text: "    | jq .answers" },
+      { tone: "dim", text: "" },
+      { tone: "plain", text: "{" },
+      { tone: "plain", text: '  "refund": { "type": "boolean", "probability": 0.01 },' },
+      { tone: "plain", text: '  "team": {' },
+      { tone: "plain", text: '    "type": "choice",' },
+      { tone: "plain", text: '    "choice": "billing",' },
+      { tone: "plain", text: '    "probabilities": { "billing": 0.9, "support": 0.1 }' },
+      { tone: "plain", text: "  }" },
+      { tone: "plain", text: "}" },
     ],
   },
   {
@@ -114,7 +132,7 @@ export function Terminal() {
           {rows.map((row, index) => (
             <div
               key={`${active.name}-${index}`}
-              className={`${style(row.tone)} whitespace-nowrap transition-colors duration-150`}
+              className={`${style(row.tone)} whitespace-pre transition-colors duration-150`}
             >
               {row.text || "\u00A0"}
             </div>

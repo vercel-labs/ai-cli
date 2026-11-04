@@ -29,7 +29,7 @@ Then install that specific version (e.g. `npm install --workspace ai-cli <packag
 When making any user-facing change (new command, new flag, changed behavior, renamed option, release note, website copy change, etc.), update every relevant user-facing documentation surface in the same PR:
 
 - `packages/ai-cli/README.md` for the npm/package README
-- `apps/web/docs/` for website documentation
+- `apps/web/content/docs/` for website documentation (sidebar order in `meta.json`)
 - `apps/web/components/landing/` and other website copy when the landing page or marketing copy should reflect the change
 - `CHANGELOG.md` for release-facing changes
 
@@ -39,7 +39,7 @@ Use the `technical-writer` skill (`.agents/skills/technical-writer/SKILL.md`) wh
 
 ## MCP tools
 
-`ai mcp` generates its tool schemas from the CLI command definitions, so most flag changes need no MCP edit. When adding a command, map it in `TOOL_OVERRIDES` or list it in `EXCLUDED_COMMANDS` in `packages/ai-cli/src/commands/mcp.ts`; add a flag that agents should not see to `HIDDEN_OPTIONS`. The sync test in `mcp.test.ts` fails until you do. Update `apps/web/docs/mcp.mdx` and the README MCP section in the same PR when tools change.
+`ai mcp` generates its tool schemas from the CLI command definitions, so most flag changes need no MCP edit. When adding a command, map it in `TOOL_OVERRIDES` or list it in `EXCLUDED_COMMANDS` in `packages/ai-cli/src/commands/mcp.ts`; add a flag that agents should not see to `HIDDEN_OPTIONS`. The sync test in `mcp.test.ts` fails until you do. Update `apps/web/content/docs/mcp.mdx` and the README MCP section in the same PR when tools change.
 
 ## Releasing
 

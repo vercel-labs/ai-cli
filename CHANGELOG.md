@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.8.1
+
+<!-- release:start -->
 
 ### New Features
 
@@ -8,11 +10,16 @@
 
 ### Bug Fixes
 
-- Support `--n` for image models that use `generateText`, such as Gemini. ai-cli now makes one call per requested image instead of rejecting `--n` other than 1, so `--n` works the same across image models. `--concurrency` limits how many of those calls run at once.
+- Support `--n` for image models that use `generateText`, such as Gemini. ai-cli makes one call per requested image, with `--concurrency` limiting how many calls run at once.
+- Give each image request its own `--timeout` window, so calls queued by `--concurrency` do not time out before they start.
+
+### Contributors
+
+- @lahfir
+
+<!-- release:end -->
 
 ## 0.8.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -28,8 +35,6 @@
 ### Contributors
 
 - @lahfir
-
-<!-- release:end -->
 
 ## 0.7.0
 

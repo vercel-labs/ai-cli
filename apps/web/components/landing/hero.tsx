@@ -6,22 +6,22 @@ import { Window } from "./window";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pt-32 pb-0 md:pt-44 md:pb-0">
+    <section className="relative overflow-hidden pt-16 pb-0 md:pt-24 md:pb-0">
       <div className="mx-auto max-w-[1320px] px-6">
         <div className="max-w-[740px]">
           <h1
-            className="landing-fade-up text-5xl font-semibold tracking-tighter text-white sm:text-6xl md:text-7xl leading-[1.03]"
+            className="landing-fade-up text-5xl font-semibold tracking-tighter text-gray-1000 sm:text-6xl md:text-7xl leading-[1.03]"
             style={{ animationDelay: "30ms" }}
           >
             Generate anything from your terminal.
           </h1>
           <p
-            className="landing-fade-up mt-5 text-base text-[#888] leading-relaxed"
+            className="landing-fade-up mt-5 text-base text-gray-900 leading-relaxed"
             style={{ animationDelay: "90ms" }}
           >
-            Generate text, images, video, and audio. Make typed decisions.
-            Composable commands, shell pipelines, and hundreds of models
-            for people and agents.
+            Generate text, images, video, and audio, and ask models typed
+            questions about your data. Commands read stdin, write files or
+            JSON, and run any model on AI Gateway.
           </p>
         </div>
 
@@ -29,8 +29,8 @@ export function Hero() {
           className="landing-fade-up mt-8 flex items-center gap-4"
           style={{ animationDelay: "150ms" }}
         >
-          <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 font-mono text-sm text-white/70">
-            <span className="text-white/40">$</span>
+          <div className="flex items-center gap-3 rounded-lg border border-gray-alpha-400 bg-gray-alpha-100 px-5 py-3 font-mono text-sm text-gray-1000">
+            <span className="text-gray-700">$</span>
             <span>npm install -g ai-cli</span>
           </div>
         </div>

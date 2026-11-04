@@ -1,9 +1,23 @@
+import { createGeistdocs } from "@vercel/geistdocs/next";
 import type { NextConfig } from "next";
+
+const withGeistdocs = createGeistdocs();
 
 const config: NextConfig = {
   reactCompiler: true,
+  skipProxyUrlNormalize: true,
   outputFileTracingIncludes: {
-    "/*": ["./docs/**/*"],
+    "/*": ["./content/docs/**/*"],
+  },
+  async headers() {
+    return process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production"
+      ? [
+          {
+            source: "/:path*",
+            headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+          },
+        ]
+      : [];
   },
   async redirects() {
     return [
@@ -29,4 +43,4 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withGeistdocs(config);
