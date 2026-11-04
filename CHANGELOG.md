@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.1
+## 0.9.0
 
 <!-- release:start -->
 
@@ -16,6 +16,7 @@
 ### Contributors
 
 - @lahfir
+- @Railly
 
 <!-- release:end -->
 
