@@ -18,6 +18,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # Also check with the official TypeScript compiler while tsc-ts is new.
+      - run: npm run typecheck:tsc
 
   format:
     name: Format Check

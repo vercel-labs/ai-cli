@@ -35,7 +35,8 @@
     "dev": "tsx src/index.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && node scripts/build.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc-ts --noEmit",
+    "typecheck:tsc": "tsc --noEmit",
     "format": "oxfmt --write src/",
     "format:check": "oxfmt --check src/",
     "lint": "oxlint src/",
@@ -53,6 +54,7 @@
     "esbuild": "0.28.2",
     "oxfmt": "^0.47.0",
     "oxlint": "^1.62.0",
+    "tsc-ts": "0.1.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
   }

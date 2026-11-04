@@ -11,6 +11,9 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
+    "typecheck:tsc": {
+      "dependsOn": ["^build"]
+    },
     "lint": {},
     "format": {},
     "format:check": {}
