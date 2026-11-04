@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: Props) {
   applyMarkdownHeaders(headers, { canonicalUrl: page.canonicalUrl });
 
   return new Response(page.body, {
-    status: 200,
+    status: page.found ? 200 : 404,
     headers,
   });
 }

@@ -247,6 +247,20 @@ function assertNoMdx(node: {
   }
 }
 
+/** Removes fumadocs custom heading ids (`## Title [#id]`), which only apply to HTML. */
+function stripHeadingIds(nodes: RootContent[]): void {
+  for (const node of nodes) {
+    if (node.type === "heading") {
+      const last = node.children.at(-1);
+      if (last?.type === "text") {
+        last.value = last.value.replace(/\s*\[#[\w-]+\]$/, "");
+      }
+    } else if ("children" in node) {
+      stripHeadingIds(node.children as RootContent[]);
+    }
+  }
+}
+
 export function mdxToMarkdown(source: string): string {
   const processor = unified()
     .use(remarkParse)
@@ -255,6 +269,7 @@ export function mdxToMarkdown(source: string): string {
     .use(remarkStringify, { bullet: "-", fences: true });
   const tree = processor.parse(source) as Root;
   tree.children = transformNodes(tree.children);
+  stripHeadingIds(tree.children);
   assertNoMdx(tree);
   return processor.stringify(tree).trim();
 }

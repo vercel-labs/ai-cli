@@ -6,7 +6,7 @@ import { mdxToMarkdown } from "./mdx-markdown";
 
 function docBody(filename: string): string {
   const source = readFileSync(
-    path.join(import.meta.dirname, "../docs", filename),
+    path.join(import.meta.dirname, "../content/docs", filename),
     "utf8"
   );
   return source.replace(/^---\n[\s\S]*?\n---\n/, "");
@@ -87,8 +87,14 @@ const value = 1;
     );
   });
 
+  test("drops custom heading ids from Markdown", () => {
+    expect(mdxToMarkdown("## No output / empty response [#no-output]")).toBe(
+      "## No output / empty response"
+    );
+  });
+
   test("serializes every current documentation source without JSX", () => {
-    const filenames = readdirSync(path.join(import.meta.dirname, "../docs"))
+    const filenames = readdirSync(path.join(import.meta.dirname, "../content/docs"))
       .filter((filename) => filename.endsWith(".mdx"))
       .toSorted();
 

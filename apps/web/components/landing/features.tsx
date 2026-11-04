@@ -107,16 +107,16 @@ function Spotlight({
   return (
     <div className="grid min-w-0 items-center gap-10 overflow-hidden md:grid-cols-2 md:gap-16">
       <div className={`min-w-0 ${flip ? "order-1 md:order-2" : "order-1 md:order-1"}`}>
-        <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h2 className="text-2xl font-semibold tracking-tight text-gray-1000 sm:text-3xl">
           {title}
         </h2>
-        <p className="mt-4 text-sm text-[#888] leading-relaxed">
+        <p className="mt-4 text-sm text-gray-900 leading-relaxed">
           {description}
         </p>
         <ul className="mt-8 space-y-3">
           {bullets.map((b) => (
-            <li key={b} className="flex items-center gap-3 text-sm text-white/70">
-              <span className="h-1 w-1 rounded-full bg-white/40" />
+            <li key={b} className="flex items-center gap-3 text-sm text-gray-1000">
+              <span className="h-1 w-1 rounded-full bg-gray-700" />
               {b}
             </li>
           ))}
