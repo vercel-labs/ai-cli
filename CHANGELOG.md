@@ -1,12 +1,20 @@
 # Changelog
 
-## 0.8.1
+## 0.9.0
 
 <!-- release:start -->
 
 ### New Features
 
 - Add `ai login` and `ai logout`. `ai login` opens the AI Gateway API keys page, checks the key you paste, and saves it to `~/.config/ai-cli/auth.json`, so you no longer need to export `AI_GATEWAY_API_KEY` in every shell. `AI_GATEWAY_API_KEY` still takes priority. Authentication errors now say whether to run `ai login` or check your key.
+
+### Contributors
+
+- @Railly
+
+<!-- release:end -->
+
+## 0.8.1
 
 ### Bug Fixes
 
@@ -16,8 +24,6 @@
 ### Contributors
 
 - @lahfir
-
-<!-- release:end -->
 
 ## 0.8.0
 
