@@ -201,6 +201,8 @@ export const TOOL_OVERRIDES: Record<string, ToolOverride> = {
 export const EXCLUDED_COMMANDS: Record<string, string> = {
   video: "Blocking poll; use video start and video status instead.",
   mcp: "This server is not a tool.",
+  login: "Credentials stay with the person.",
+  logout: "Credentials stay with the person.",
 };
 
 /** Gateway connection options; only the server environment may set them, so an agent cannot send the Gateway key elsewhere. */

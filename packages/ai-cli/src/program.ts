@@ -1,5 +1,6 @@
 import pkg from "../package.json";
 import { registerAudioCommand } from "./commands/audio.js";
+import { registerAuthCommands } from "./commands/auth.js";
 import { registerDecideCommand } from "./commands/decide.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerModelsCommand } from "./commands/models.js";
@@ -21,6 +22,7 @@ export function createProgram(): Command {
   registerAudioCommand(program);
   registerDecideCommand(program);
   registerModelsCommand(program);
+  registerAuthCommands(program);
   program
     .command("mcp")
     .description("Start an MCP server over stdio (tools for every ai command)");

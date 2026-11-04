@@ -1,5 +1,6 @@
 import type { GeneratedFile } from "ai";
 
+import { authErrorMessage, isAuthError } from "./auth.js";
 import type { MediaOptions } from "./media-options.js";
 import { writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
@@ -65,6 +66,8 @@ export function artifact(file: GeneratedFile, id?: string): MediaArtifact {
 }
 
 export function errorDetails(error: unknown) {
+  if (isAuthError(error))
+    return { name: "GatewayAuthenticationError", message: authErrorMessage() };
   return error instanceof Error
     ? { name: error.name, message: error.message }
     : { name: "Error", message: String(error) };

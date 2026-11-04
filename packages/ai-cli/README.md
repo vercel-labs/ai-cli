@@ -16,7 +16,13 @@ Create text, images, video, and audio, and make typed decisions with composable 
 npm install -g ai-cli
 ```
 
-Requires Node.js 22+ and an [AI Gateway](https://vercel.com/docs/ai-gateway) API key or a provider-specific key (e.g. `OPENAI_API_KEY`).
+Requires Node.js 22+ and an [AI Gateway](https://vercel.com/docs/ai-gateway) API key.
+
+```bash
+ai login
+```
+
+`ai login` opens the [API keys page](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys), checks the key you paste, and saves it to `~/.config/ai-cli/auth.json`. You can also pipe it in (`echo "$KEY" | ai login`) or set `AI_GATEWAY_API_KEY`, which takes priority. `ai logout` deletes the saved key.
 
 ## Usage
 
@@ -591,10 +597,9 @@ When the CLI needs to choose a filename, it uses a response id when available an
 
 | Variable | Description |
 |---|---|
-| `AI_GATEWAY_API_KEY` | AI Gateway authentication key |
+| `AI_GATEWAY_API_KEY` | AI Gateway API key; takes priority over `ai login` |
 | `AI_GATEWAY_BASE_URL` | Gateway baseURL for decide, image/video generation, and model discovery; overridden by `--base-url` |
 | `AI_GATEWAY_TEAM_ID_OR_SLUG` | Gateway team for decide, image/video, and models; overridden by `--scope` |
-| `OPENAI_API_KEY` | Provider-specific key (or other provider keys) |
 | `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
 | `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |
