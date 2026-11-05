@@ -13,7 +13,7 @@ export function createProgram(): Command {
 
   program
     .name("ai")
-    .description("Generate anything from your terminal")
+    .description("Generate text, images, video, and audio from your terminal")
     .version(pkg.version);
 
   registerTextCommand(program);

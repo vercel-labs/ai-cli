@@ -97,6 +97,26 @@ const generate = (args: string[], mode?: string) =>
   );
 
 describe("SDK image generation", () => {
+  test("warns once for the deprecated team flag without corrupting JSON", async () => {
+    const result = await generate([
+      "scene",
+      "--team-id-or-slug",
+      "first-team",
+      "--team-id-or-slug",
+      "second-team",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe(
+      "Warning: --team-id-or-slug is deprecated. Use --scope instead.\n"
+    );
+    expect(JSON.parse(result.stdout).results).toHaveLength(1);
+    const request = result.requests.find((item) =>
+      item.route.endsWith("/image-model")
+    );
+    expect(request.headers["x-vercel-ai-gateway-team"]).toBe("second-team");
+  });
+
   test("built Node.js CLI generates images outside the repository", async () => {
     const result = await fixture.run(
       ["image", "a scene", "--json", "--quiet", "--no-preview"],

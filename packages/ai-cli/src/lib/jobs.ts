@@ -8,6 +8,7 @@ import type { OutputFormat } from "./output.js";
 import { writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
 import { Progress, MultiProgress, formatElapsed } from "./progress.js";
+import { redact } from "./redact.js";
 
 export interface Job {
   modelId: string;
@@ -80,7 +81,7 @@ export async function runJobs(
   if (jobs.length === 1) {
     const job = jobs[0];
     const { modelId } = job;
-    const progress = new Progress(quiet);
+    const progress = new Progress(quiet || json);
     const start = Date.now();
     progress.start(`Generating ${noun} with ${modelId}`);
 
@@ -144,7 +145,7 @@ export async function runJobs(
     return { total: 1, failed: 0 };
   }
 
-  const multi = new MultiProgress(quiet);
+  const multi = new MultiProgress(quiet || json);
   const start = Date.now();
   const shouldDisplay =
     !json &&
@@ -222,11 +223,12 @@ export async function runJobs(
         }
       } catch (err: unknown) {
         const genElapsed = Date.now() - genStart;
-        const msg = errorMessage(err);
-        multi.completeLine(
-          lineIdxs[i],
+        const msg = redact(errorMessage(err)).replace(/[\r\n]+/g, " ");
+        const failure = redact(
           `${noun[0].toUpperCase()}${noun.slice(1)} ${job.label} failed: ${msg} (${formatElapsed(genElapsed)})`
-        );
+        ).replace(/[\r\n]+/g, " ");
+        if (quiet || json) process.stderr.write(`${failure}\n`);
+        multi.completeLine(lineIdxs[i], failure);
         results.push({
           index: i,
           model: job.modelId,

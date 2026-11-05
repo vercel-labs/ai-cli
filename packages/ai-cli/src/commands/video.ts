@@ -70,27 +70,30 @@ function generationCommand(command: Command, start = false) {
       start
     )
       .option(
-        "-i, --image <path-or-url>",
-        "SDK prompt.image (or pipe image bytes)",
+        "-i, --image <VALUE>",
+        "Reference image path or URL (or pipe an image)",
         collectImageReference,
         []
       )
       .option(
-        "--frame-images <path>",
-        "JSON SDK frameImages array with first_frame / last_frame roles"
+        "--frame-images <PATH>",
+        "JSON file of frame images with first_frame / last_frame roles"
       )
       .option(
-        "--input-references <path>",
-        "JSON SDK inputReferences array; specify mediaType for video URLs"
+        "--input-references <PATH>",
+        "JSON file of input references; specify mediaType for video URLs"
       )
       .option(
-        "--max-videos-per-call <n>",
-        "SDK maxVideosPerCall batching limit"
+        "--max-videos-per-call <NUMBER>",
+        "Maximum videos per generation request"
       )
-      .option("--aspect-ratio <W:H|adaptive>", "SDK aspectRatio")
-      .option("--resolution <WxH>", "SDK resolution (e.g. 1920x1080)")
-      .option("--duration <seconds>", "SDK duration in seconds")
-      .option("--fps <n>", "SDK frames per second")
+      .option(
+        "--aspect-ratio <RATIO>",
+        "Video aspect ratio, e.g. 16:9 or adaptive"
+      )
+      .option("--resolution <DIM>", "Video resolution, e.g. 1920x1080")
+      .option("--duration <NUMBER>", "Video duration in seconds")
+      .option("--fps <NUMBER>", "Video frames per second")
       .option("--generate-audio", "Request generated audio")
       .option("--no-generate-audio", "Disable generated audio"),
     DEFAULT_TIMEOUT_MS
@@ -146,18 +149,27 @@ export function registerVideoCommand(program: Command) {
     program
       .command("video")
       .description(
-        "Generate video with AI SDK polling, or start/check an asynchronous operation"
+        "Generate video, or start and check an asynchronous operation"
       )
   )
-    .option("--poll-interval-ms <ms>", "SDK poll.intervalMs (default: 5000)")
     .option(
-      "--poll-timeout-ms <ms>",
-      "SDK poll.timeoutMs (default: --timeout in milliseconds)"
+      "--poll-interval-ms <NUMBER>",
+      "How often to check the operation, in milliseconds (default: 5000)"
     )
     .option(
-      "--download-max-bytes <bytes>",
-      "SDK createDownload maxBytes (default: 2 GiB)"
-    );
+      "--poll-timeout-ms <NUMBER>",
+      "Maximum wait for the operation, in milliseconds (default: --timeout)"
+    )
+    .option(
+      "--download-max-bytes <NUMBER>",
+      "Maximum download size in bytes (default: 2 GiB)"
+    )
+    .example('ai video "a spinning triangle"', "Generate a video")
+    .example(
+      'ai video --image scene.png "animate this" --aspect-ratio adaptive --generate-audio',
+      "Animate an image with audio"
+    )
+    .note("Pipe an image to stdin as a reference image.");
   command.action(async (prompt: string | undefined, opts: VideoOptions) => {
     const poll = {
       intervalMs:
@@ -295,14 +307,20 @@ export function registerVideoCommand(program: Command) {
     command
       .command("start")
       .description(
-        "Start one asynchronous video operation and emit/persist its JSON reference"
+        "Start an asynchronous video operation and print its JSON reference"
       ),
     true
   )
-    .option(
-      "--webhook-url <url>",
-      "SDK webhookUrl for completion notifications"
+    .option("--webhook-url <URL>", "Webhook URL for completion notifications")
+    .example(
+      'ai video start "a scene" --n 2 --output operation.json',
+      "Start an operation and save its reference"
     )
+    .example(
+      'ai video start "a spinning triangle"',
+      "Start an operation and print its reference"
+    )
+    .note("Pipe an image to stdin as a reference image.")
     .action(async (prompt: string | undefined, opts: VideoOptions) => {
       const webhookUrl =
         opts.webhookUrl === undefined
@@ -358,21 +376,23 @@ export function registerVideoCommand(program: Command) {
     command
       .command("status")
       .description(
-        "Check a saved SDK operation; returns JSON without downloading by default"
+        "Check a saved video operation without downloading by default"
       )
       .argument("<operation-file>", "JSON emitted by video start")
       .option("--download", "Download completed videos")
       .option(
-        "--download-max-bytes <bytes>",
-        "SDK createDownload maxBytes (default: 2 GiB)"
+        "--download-max-bytes <NUMBER>",
+        "Maximum download size in bytes (default: 2 GiB)"
       )
-      .option("-o, --output <path>", "Downloaded video file or directory")
-      .option(
-        "--json",
-        "JSON status / downloaded artifact manifest (always enabled)"
-      )
+      .option("-o, --output <PATH>", "Downloaded video file or directory")
+      .option("--json", "Print the result as JSON (always on)")
       .option("-q, --quiet", "Suppress progress")
       .option("--no-preview", "Disable previews")
+      .example("ai video status operation.json", "Check an operation")
+      .example(
+        "ai video status operation.json --download --output ./clips/",
+        "Download completed videos"
+      )
   );
   addTimeoutOption(statusCommand, DEFAULT_TIMEOUT_MS).action(
     async (

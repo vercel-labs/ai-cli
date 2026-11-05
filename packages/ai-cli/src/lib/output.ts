@@ -1,5 +1,16 @@
 import { randomBytes } from "crypto";
-import { writeFileSync, mkdirSync, statSync } from "fs";
+import {
+  writeFileSync,
+  mkdirSync,
+  statSync,
+  renameSync,
+  unlinkSync,
+  lstatSync,
+  readlinkSync,
+  openSync,
+  closeSync,
+  fchmodSync,
+} from "fs";
 import { resolve, join, dirname } from "path";
 
 import {
@@ -89,6 +100,50 @@ function isDirectory(p: string): boolean {
   }
 }
 
+function writeAtomically(path: string, data: Uint8Array): void {
+  let target = path;
+  let mode = 0o666;
+  let existing = false;
+  for (let links = 0; ; links++) {
+    try {
+      const info = lstatSync(target);
+      if (!info.isSymbolicLink()) {
+        if (!info.isFile() && !info.isDirectory()) {
+          writeFileSync(target, data);
+          return;
+        }
+        mode = info.mode & 0o777;
+        existing = true;
+        break;
+      }
+      if (links >= 40) throw new Error(`Too many symbolic links: ${path}`);
+      target = resolve(dirname(target), readlinkSync(target));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") break;
+      throw error;
+    }
+  }
+  const temporary = join(
+    dirname(target),
+    `.ai-cli-${randomBytes(16).toString("hex")}.tmp`
+  );
+  const fd = openSync(temporary, "wx", mode);
+  try {
+    try {
+      if (existing) fchmodSync(fd, mode);
+      writeFileSync(fd, data);
+    } finally {
+      closeSync(fd);
+    }
+    renameSync(temporary, target);
+  } catch (error) {
+    try {
+      unlinkSync(temporary);
+    } catch {}
+    throw error;
+  }
+}
+
 export async function writeOutput(
   opts: WriteOutputOptions
 ): Promise<string | null> {
@@ -129,7 +184,7 @@ export async function writeOutput(
     }
     filePath = resolve(filePath);
     mkdirSync(dirname(filePath), { recursive: true });
-    writeFileSync(filePath, buf);
+    writeAtomically(filePath, buf);
     if (!quiet) process.stderr.write(`Saved to ${filePath}\n`);
     if (shouldDisplay) await showPreview(format, buf);
     return filePath;
@@ -146,7 +201,7 @@ export async function writeOutput(
   );
   const path = resolve(filename);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, buf);
+  writeAtomically(path, buf);
   if (!quiet) process.stderr.write(`Saved to ${path}\n`);
   if (shouldDisplay) await showPreview(format, buf);
   return path;

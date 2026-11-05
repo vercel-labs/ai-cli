@@ -18,11 +18,21 @@ import {
   expandModelId,
   fetchGatewayModels,
   fetchModelEndpoints,
+  type GatewayModels,
   type Modality,
   type ModelEntry,
 } from "../lib/models.js";
 
 type ModelFilter = Modality | "audio";
+
+/** Reports a failed catalog fetch on stderr and exits instead of showing an empty list. */
+function exitOnCatalogFailure(models: GatewayModels): void {
+  if (models.available) return;
+  process.stderr.write(
+    `Error: Could not load the model catalog: ${models.error ?? "unknown error"}. Check your network and try again.\n`
+  );
+  process.exit(1);
+}
 
 function groupByCreator(models: ModelEntry[]): Map<string, ModelEntry[]> {
   const groups = new Map<string, ModelEntry[]>();
@@ -51,6 +61,7 @@ async function showModelInfo(
   options: Awaited<ReturnType<typeof mediaSettings>>["catalogOptions"]
 ): Promise<void> {
   const gatewayModels = await fetchGatewayModels(options);
+  exitOnCatalogFailure(gatewayModels);
   const id = expandModelId(input, gatewayModels.lookup);
   const entry = gatewayModels.lookup.find((m) => m.id === id);
   if (!entry) {
@@ -169,11 +180,14 @@ export function registerModelsCommand(program: Command) {
       "Show detailed info for a model (e.g. anthropic/claude-opus-4.6)"
     )
     .option(
-      "--type <type>",
+      "--type <TYPE>",
       "Filter by type: text, image, video, audio, speech, transcription, evaluation"
     )
-    .option("--creator <name>", "Filter by creator (e.g. openai, google)")
-    .option("--json", "Output as JSON (includes native Gateway capabilities)");
+    .option("--creator <NAME>", "Filter by creator (e.g. openai, google)")
+    .option(
+      "--json",
+      "Print the result as JSON (includes native Gateway capabilities)"
+    );
   addGatewayConnectionOptions(command).action(
     async (
       model: string | undefined,
@@ -213,6 +227,7 @@ export function registerModelsCommand(program: Command) {
       const filterCreator = opts.creator?.toLowerCase();
 
       const gatewayModels = await fetchGatewayModels(catalogOptions);
+      exitOnCatalogFailure(gatewayModels);
 
       if (opts.json) {
         let entries = gatewayModels.all;

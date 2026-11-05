@@ -69,6 +69,8 @@ ai models --json                   # JSON with descriptions
 
 In human mode, models are grouped by creator and display short names. Use `--json` for machine-readable output with full IDs and descriptions.
 
+The catalog is fetched live. If the fetch fails, `ai models` exits `1` with an error instead of printing an empty list.
+
 ## Model info
 
 Pass a model ID (or short name) to `ai models` to see its details: context window, max output tokens, pricing (input, output, cache read/write, web search), release date and per-provider latency, throughput and uptime:
