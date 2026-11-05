@@ -4,13 +4,17 @@ import { nextShimmerPos, SHIMMER_PADDING, shimmerText } from "./shimmer.js";
 let cleanupFn: (() => void) | null = null;
 let signalHandlersRegistered = false;
 
-function onSignal() {
+function onSignal(signal: "SIGINT" | "SIGTERM") {
   if (cleanupFn) cleanupFn();
-  process.stderr.write("\x1b[0m\x1b[?25h");
-  process.exit(130);
+  const code = signal === "SIGINT" ? 130 : 143;
+  if (isTTY()) {
+    process.stderr.write("\x1b[0m\x1b[?25h", () => process.exit(code));
+  } else {
+    process.exit(code);
+  }
 }
 
-function ensureSignalHandlers() {
+export function ensureSignalHandlers() {
   if (signalHandlersRegistered) return;
   signalHandlersRegistered = true;
   process.on("SIGINT", onSignal);
@@ -26,7 +30,7 @@ export function formatElapsed(ms: number): string {
 }
 
 function isTTY(): boolean {
-  return !!process.stderr.isTTY;
+  return !!process.stderr.isTTY && process.env.TERM !== "dumb";
 }
 
 function getColumns(): number {
@@ -48,8 +52,8 @@ export class Progress {
   }
 
   start(message: string) {
-    if (this.quiet) return;
     ensureSignalHandlers();
+    if (this.quiet) return;
     this.startTime = Date.now();
     this.text = message;
     this.pos = -SHIMMER_PADDING;

@@ -24,7 +24,7 @@ ai-cli uses a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) API key. S
 ai login
 ```
 
-`ai login` opens the [API keys page](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys), checks the key you paste, and saves it to `~/.config/ai-cli/auth.json`. You can also pipe the key in, which suits scripts:
+`ai login` opens the [API keys page](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys), checks the key you paste, and saves it to `~/.config/ai-cli/auth.json`. You can also pipe the key in, which suits scripts. Add `--no-open` to skip opening the browser.
 
 ```bash
 echo "$AI_GATEWAY_API_KEY" | ai login

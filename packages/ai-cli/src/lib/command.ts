@@ -34,6 +34,7 @@ export interface CommandDefinition {
     takesValue: boolean;
     negated: boolean;
     repeatable: boolean;
+    hidden?: boolean;
   }[];
   commands: CommandDefinition[];
 }
@@ -48,6 +49,9 @@ export class Command {
   private readonly parent?: Command;
   private readonly commands: Command[] = [];
   private readonly options: OptionDefinition[] = [];
+  private readonly hiddenOptions = new Set<string>();
+  private readonly examples: { command: string; description?: string }[] = [];
+  private readonly notes: string[] = [];
   private argumentDefinition?: ArgumentDefinition;
   private actionHandler?: Action;
 
@@ -84,6 +88,21 @@ export class Command {
   argument(syntax: string, description: string): this {
     const name = syntax.replace(/^[<[ ]|[>\] ]$/g, "");
     this.argumentDefinition = { syntax, name, description };
+    return this;
+  }
+
+  example(command: string, description?: string): this {
+    this.examples.push({ command, description });
+    return this;
+  }
+
+  note(text: string): this {
+    this.notes.push(text);
+    return this;
+  }
+
+  hideOption(flag: string): this {
+    this.hiddenOptions.add(flag);
     return this;
   }
 
@@ -156,6 +175,9 @@ export class Command {
         takesValue: option.valueName !== undefined,
         negated: option.negated,
         repeatable: Array.isArray(option.defaultValue),
+        ...(option.long && this.hiddenOptions.has(option.long)
+          ? { hidden: true }
+          : {}),
       })),
       commands: this.commands.map((command) => command.definition()),
     };
@@ -190,20 +212,27 @@ export class Command {
     const first = args[0];
     const version = this.findVersion();
 
-    if (
-      !optionsEnded &&
-      version &&
-      hasFlagBeforeTerminator(args, ["-V", "--version"])
-    ) {
-      process.stdout.write(`${version}\n`);
-      return;
-    }
     if (!first) {
-      this.writeHelp(process.stderr);
-      throw new CliUsageError();
+      this.writeHelp(process.stdout);
+      return;
     }
     if (!optionsEnded && first === "--") {
       await this.runParent(args.slice(1), true);
+      return;
+    }
+
+    if (!optionsEnded && first === "help") {
+      this.writeHelpCommand(args.slice(1));
+      return;
+    }
+
+    if (
+      !optionsEnded &&
+      version &&
+      !hasFlagBeforeTerminator(args, ["-h", "--help"]) &&
+      hasFlagBeforeTerminator(args, ["-v", "-V", "--version"])
+    ) {
+      process.stdout.write(`${version}\n`);
       return;
     }
 
@@ -213,17 +242,15 @@ export class Command {
       return;
     }
 
-    if (first === "help") {
-      this.writeHelpCommand(args.slice(1));
-      return;
-    }
     if (!optionsEnded && hasFlagBeforeTerminator(args, ["-h", "--help"])) {
-      this.writeHelp(process.stdout);
+      this.outputHelp(args);
       return;
     }
     if (!optionsEnded && first.startsWith("-")) {
       throw new CliUsageError(
-        `unknown option '${first}'${suggestSimilar(first, this.optionCandidates())}`
+        this.usageError(
+          `unknown option '${first}'${suggestSimilar(first, this.optionCandidates())}`
+        )
       );
     }
 
@@ -232,7 +259,9 @@ export class Command {
       "help",
     ];
     throw new CliUsageError(
-      `unknown command '${first}'${suggestSimilar(first, candidates)}`
+      this.usageError(
+        `unknown command '${first}'${suggestSimilar(first, candidates)}`
+      )
     );
   }
 
@@ -241,7 +270,7 @@ export class Command {
     inheritedOptionsEnded: boolean
   ): Promise<void> {
     if (!inheritedOptionsEnded && this.hasHelpFlag(args)) {
-      this.writeHelp(process.stdout);
+      this.outputHelp(args);
       return;
     }
 
@@ -265,7 +294,7 @@ export class Command {
       if (
         !optionsEnded &&
         version &&
-        (token === "-V" || token === "--version")
+        (token === "-v" || token === "-V" || token === "--version")
       ) {
         process.stdout.write(`${version}\n`);
         return;
@@ -316,7 +345,9 @@ export class Command {
     if (positionals.length > (this.argumentDefinition ? 1 : 0)) {
       const expected = this.argumentDefinition ? 1 : 0;
       throw new CliUsageError(
-        `too many arguments for '${this.commandName}'. Expected ${expected} argument${expected === 1 ? "" : "s"} but got ${positionals.length}.`
+        this.usageError(
+          `too many arguments for '${this.commandName}'. Expected ${expected} argument${expected === 1 ? "" : "s"} but got ${positionals.length}.`
+        )
       );
     }
     if (!this.actionHandler) return;
@@ -399,10 +430,12 @@ export class Command {
       const option = this.options.find((candidate) => candidate.long === flag);
       if (!option) {
         throw new CliUsageError(
-          `unknown option '${token}'${suggestSimilar(
-            token,
-            this.optionCandidates()
-          )}`
+          this.usageError(
+            `unknown option '${token}'${suggestSimilar(
+              token,
+              this.optionCandidates()
+            )}`
+          )
         );
       }
       return [
@@ -423,7 +456,9 @@ export class Command {
       const flag = `-${token[index]}`;
       const option = this.options.find((candidate) => candidate.short === flag);
       if (!option) {
-        throw new CliUsageError(`unknown option '-${token.slice(index)}'`);
+        throw new CliUsageError(
+          this.usageError(`unknown option '-${token.slice(index)}'`)
+        );
       }
 
       if (option.valueName) {
@@ -450,6 +485,9 @@ export class Command {
 
   private writeHelp(stream: NodeJS.WritableStream): void {
     const hasCommands = this.commands.length > 0;
+    const width = process.stdout.isTTY
+      ? Math.min(120, Math.max(80, process.stdout.columns || 80))
+      : 80;
     const path = this.commandPath();
     const argument = this.argumentDefinition
       ? ` ${this.argumentDefinition.syntax}`
@@ -457,27 +495,33 @@ export class Command {
     const command = hasCommands ? " [command]" : "";
     stream.write(`Usage: ${path} [options]${command}${argument}\n`);
     if (this.commandDescription) {
-      stream.write(`\n${wrapText(this.commandDescription, HELP_WIDTH)}\n`);
+      stream.write(`\n${wrapText(this.commandDescription, width)}\n`);
     }
 
     const argumentRows: [string, string][] = this.argumentDefinition
-      ? [[this.argumentDefinition.name, this.argumentDefinition.description]]
+      ? [[this.argumentDefinition.syntax, this.argumentDefinition.description]]
       : [];
-    const optionRows: [string, string][] = this.options.map((option) => [
-      option.flags,
-      optionDescription(option),
-    ]);
+    const optionRows: [string, string][] = this.options
+      .filter((option) => !option.long || !this.hiddenOptions.has(option.long))
+      .map((option) => [option.flags, optionDescription(option)]);
     if (this.commandVersion) {
-      optionRows.unshift(["-V, --version", "output the version number"]);
+      optionRows.unshift(["-v, --version", "Show the version number"]);
     }
-    optionRows.push(["-h, --help", "display help for command"]);
+    optionRows.push(["-h, --help", "Show help"]);
     const commandRows: [string, string][] = hasCommands
       ? [
           ...this.commands.map((child): [string, string] => [
             child.helpSignature(),
             child.commandDescription,
           ]),
-          ["help [command]", "display help for command"],
+          ...(this.parent
+            ? [
+                ["help [command]", "Show help for a command"] as [
+                  string,
+                  string,
+                ],
+              ]
+            : []),
         ]
       : [];
     const termWidth = Math.max(
@@ -488,28 +532,65 @@ export class Command {
 
     if (this.argumentDefinition) {
       stream.write("\nArguments:\n");
-      stream.write(formatRows(argumentRows, termWidth));
+      stream.write(formatRows(argumentRows, termWidth, width));
     }
 
     stream.write("\nOptions:\n");
-    stream.write(formatRows(optionRows, termWidth));
+    stream.write(formatRows(optionRows, termWidth, width));
+
+    if (this.examples.length > 0) {
+      stream.write("\nExamples:\n");
+      for (const { command, description } of this.examples) {
+        if (description) stream.write(`  ${description}\n`);
+        stream.write(`  $ ${command}\n`);
+      }
+    }
+
+    if (this.notes.length > 0) {
+      stream.write("\nNotes:\n");
+      for (const note of this.notes) {
+        stream.write(`  ${wrapText(note, width - 2).replace(/\n/g, "\n  ")}\n`);
+      }
+    }
 
     if (hasCommands) {
       stream.write("\nCommands:\n");
-      stream.write(formatRows(commandRows, termWidth));
+      stream.write(formatRows(commandRows, termWidth, width));
     }
   }
 
   private writeHelpCommand(path: string[]): void {
-    const [name] = path;
-    if (!name || name === "-h" || name === "--help") {
-      this.writeHelp(process.stdout);
-      return;
+    let command: Command = this;
+    for (const name of path) {
+      if (["--json", "-h", "--help", "-v", "-V", "--version"].includes(name)) {
+        continue;
+      }
+      const child = command.findCommand(name);
+      if (!child) {
+        throw new CliUsageError(
+          command.usageError(
+            `unknown command '${name}'${suggestSimilar(
+              name,
+              command.commands.map((candidate) => candidate.commandName)
+            )}`
+          )
+        );
+      }
+      command = child;
     }
+    command.outputHelp(path);
+  }
 
-    const command = this.findCommand(name);
-    if (!command) throw new CliUsageError(`unknown command '${name}'`);
-    command.writeHelp(process.stdout);
+  private outputHelp(args: string[]): void {
+    if (hasFlagBeforeTerminator(args, ["--json"])) {
+      process.stdout.write(`${JSON.stringify(this.definition(), null, 2)}\n`);
+    } else {
+      this.writeHelp(process.stdout);
+    }
+  }
+
+  private usageError(message: string): string {
+    return `${message}\nRun "${this.commandPath()} --help" for usage.`;
   }
 
   private findCommand(name: string | undefined): Command | undefined {
@@ -538,7 +619,6 @@ export class Command {
   }
 }
 
-const HELP_WIDTH = 80;
 const MIN_WIDTH_TO_WRAP = 40;
 
 function camelCase(value: string): string {
@@ -569,16 +649,20 @@ function optionDescription(option: OptionDefinition): string {
   )})`;
 }
 
-function formatRows(rows: [string, string][], termWidth: number): string {
-  const descriptionWidth = HELP_WIDTH - termWidth - 4;
+function formatRows(
+  rows: [string, string][],
+  termWidth: number,
+  width: number
+): string {
+  const descriptionWidth = width - termWidth - 4;
   const continuationIndent = " ".repeat(termWidth + 4);
 
   return rows
     .map(([label, description]) => {
-      const formattedDescription =
-        descriptionWidth < MIN_WIDTH_TO_WRAP
-          ? description
-          : wrapText(description, descriptionWidth);
+      if (descriptionWidth < MIN_WIDTH_TO_WRAP) {
+        return `  ${label}\n    ${wrapText(description, width - 4).replace(/\n/g, "\n    ")}\n`;
+      }
+      const formattedDescription = wrapText(description, descriptionWidth);
       return `  ${label.padEnd(termWidth)}  ${formattedDescription.replace(
         /\n/g,
         `\n${continuationIndent}`

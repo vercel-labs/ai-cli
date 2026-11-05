@@ -289,6 +289,25 @@ describe("fetchGatewayModels", () => {
     expect(result.all[0].capabilities).toEqual(["text"]);
   });
 
+  test("surfaces the fetch failure instead of reporting an empty catalog", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+
+    mockGatewayError();
+    const network = await fetchGatewayModels();
+
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(new Response("boom", { status: 500 }))
+    ) as unknown as typeof fetch;
+    const http = await fetchGatewayModels();
+
+    write.mockRestore();
+
+    expect(network.available).toBe(false);
+    expect(network.error).toBe("network error");
+    expect(http.available).toBe(false);
+    expect(http.error).toBe("HTTP 500");
+  });
+
   test("returns empty lists on gateway error", async () => {
     mockGatewayError();
 

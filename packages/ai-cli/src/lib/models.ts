@@ -67,6 +67,8 @@ export interface ModelEntry {
 
 export interface GatewayModels {
   available: boolean;
+  /** Why the catalog fetch failed; absent when available is true. */
+  error?: string;
   text: ModelEntry[];
   image: ModelEntry[];
   video: ModelEntry[];
@@ -244,13 +246,28 @@ async function doFetch(options?: {
     result.lookup = [...entryMap.values()];
     result.all = result.lookup.filter((e) => e.capabilities.length > 0);
     result.available = true;
-  } catch {
+  } catch (error) {
     cached = null;
     process.stderr.write("Warning: could not fetch models from AI Gateway\n");
-    return emptyGatewayModels();
+    result.error = fetchFailureReason(error);
+    return result;
   }
 
   return result;
+}
+
+function fetchFailureReason(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = error.cause;
+  const causeMessage =
+    cause instanceof Error
+      ? cause.message
+      : typeof cause === "string"
+        ? cause
+        : undefined;
+  return causeMessage && !error.message.includes(causeMessage)
+    ? `${error.message}: ${causeMessage}`
+    : error.message;
 }
 
 export async function fetchModelEndpoints(

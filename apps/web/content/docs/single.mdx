@@ -116,6 +116,8 @@ ai audio transcribe call.mp3 -o call.txt   # transcript file
 
 When `-o` points to a directory, files use response IDs when available and random 8-character names otherwise.
 
+Files are written to a temporary file in the same directory and then renamed, so an interrupted run does not leave a partial file behind.
+
 The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. `decide` always uses stdout and does not use this setting:
 
 ```bash
@@ -157,8 +159,9 @@ and `batches` diagnostics, and `generateText` results with `--n` above 1 include
 Image/video manifests also retain SDK usage, provider metadata and response
 information. Image `calls` keep each response with its saved images, warnings,
 usage and provider metadata; artifacts stay in call order. Video outputs use
-`videos` instead of `images`. Errors include `name` and `message`, even with
-`--quiet`. For image/video generation, exit 1 means no model fully succeeded,
+`videos` instead of `images`. Progress is suppressed with `--json`, and failures
+still print to stderr with `--quiet`. JSON results include `name` and `message`
+for each error. For image/video generation, exit 1 means no model fully succeeded,
 even if partial media was saved; exit 2 means some models fully succeeded.
 Validation errors use `{ "success": false, "error": { "name": "Error", "message": "..." } }`.
 Text/audio retain their existing JSON format.

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- Add `ai login --no-open` to enter a key without opening the API keys page. `--no-browser` still works. `ai login` no longer waits for input in CI or when stderr is not a terminal: it uses a piped key or exits with an error.
+- Print help for bare `ai` and for command groups such as `ai audio` to stdout and exit 0. `-v` prints the version, `--help` wins over `--version`, `ai help <path...>` works at any depth, and `--help --json` prints the command definition as JSON.
+- Help shows Examples and Notes sections and uppercase value hints such as `<MODEL>`. Usage errors point to the command's `--help`.
+
+### Improvements
+
+- `ai models` exits 1 with an error when the model catalog cannot be fetched instead of printing an empty list.
+- Respect `NO_COLOR`, `FORCE_COLOR=0`, and `TERM=dumb`. Suppress progress output with `--json` while failures still print with `--quiet`. Write output files atomically, and redact API keys and bearer tokens from error messages.
+- Hide `--team-id-or-slug` from help. It still works and warns in favor of `--scope`.
+
+### Bug Fixes
+
+- Exit 130 on SIGINT and 143 on SIGTERM.
+
 ## 0.9.0
 
 <!-- release:start -->

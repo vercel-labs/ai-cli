@@ -30,19 +30,27 @@ export interface MediaOptions {
 
 export function addGatewayConnectionOptions(command: Command): Command {
   return command
-    .option("--headers <path>", "JSON file of HTTP headers")
+    .option("--headers <PATH>", "JSON file of HTTP headers")
+    .option("--base-url <URL>", "Gateway URL (default: AI Gateway endpoint)")
+    .option("--scope <TEAM>", "Gateway team ID or slug")
     .option(
-      "--base-url <url>",
-      "Gateway baseURL (default: SDK gateway endpoint)"
+      "--team-id-or-slug <TEAM>",
+      "Deprecated: use --scope",
+      (value, previous: string | undefined) => {
+        if (previous === undefined)
+          process.stderr.write(
+            "Warning: --team-id-or-slug is deprecated. Use --scope instead.\n"
+          );
+        return value;
+      }
     )
-    .option("--scope <team>", "Gateway team ID or slug")
-    .option("--team-id-or-slug <team>", "Deprecated: use --scope");
+    .hideOption("--team-id-or-slug");
 }
 
 export function addGatewayOptions(command: Command): Command {
   return addGatewayConnectionOptions(command).option(
-    "--max-retries <n>",
-    "SDK maxRetries (default: 2; 0 disables retries)"
+    "--max-retries <NUMBER>",
+    "Retries for transient failures (default: 2; 0 disables retries)"
   );
 }
 
@@ -53,34 +61,34 @@ export function addMediaOptions(
 ): Command {
   const common = addGatewayOptions(command)
     .option(
-      "-m, --model <model>",
+      "-m, --model <MODEL>",
       "Model ID, comma-separated for multiple models"
     )
     .option(
-      "-o, --output <path>",
+      "-o, --output <PATH>",
       start
         ? "Persist operation JSON to this file (also printed to stdout)"
         : "Output file or directory (use a trailing / for a new directory)"
     )
-    .option("-n, --n <n>", "SDK number of outputs per model (default: 1)")
-    .option("--seed <integer>", "SDK generation seed, including 0")
+    .option("-n, --n <NUMBER>", "Number of outputs per model (default: 1)")
+    .option("--seed <NUMBER>", "Generation seed, including 0")
     .option(
-      "--provider-options <path>",
-      "JSON file of SDK providerOptions, including gateway routing"
+      "--provider-options <PATH>",
+      "JSON file of provider-specific options, including gateway routing"
     )
     .option("-q, --quiet", "Suppress progress; errors remain visible")
     .option(
       "--json",
       start
-        ? "JSON operation output (always enabled)"
-        : "Write a JSON manifest with all outputs and SDK diagnostics"
+        ? "Print the result as JSON (always on)"
+        : "Print the result as JSON"
     );
   if (start) return common;
   return common
     .option("--no-preview", "Disable inline media previews")
     .option(
-      "-p, --concurrency <n>",
-      `Parallel models (default: ${concurrency}; SDK controls per-call batching)`
+      "-p, --concurrency <NUMBER>",
+      `Parallel models (default: ${concurrency}; batching is controlled per call)`
     );
 }
 

@@ -11,6 +11,20 @@ Error: Not signed in to AI Gateway. Run `ai login`, or set AI_GATEWAY_API_KEY.
 
 Run `ai login` to save an API key, or set `AI_GATEWAY_API_KEY`. If the error says AI Gateway rejected a key, create a new one and run `ai login` again.
 
+## Login does not prompt
+
+```text
+Error: No API key provided. Pipe a key with `echo $KEY | ai login`, or set AI_GATEWAY_API_KEY.
+```
+
+`ai login` reads the key from stdin when stdin is not a terminal, and it does not prompt when `CI` is set or stderr is not a terminal. Pipe the key in scripts and CI jobs:
+
+```bash
+echo "$AI_GATEWAY_API_KEY" | ai login
+```
+
+To enter the key yourself, run `ai login` directly in a terminal. Add `--no-open` to skip opening the API keys page.
+
 ## Invalid model ID
 
 ```
@@ -58,6 +72,8 @@ Check your installed version:
 ai --version
 ```
 
+`-v`, `-V`, and `--version` all print the version.
+
 Upgrade to the latest release:
 
 ```bash
@@ -66,7 +82,13 @@ npm update -g ai-cli
 
 ## Gateway unreachable
 
-If the AI Gateway is unreachable, the `models` command will return an empty list and short-name resolution will be unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Image generation also requires an explicit `--api generateImage` or `--api generateText` when discovery fails or the selected model is missing from the image catalog, so the selected API cannot change silently. Known Quiver Arrow 2 SVG language-image models are an exception when the catalog is available: they use `generateText` even if absent from its image list. Video and other generation commands can use full model IDs.
+If the AI Gateway is unreachable, `ai models` exits `1` with an error instead of printing an empty list, and short-name resolution is unavailable. Use fully-qualified model IDs (`provider/model-name`) to bypass model discovery. Image generation also requires an explicit `--api generateImage` or `--api generateText` when discovery fails or the selected model is missing from the image catalog, so the selected API cannot change silently. Known Quiver Arrow 2 SVG language-image models are an exception when the catalog is available: they use `generateText` even if absent from its image list. Video and other generation commands can use full model IDs.
+
+```text
+Error: Could not load the model catalog: <reason>. Check your network and try again.
+```
+
+`<reason>` is the underlying fetch error, such as a DNS or connection failure.
 
 Check your network connection and verify the gateway status at [vercel.com/status](https://www.vercel.com/status).
 

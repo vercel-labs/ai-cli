@@ -66,24 +66,33 @@ export function registerAudioCommand(program: Command) {
     .description("Generate speech audio from text")
     .argument("[text]", "Text to convert to speech")
     .option(
-      "-m, --model <model>",
+      "-m, --model <MODEL>",
       "Speech model ID (creator/model-name), comma-separated for multi-model"
     )
-    .option("-o, --output <path>", "Output file path or directory")
-    .option("-f, --format <fmt>", "Audio output format (default: mp3)")
-    .option("--voice <voice>", "Voice to use for speech generation")
-    .option("--instructions <text>", "Instructions for speech generation")
-    .option("--speed <n>", "Speech speed")
-    .option("--language <code>", "Language code (e.g. en, fr) or auto")
-    .option("-n, --count <n>", "Number of generations per model (default: 1)")
+    .option("-o, --output <PATH>", "Output file path or directory")
+    .option("-f, --format <FORMAT>", "Audio output format (default: mp3)")
+    .option("--voice <VOICE>", "Voice to use for speech generation")
+    .option("--instructions <TEXT>", "Instructions for speech generation")
+    .option("--speed <NUMBER>", "Speech speed")
+    .option("--language <LANGUAGE>", "Language code (e.g. en, fr) or auto")
     .option(
-      "-p, --concurrency <n>",
+      "-n, --count <NUMBER>",
+      "Number of generations per model (default: 1)"
+    )
+    .option(
+      "-p, --concurrency <NUMBER>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
     )
     .option("-q, --quiet", "Suppress progress output")
-    .option("--json", "Output metadata as JSON")
+    .option("--json", "Print the result as JSON")
     .option("--no-play", "Disable audio playback after generation")
-    .option("--no-waveform", "Disable accurate terminal waveform preview");
+    .option("--no-waveform", "Disable accurate terminal waveform preview")
+    .example('ai audio speak "Hello from AI Gateway"', "Generate speech")
+    .example(
+      'ai audio speak --voice alloy "Read this as a friendly update"',
+      "Choose a voice"
+    )
+    .note("Pipe text to stdin as input.");
   addTimeoutOption(speak, DEFAULT_TIMEOUT_MS).action(
     async (rawText: string | undefined, opts: SpeakOptions) => {
       const text = rawText?.trim() || undefined;
@@ -160,21 +169,27 @@ export function registerAudioCommand(program: Command) {
     .description("Transcribe audio to text")
     .argument("[audio]", "Audio file path or URL")
     .option(
-      "-m, --model <model>",
+      "-m, --model <MODEL>",
       "Transcription model ID (creator/model-name), comma-separated for multi-model"
     )
-    .option("-o, --output <path>", "Output file path or directory")
-    .option("-f, --format <fmt>", "Output format: md, txt (default: txt)")
+    .option("-o, --output <PATH>", "Output file path or directory")
+    .option("-f, --format <FORMAT>", "Output format: md, txt (default: txt)")
     .option(
-      "-n, --count <n>",
+      "-n, --count <NUMBER>",
       "Number of transcriptions per model (default: 1)"
     )
     .option(
-      "-p, --concurrency <n>",
+      "-p, --concurrency <NUMBER>",
       `Max parallel transcriptions (default: ${DEFAULT_CONCURRENCY})`
     )
     .option("-q, --quiet", "Suppress progress output")
-    .option("--json", "Output metadata as JSON");
+    .option("--json", "Print the result as JSON")
+    .example("ai audio transcribe meeting.mp3", "Transcribe an audio file")
+    .example(
+      "ai audio transcribe https://example.com/call.wav",
+      "Transcribe audio from a URL"
+    )
+    .note("Pipe audio to stdin as input.");
   addTimeoutOption(transcribeCommand, DEFAULT_TIMEOUT_MS).action(
     async (rawAudio: string | undefined, opts: TranscribeOptions) => {
       const stdin = await readStdin();

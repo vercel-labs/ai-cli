@@ -1,4 +1,15 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  openSync,
+  closeSync,
+  readdirSync,
+  mkdirSync,
+  symlinkSync,
+} from "fs";
 import { tmpdir } from "os";
 import { basename, join } from "path";
 
@@ -16,6 +27,45 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 describe("writeOutput", () => {
+  test("atomically replaces existing files and follows symlinks", async () => {
+    await withTempDir(async (dir) => {
+      const target = join(dir, "target.txt");
+      const link = join(dir, "link.txt");
+      writeFileSync(target, "old");
+      symlinkSync(target, link);
+      const oldFile = openSync(target, "r");
+      try {
+        await writeOutput({
+          data: "new",
+          format: "txt",
+          outputPath: link,
+          quiet: true,
+        });
+        expect(readFileSync(oldFile, "utf8")).toBe("old");
+        expect(readFileSync(link, "utf8")).toBe("new");
+        expect(readdirSync(dir).sort()).toEqual(["link.txt", "target.txt"]);
+      } finally {
+        closeSync(oldFile);
+      }
+    });
+  });
+
+  test("removes the temporary file if replacement fails", async () => {
+    await withTempDir(async (dir) => {
+      mkdirSync(join(dir, "result.txt"));
+      await expect(
+        writeOutput({
+          data: "new",
+          format: "txt",
+          outputPath: dir,
+          outputId: "result",
+          quiet: true,
+        })
+      ).rejects.toThrow();
+      expect(readdirSync(dir)).toEqual(["result.txt"]);
+    });
+  });
+
   test("uses output id when writing to a directory", async () => {
     await withTempDir(async (dir) => {
       const path = await writeOutput({

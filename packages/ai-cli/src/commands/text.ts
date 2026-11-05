@@ -43,7 +43,9 @@ type TextPrompt = string | ModelMessage[];
 function resolveFormat(fmt?: string): OutputFormat {
   if (!fmt || fmt === "md") return "md";
   if (fmt === "txt") return "txt";
-  throw new Error(`--format must be one of: md, txt (got "${fmt}")`);
+  throw new Error(
+    `--format must be one of: md, txt (got "${fmt}")${fmt === "json" ? ". Use --json for machine-readable output." : ""}`
+  );
 }
 
 export function registerTextCommand(program: Command) {
@@ -52,27 +54,36 @@ export function registerTextCommand(program: Command) {
     .description("Generate text from a prompt")
     .argument("[prompt]", "The prompt to generate text from")
     .option(
-      "-m, --model <model>",
+      "-m, --model <MODEL>",
       "Model ID (creator/model-name), comma-separated for multi-model"
     )
-    .option("-o, --output <path>", "Output file path or directory")
-    .option("-f, --format <fmt>", "Output format: md, txt (default: md)")
+    .option("-o, --output <PATH>", "Output file path or directory")
+    .option("-f, --format <FORMAT>", "Output format: md, txt (default: md)")
     .option(
-      "-i, --image <path-or-url>",
+      "-i, --image <VALUE>",
       "Image input path or URL for vision (repeatable)",
       collectImageReference,
       []
     )
-    .option("-n, --count <n>", "Number of generations (default: 1)")
+    .option("-n, --count <NUMBER>", "Number of generations (default: 1)")
     .option(
-      "-p, --concurrency <n>",
+      "-p, --concurrency <NUMBER>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
     )
-    .option("-s, --system <prompt>", "System prompt")
-    .option("--max-tokens <n>", "Maximum tokens to generate")
-    .option("-t, --temperature <n>", "Temperature (0-2)")
+    .option("-s, --system <TEXT>", "System prompt")
+    .option("--max-tokens <NUMBER>", "Maximum tokens to generate")
+    .option("-t, --temperature <NUMBER>", "Temperature (0-2)")
     .option("-q, --quiet", "Suppress progress output")
-    .option("--json", "Output metadata as JSON");
+    .option("--json", "Print the result as JSON")
+    .example(
+      'ai text "explain quantum computing"',
+      "Generate text from a prompt"
+    )
+    .example(
+      'ai text --image screenshot.png "what is broken in this UI?"',
+      "Ask about an image"
+    )
+    .note("Pipe text or an image to stdin as input.");
   addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
     async (rawPrompt: string | undefined, opts: TextOptions) => {
       const prompt = rawPrompt?.trim() || undefined;

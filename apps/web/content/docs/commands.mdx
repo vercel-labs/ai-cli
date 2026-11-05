@@ -9,14 +9,14 @@ Image and video option names follow AI SDK keys in kebab case. Nested options us
 JSON files with the SDK's original camelCase keys.
 
 ```text
--i, --images <path-or-url>      prompt.images reference (repeatable)
---mask <path-or-url>            prompt.mask for editing
--n, --n <n>                     Number of images per model (default: 1)
---max-images-per-call <n>       SDK batching limit
---size <widthxheight>           Image size, e.g. 1024x1024
---aspect-ratio <width:height>   Aspect ratio, e.g. 16:9
---api <api>                     generateImage or generateText (default: model catalog)
---generate-text-options <path>  JSON generateText settings and provider tools
+-i, --images <VALUE>            Reference image path or URL (repeatable)
+--mask <VALUE>                  Mask path or URL for editing reference images
+-n, --n <NUMBER>                Number of outputs per model (default: 1)
+--max-images-per-call <NUMBER>  Maximum images per generation request
+--size <DIM>                    Image size, e.g. 1024x1024
+--aspect-ratio <RATIO>          Image aspect ratio, e.g. 16:9
+--api <API>                     Image generation method: generateImage or generateText (default: model catalog)
+--generate-text-options <PATH>  JSON file of text-model settings and provider tools; selects generateText
 ```
 
 Reference images and masks accept local paths, `file://`, HTTP(S), and data URLs.
@@ -32,7 +32,7 @@ Both image and video generation accept `--model` / `-m` (comma-separated),
 `--output` / `-o`, `--concurrency` / `-p` (image 4, video 2), `--quiet` / `-q`,
 `--json`, `--no-preview`, and `--timeout` in seconds (image 300, video 600).
 JSON manifests save every artifact to a file and include SDK diagnostics.
-`--quiet` suppresses progress but retains errors. New output directories must
+`--quiet` and `--json` suppress progress; failures still print to stderr. New output directories must
 end with `/`; explicit filenames keep the extension you provide.
 For image and video `--n`, fewer returned outputs than requested are reported as
 an incomplete result with a nonzero exit code. Available media is still saved.
@@ -48,14 +48,15 @@ and others did not. Input validation errors also exit 1.
 Both also support these request controls:
 
 ```text
---seed <integer>           SDK seed, including 0
---provider-options <path>  JSON providerOptions, keyed by provider name
---headers <path>           JSON object of HTTP headers
---max-retries <n>          SDK maxRetries (default: 2; 0 disables retries)
---base-url <url>           Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
---scope <team>             Gateway team ID or slug
---team-id-or-slug <team>   Deprecated: use --scope
+--seed <NUMBER>             Generation seed, including 0
+--provider-options <PATH>   JSON file of provider-specific options, including gateway routing
+--headers <PATH>            JSON file of HTTP headers
+--max-retries <NUMBER>      Retries for transient failures (default: 2; 0 disables retries)
+--base-url <URL>            Gateway URL (default: AI Gateway endpoint)
+--scope <TEAM>              Gateway team ID or slug
 ```
+
+`--team-id-or-slug` still works, but it is deprecated and hidden from `--help`: passing it prints a warning that names `--scope`. When both are set, `--scope` wins.
 
 For example, `image-options.json` can contain:
 
@@ -125,20 +126,20 @@ output remains supported, including inline previews.
 ## video
 
 ```text
--i, --image <path-or-url>               prompt.image (or pipe one image through stdin)
---frame-images <path>                   JSON frameImages array
---input-references <path>               JSON inputReferences array
--n, --n <n>                             Number of videos per model (default: 1)
---max-videos-per-call <n>               SDK batching limit
---aspect-ratio <width:height|adaptive>  SDK aspectRatio
---resolution <widthxheight>             SDK resolution, e.g. 1920x1080
---duration <seconds>                    Positive duration, including fractional seconds
---fps <number>                          Positive frames per second
---generate-audio                        Request generated audio
---no-generate-audio                     Disable generated audio (unset uses provider default)
---poll-interval-ms <ms>                 SDK poll.intervalMs (default: 5000)
---poll-timeout-ms <ms>                  SDK poll.timeoutMs (default: --timeout in milliseconds)
---download-max-bytes <bytes>            SDK createDownload maxBytes (default: 2 GiB)
+-i, --image <VALUE>                      Reference image path or URL (or pipe an image)
+--frame-images <PATH>                    JSON file of frame images with first_frame / last_frame roles
+--input-references <PATH>                JSON file of input references; specify mediaType for video URLs
+-n, --n <NUMBER>                         Number of outputs per model (default: 1)
+--max-videos-per-call <NUMBER>           Maximum videos per generation request
+--aspect-ratio <RATIO>                   Video aspect ratio, e.g. 16:9 or adaptive
+--resolution <DIM>                       Video resolution, e.g. 1920x1080
+--duration <NUMBER>                      Video duration in seconds
+--fps <NUMBER>                           Video frames per second
+--generate-audio                         Request generated audio
+--no-generate-audio                      Disable generated audio (unset uses provider default)
+--poll-interval-ms <NUMBER>              How often to check the operation, in milliseconds (default: 5000)
+--poll-timeout-ms <NUMBER>               Maximum wait for the operation, in milliseconds (default: --timeout)
+--download-max-bytes <NUMBER>            Maximum download size in bytes (default: 2 GiB)
 ```
 
 Use the SDK's exact frame roles in `frames.json`:
@@ -197,7 +198,7 @@ ai video status operation.json
 ai video status operation.json --download --output ./clips/
 ```
 
-`video start` accepts generation/request options and `--webhook-url <url>`.
+`video start` accepts generation/request options and `--webhook-url <URL>`.
 It prints `{ model, operation, warnings, providerMetadata, response }` as JSON
 and optionally saves that same object with `--output`. It accepts one model and
 one SDK operation; `n` must fit `maxVideosPerCall`. It does not take polling,
@@ -273,7 +274,7 @@ ai text "summarize this" < notes.txt
     Suppress progress output.
   </Property>
   <Property name="--json" type="boolean">
-    Output metadata as JSON.
+    Print the result as JSON.
   </Property>
 </Properties>
 
@@ -326,7 +327,7 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
     Suppress progress output.
   </Property>
   <Property name="--json" type="boolean">
-    Output metadata as JSON.
+    Print the result as JSON.
   </Property>
   <Property name="--no-play" type="boolean">
     Disable audio playback after generation.
@@ -368,7 +369,7 @@ cat announcement.txt | ai audio speak --format wav -o announcement.wav
     Suppress progress output.
   </Property>
   <Property name="--json" type="boolean">
-    Output metadata as JSON.
+    Print the result as JSON.
   </Property>
 </Properties>
 
@@ -447,11 +448,12 @@ ai models anthropic/claude-opus-4.6 --json
     Filter by creator (e.g. `openai`, `google`) (list mode only).
   </Property>
   <Property name="--json" type="boolean">
-    Output as JSON with descriptions.
+    Print the result as JSON, including native Gateway capabilities.
   </Property>
 </Properties>
 
-Models are fetched live from the AI Gateway.
+Models are fetched live from the AI Gateway. If the catalog cannot be fetched,
+`ai models` exits `1` with an error instead of printing an empty list.
 JSON preserves native metadata, including `video_capabilities`, `modalities`,
 and `supported_specifications`. Model discovery also accepts `--base-url`,
 `--scope`, and `--headers <json-file>` for Gateway connection settings.
@@ -483,9 +485,13 @@ ai image --timeout 600 "a detailed sprite atlas"
 
 Save an AI Gateway API key to `~/.config/ai-cli/auth.json`. In a terminal, `ai login` opens the API keys page and prompts for the key without echoing it. Otherwise it reads the key from stdin. The key is checked against AI Gateway before it is saved. `AI_GATEWAY_API_KEY` takes priority over the saved key.
 
+`--no-open` prompts for the key without opening the browser. `--no-browser` does the same and still works, but it is hidden from `--help`.
+
+`ai login` does not prompt when `CI` is set or stderr is not a terminal. Those runs need a piped key and otherwise fail immediately with an error.
+
 ```bash
 ai login
-ai login --no-browser
+ai login --no-open
 echo "$KEY" | ai login
 ```
 
@@ -497,6 +503,30 @@ Delete the key saved by `ai login`.
 ai logout
 ```
 
+## Help and version
+
+```bash
+ai                       # print the top-level help
+ai audio                 # print help for a command group
+ai text --help           # print help for one command
+ai help video start      # print help for a nested command
+ai -v                    # print the version
+ai text --help --json    # print the command definition as JSON
+```
+
+Running `ai` with no arguments, or a command group such as `ai audio` with no subcommand, prints help to stdout and exits `0`. `-v`, `-V`, and `--version` print the version. Help wins over version, so `ai --version --help` prints help.
+
+`ai help <path...>` resolves a command path at any depth. Value placeholders in help are uppercase, such as `<MODEL>`, `<PATH>`, and `<NUMBER>`. Commands list `Examples` and `Notes` sections when they define any, and `--help --json` prints the command definition as JSON.
+
+Usage errors name the problem, suggest a close match, and point to the help that covers the failing command:
+
+```text
+$ ai texte
+Error: unknown command 'texte'
+(Did you mean text?)
+Run "ai --help" for usage.
+```
+
 ## Exit codes
 
 | Code | Meaning |
@@ -504,3 +534,5 @@ ai logout
 | `0` | Success |
 | `1` | Invalid input or request failure; all generations failed |
 | `2` | Partial generation failure (some succeeded, some failed) |
+| `130` | Interrupted with Ctrl+C |
+| `143` | Terminated with `SIGTERM` |

@@ -42,7 +42,10 @@ function promptHidden(question: string): Promise<string> {
     const onData = (chunk: string) => {
       for (const char of chunk) {
         if (char === "\r" || char === "\n") return done(value);
-        if (char === "\u0003") return done(new Error("Login cancelled."));
+        if (char === "\u0003") {
+          done(new Error("Login cancelled."));
+          process.exit(130);
+        }
         if (char === "\u007f") value = value.slice(0, -1);
         else value += char;
       }
@@ -55,27 +58,35 @@ export function registerAuthCommands(program: Command): void {
   program
     .command("login")
     .description("Save an AI Gateway API key (prompts, or reads it from stdin)")
+    .option("--no-open", "Do not open the API keys page")
     .option("--no-browser", "Do not open the API keys page")
-    .action(async (_arg: unknown, opts: { browser?: boolean }) => {
-      let apiKey: string;
-      if (process.stdin.isTTY) {
-        process.stderr.write(`Create an API key at ${API_KEYS_URL}\n`);
-        if (opts.browser !== false) openBrowser(API_KEYS_URL);
-        apiKey = await promptHidden("Paste your API key: ");
-      } else {
-        const input = await readStdin();
-        apiKey = input ? stdinAsText(input) : "";
+    .hideOption("--no-browser")
+    .action(
+      async (_arg: unknown, opts: { open?: boolean; browser?: boolean }) => {
+        let apiKey = "";
+        if (!process.stdin.isTTY) {
+          const input = await readStdin();
+          apiKey = input ? stdinAsText(input) : "";
+        } else if (process.env.CI === undefined && process.stderr.isTTY) {
+          process.stderr.write(`Create an API key at ${API_KEYS_URL}\n`);
+          if (opts.open !== false && opts.browser !== false)
+            openBrowser(API_KEYS_URL);
+          apiKey = await promptHidden("Paste your API key: ");
+        }
+        apiKey = apiKey.trim();
+        if (!apiKey)
+          throw new Error(
+            "No API key provided. Pipe a key with `echo $KEY | ai login`, or set AI_GATEWAY_API_KEY."
+          );
+        process.stderr.write("Checking key with AI Gateway...\n");
+        if (!(await verifyKey(apiKey)))
+          throw new Error(
+            "Invalid API key: AI Gateway rejected it. Nothing was saved."
+          );
+        await storeKey(apiKey);
+        process.stderr.write(`Valid key. Saved to ${authPath()}\n`);
       }
-      apiKey = apiKey.trim();
-      if (!apiKey) throw new Error("No API key provided.");
-      process.stderr.write("Checking key with AI Gateway...\n");
-      if (!(await verifyKey(apiKey)))
-        throw new Error(
-          "Invalid API key: AI Gateway rejected it. Nothing was saved."
-        );
-      await storeKey(apiKey);
-      process.stderr.write(`Valid key. Saved to ${authPath()}\n`);
-    });
+    );
 
   program
     .command("logout")

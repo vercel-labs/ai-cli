@@ -46,33 +46,37 @@ export function registerImageCommand(program: Command) {
   const command = addMediaOptions(
     program
       .command("image")
-      .description(
-        "Generate or edit images using AI SDK generateImage or generateText"
-      )
+      .description("Generate or edit images from a prompt or reference image")
       .argument("[prompt]", "Image prompt"),
     DEFAULT_CONCURRENCY
   )
     .option(
-      "-i, --images <path-or-url>",
-      "SDK prompt.images reference (repeatable)",
+      "-i, --images <VALUE>",
+      "Reference image path or URL (repeatable)",
       collectImageReference,
       []
     )
+    .option("--mask <VALUE>", "Mask path or URL for editing reference images")
+    .option("--size <DIM>", "Image size, e.g. 1024x1024")
+    .option("--aspect-ratio <RATIO>", "Image aspect ratio, e.g. 16:9")
     .option(
-      "--mask <path-or-url>",
-      "SDK prompt.mask for editing reference images"
-    )
-    .option("--size <WxH>", "SDK image size, e.g. 1024x1024")
-    .option("--aspect-ratio <W:H>", "SDK aspectRatio, e.g. 16:9")
-    .option("--max-images-per-call <n>", "SDK maxImagesPerCall batching limit")
-    .option(
-      "--api <api>",
-      "generateImage or generateText (default: model catalog)"
+      "--max-images-per-call <NUMBER>",
+      "Maximum images per generation request"
     )
     .option(
-      "--generate-text-options <path>",
-      "JSON generateText settings and provider tools; selects generateText"
-    );
+      "--api <API>",
+      "Image generation method: generateImage or generateText (default: model catalog)"
+    )
+    .option(
+      "--generate-text-options <PATH>",
+      "JSON file of text-model settings and provider tools; selects generateText"
+    )
+    .example('ai image "a cute dog"', "Generate an image")
+    .example(
+      'ai image --images reference.png "make a sticker in this style"',
+      "Use a reference image"
+    )
+    .note("Pipe an image to stdin as a reference image.");
   addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
     async (rawPrompt: string | undefined, opts: ImageOptions) => {
       const settings = await mediaSettings(opts, DEFAULT_CONCURRENCY);

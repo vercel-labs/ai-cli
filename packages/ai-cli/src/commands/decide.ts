@@ -76,59 +76,70 @@ export function registerDecideCommand(program: Command) {
     .command("decide")
     .alias("evaluate")
     .description(
-      "Make decisions with named, typed questions against stdin and images; output answers and metadata as JSON"
+      "Answer named questions about text or images and print the result as JSON"
+    )
+    .example(
+      'ai decide --boolean "refund=Refund requested?" < ticket.txt',
+      "Ask a question about text"
+    )
+    .example(
+      'ai decide --boolean "receipt=Is this a receipt?" --images scan.png',
+      "Ask a question about an image"
+    )
+    .note(
+      "Pipe text or JSON to stdin as input; images can be used without stdin."
     )
     .option(
-      "--boolean <id=question>",
+      "--boolean <KEY=VALUE>",
       "Ask for P(true); repeat for multiple questions",
       append
     )
     .option(
-      "--choice <id=question>",
+      "--choice <KEY=VALUE>",
       "Ask for one of the supplied choices; repeatable",
       append
     )
     .option(
-      "--choices <id=a,b,...>",
+      "--choices <KEY=VALUE>",
       "Comma-separated choices for the named question",
       append
     )
     .option(
-      "--score <id=question>",
+      "--score <KEY=VALUE>",
       "Ask for a score on ordered levels; repeatable",
       append
     )
     .option(
-      "--levels <id=low,...,high>",
+      "--levels <KEY=VALUE>",
       "Comma-separated score levels, lowest to highest",
       append
     )
     .option(
-      "--questions <path>",
+      "--questions <PATH>",
       "JSON file of named questions with typed criteria"
     )
     .option(
-      "-i, --images <path-or-url>",
+      "-i, --images <VALUE>",
       "Image file part after stdin in the decision state (repeatable)",
       collectImageReference,
       []
     )
     .option(
-      "-m, --model <model>",
+      "-m, --model <MODEL>",
       "Evaluation model ID or short name (default: typesafe-ai/jev)"
     )
     .option(
-      "--input <format>",
+      "--input <FORMAT>",
       "State format: auto, text, or json (arrays stay intact)",
       parseInputFormat,
       "auto" as InputFormat
     )
     .option(
-      "--provider-options <path>",
+      "--provider-options <PATH>",
       "JSON file of provider-specific options"
     )
     .option(
-      "--max-retries <n>",
+      "--max-retries <NUMBER>",
       "Retries for transient provider failures",
       parseMaxRetries,
       2

@@ -57,6 +57,7 @@ export async function verifyKey(apiKey: string): Promise<boolean> {
     process.env.AI_GATEWAY_BASE_URL || "https://ai-gateway.vercel.sh";
   const response = await fetch(new URL("/v1/credits", baseURL), {
     headers: { authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(15_000),
   });
   if (response.status === 401 || response.status === 403) return false;
   if (!response.ok)

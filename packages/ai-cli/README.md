@@ -24,6 +24,8 @@ ai login
 
 `ai login` opens the [API keys page](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys), checks the key you paste, and saves it to `~/.config/ai-cli/auth.json`. You can also pipe it in (`echo "$KEY" | ai login`) or set `AI_GATEWAY_API_KEY`, which takes priority. `ai logout` deletes the saved key.
 
+`ai login --no-open` prompts for the key without opening the browser. `--no-browser` does the same and still works, but it is hidden from `--help`. `ai login` does not prompt when `CI` is set or stderr is not a terminal: those runs need a piped key and otherwise fail with an error instead of waiting for input.
+
 ## Usage
 
 ```bash
@@ -57,16 +59,17 @@ cat recording.mp3 | ai audio transcribe
 Generation commands support:
 
 ```
--m, --model <id>         Model ID (creator/model-name), comma-separated for multi-model
--o, --output <path>      Output file path or directory
--n, --n <n>              Image/video outputs per model (default: 1)
--n, --count <n>          Text/audio generations per model (default: 1)
--p, --concurrency <n>    Max parallel generations (default: 4, video: 2)
---timeout <seconds>      Request timeout in seconds (default: text/audio 120, image 300, video 600)
--q, --quiet              Suppress progress output
---json                   Output metadata as JSON
+-m, --model <MODEL>         Model ID (creator/model-name), comma-separated for multi-model
+-o, --output <PATH>         Output file path or directory
+-n, --n <NUMBER>            Image/video outputs per model (default: 1)
+-n, --count <NUMBER>        Text/audio generations per model (default: 1)
+-p, --concurrency <NUMBER>  Max parallel generations (default: 4, video: 2)
+--timeout <NUMBER>          Request timeout in seconds (default: text/audio 120, image 300, video 600)
+-q, --quiet                 Suppress progress; failures still print
+--json                      Print the result as JSON
 ```
 
+`--json` and `--quiet` both suppress progress output. Failures still print to stderr with either flag.
 When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped.
 For image and video `--n`, fewer returned outputs than requested are reported as
 an incomplete result with a nonzero exit code. Available media is still saved.
@@ -88,6 +91,30 @@ ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 ```
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
+
+### Help and Version
+
+```bash
+ai                       # print the top-level help
+ai audio                 # print help for a command group
+ai text --help           # print help for one command
+ai help video start      # print help for a nested command
+ai -v                    # print the version
+ai text --help --json    # print the command definition as JSON
+```
+
+Running `ai` with no arguments, or a command group such as `ai audio` with no subcommand, prints help to stdout and exits `0`. `-v`, `-V`, and `--version` print the version. Help wins over version, so `ai --version --help` prints help.
+
+`ai help <path...>` resolves a command path at any depth. Value placeholders in help are uppercase, such as `<MODEL>`, `<PATH>`, and `<NUMBER>`. Commands also list `Examples` and `Notes` sections when they have any, and `--help --json` prints the command definition as JSON.
+
+Usage errors name the problem, suggest a close match, and point to the help that covers the failing command:
+
+```text
+$ ai texte
+Error: unknown command 'texte'
+(Did you mean text?)
+Run "ai --help" for usage.
+```
 
 ### decide
 
@@ -171,18 +198,18 @@ Use a file for labels containing commas or separate names and descriptions.
 Files and inline questions can be combined; duplicate IDs are errors.
 
 ```text
---boolean <id=question>    P(true) question (repeatable)
---choice <id=question>     Categorical question (repeatable)
---choices <id=a,b,...>     Choices for the named question (repeatable)
---score <id=question>      Ordered-score question (repeatable)
---levels <id=low,...,high> Score levels for the named question (repeatable)
---questions <path>        JSON file of named typed questions
--i, --images <path-or-url> Image after stdin in the state (repeatable)
--m, --model <id>          One evaluation model (default: typesafe-ai/jev)
---input <format>          auto, text, or json (default: auto)
---provider-options <path> JSON object of provider names to option objects
---max-retries <n>         Transient-error retries, including 0 (default: 2)
---timeout <seconds>       Evaluation deadline including retries (default: 30)
+--boolean <KEY=VALUE>      Ask for P(true); repeat for multiple questions
+--choice <KEY=VALUE>       Ask for one of the supplied choices; repeatable
+--choices <KEY=VALUE>      Comma-separated choices for the named question
+--score <KEY=VALUE>        Ask for a score on ordered levels; repeatable
+--levels <KEY=VALUE>       Comma-separated score levels, lowest to highest
+--questions <PATH>         JSON file of named questions with typed criteria
+-i, --images <VALUE>       Image file part after stdin in the state (repeatable)
+-m, --model <MODEL>        Evaluation model ID or short name (default: typesafe-ai/jev)
+--input <FORMAT>           State format: auto, text, or json (default: auto)
+--provider-options <PATH>  JSON file of provider-specific options
+--max-retries <NUMBER>     Retries for transient provider failures (default: 2)
+--timeout <NUMBER>         Request timeout in seconds (default: 30)
 ```
 
 Output is always JSON on stdout; no `--json` flag is needed and no files are
@@ -232,14 +259,14 @@ Image and video option names follow AI SDK keys in kebab case. Nested options us
 JSON files with the SDK's original camelCase keys.
 
 ```text
--i, --images <path-or-url>   prompt.images reference (repeatable)
---mask <path-or-url>         prompt.mask for editing
--n, --n <n>                 Number of images per model (default: 1)
---max-images-per-call <n>    SDK batching limit
---size <widthxheight>                Image size, e.g. 1024x1024
---aspect-ratio <width:height>         Aspect ratio, e.g. 16:9
---api <api>                 generateImage or generateText (default: model catalog)
---generate-text-options <path> JSON generateText settings and provider tools
+-i, --images <VALUE>           Reference image path or URL (repeatable)
+--mask <VALUE>                 Mask path or URL for editing reference images
+-n, --n <NUMBER>               Number of outputs per model (default: 1)
+--max-images-per-call <NUMBER> Maximum images per generation request
+--size <DIM>                   Image size, e.g. 1024x1024
+--aspect-ratio <RATIO>         Image aspect ratio, e.g. 16:9
+--api <API>                    Image generation method: generateImage or generateText (default: model catalog)
+--generate-text-options <PATH> JSON file of text-model settings and provider tools; selects generateText
 ```
 
 Reference images and masks accept local paths, `file://`, HTTP(S), and data URLs.
@@ -254,14 +281,15 @@ ai image "a sunset" --n 3 --max-images-per-call 2 --json -o ./renders/
 Both image and video generation support these request controls:
 
 ```text
---seed <integer>            SDK seed, including 0
---provider-options <path>   JSON providerOptions, keyed by provider name
---headers <path>            JSON object of HTTP headers
---max-retries <n>            SDK maxRetries (default: 2; 0 disables retries)
---base-url <url>             Gateway baseURL (e.g. https://ai-gateway.vercel.sh/v4/ai)
---scope <team>               Gateway team ID or slug
---team-id-or-slug <team>     Deprecated: use --scope
+--seed <NUMBER>             Generation seed, including 0
+--provider-options <PATH>   JSON file of provider-specific options, including gateway routing
+--headers <PATH>            JSON file of HTTP headers
+--max-retries <NUMBER>      Retries for transient failures (default: 2; 0 disables retries)
+--base-url <URL>            Gateway URL (default: AI Gateway endpoint)
+--scope <TEAM>              Gateway team ID or slug
 ```
+
+`--team-id-or-slug` still works, but it is deprecated and hidden from `--help`: passing it prints a warning that names `--scope`. When both are set, `--scope` wins.
 
 For example, `image-options.json` can contain:
 
@@ -331,20 +359,20 @@ output remains supported, including inline previews.
 ### video
 
 ```text
--i, --image <path-or-url>     prompt.image (or pipe one image through stdin)
---frame-images <path>        JSON frameImages array
---input-references <path>    JSON inputReferences array
--n, --n <n>                  Number of videos per model (default: 1)
---max-videos-per-call <n>     SDK batching limit
---aspect-ratio <width:height|adaptive> SDK aspectRatio
---resolution <widthxheight>           SDK resolution, e.g. 1920x1080
---duration <seconds>         Positive duration, including fractional seconds
---fps <number>               Positive frames per second
---generate-audio             Request generated audio
---no-generate-audio          Disable generated audio (unset uses provider default)
---poll-interval-ms <ms>      SDK poll.intervalMs (default: 5000)
---poll-timeout-ms <ms>       SDK poll.timeoutMs (default: --timeout in milliseconds)
---download-max-bytes <bytes> SDK createDownload maxBytes (default: 2 GiB)
+-i, --image <VALUE>             Reference image path or URL (or pipe an image)
+--frame-images <PATH>           JSON file of frame images with first_frame / last_frame roles
+--input-references <PATH>       JSON file of input references; specify mediaType for video URLs
+-n, --n <NUMBER>                Number of outputs per model (default: 1)
+--max-videos-per-call <NUMBER>  Maximum videos per generation request
+--aspect-ratio <RATIO>          Video aspect ratio, e.g. 16:9 or adaptive
+--resolution <DIM>              Video resolution, e.g. 1920x1080
+--duration <NUMBER>             Video duration in seconds
+--fps <NUMBER>                  Video frames per second
+--generate-audio                Request generated audio
+--no-generate-audio             Disable generated audio (unset uses provider default)
+--poll-interval-ms <NUMBER>     How often to check the operation, in milliseconds (default: 5000)
+--poll-timeout-ms <NUMBER>      Maximum wait for the operation, in milliseconds (default: --timeout)
+--download-max-bytes <NUMBER>   Maximum download size in bytes (default: 2 GiB)
 ```
 
 Use the SDK's exact frame roles in `frames.json`:
@@ -403,7 +431,7 @@ ai video status operation.json
 ai video status operation.json --download --output ./clips/
 ```
 
-`video start` accepts generation/request options and `--webhook-url <url>`.
+`video start` accepts generation/request options and `--webhook-url <URL>`.
 It prints `{ model, operation, warnings, providerMetadata, response }` as JSON
 and optionally saves that same object with `--output`. It accepts one model and
 one SDK operation; `n` must fit `maxVideosPerCall`. It does not take polling,
@@ -439,11 +467,11 @@ guide generation and do not guarantee exact frame matching.
 ### text
 
 ```
--f, --format <fmt>       Output format: md, txt (default: md)
--i, --image <path-or-url> Image input path or URL for vision (repeatable)
--s, --system <prompt>    System prompt
---max-tokens <n>         Maximum tokens to generate
--t, --temperature <n>    Temperature (0-2)
+-f, --format <FORMAT>      Output format: md, txt (default: md)
+-i, --image <VALUE>        Image input path or URL for vision (repeatable)
+-s, --system <TEXT>        System prompt
+--max-tokens <NUMBER>      Maximum tokens to generate
+-t, --temperature <NUMBER> Temperature (0-2)
 ```
 
 For vision-capable text models, `ai text` accepts images from `--image` or piped stdin:
@@ -465,11 +493,11 @@ ai audio transcribe recording.mp3
 #### audio speak
 
 ```
--f, --format <fmt>       Audio output format (default: mp3)
---voice <voice>          Voice to use for speech generation
---instructions <text>    Instructions for speech generation
---speed <n>              Speech speed
---language <code>        Language code (e.g. en, fr) or auto
+-f, --format <FORMAT>    Audio output format (default: mp3)
+--voice <VOICE>          Voice to use for speech generation
+--instructions <TEXT>    Instructions for speech generation
+--speed <NUMBER>         Speech speed
+--language <LANGUAGE>    Language code (e.g. en, fr) or auto
 --no-play                Disable audio playback after generation
 --no-waveform            Disable accurate terminal waveform preview
 ```
@@ -490,7 +518,7 @@ In interactive terminals, `audio speak` plays the generated audio after saving i
 #### audio transcribe
 
 ```
--f, --format <fmt>       Output format: md, txt (default: txt)
+-f, --format <FORMAT>    Output format: md, txt (default: txt)
 ```
 
 `audio transcribe` accepts a local path, `file://` URL, `http(s)://` URL or piped audio:
@@ -504,17 +532,16 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
 ### models
 
 ```
-[model]                  Show detailed info for a model (e.g. anthropic/claude-opus-4.6)
---type <type>            Filter by type: text, image, video, audio, speech, transcription, evaluation
---creator <name>         Filter by creator (e.g. openai, google)
---json                   JSON including native Gateway capabilities and metadata
---base-url <url>         Gateway baseURL
---scope <team>           Gateway team ID or slug
---team-id-or-slug <team> Deprecated: use --scope
---headers <path>         JSON HTTP headers
+[model]           Show detailed info for a model (e.g. anthropic/claude-opus-4.6)
+--type <TYPE>     Filter by type: text, image, video, audio, speech, transcription, evaluation
+--creator <NAME>  Filter by creator (e.g. openai, google)
+--json            Print the result as JSON (includes native Gateway capabilities)
+--base-url <URL>  Gateway URL (default: AI Gateway endpoint)
+--scope <TEAM>    Gateway team ID or slug
+--headers <PATH>  JSON file of HTTP headers
 ```
 
-All supported model types (text, image, video, speech, transcription, evaluation) are fetched live from the AI Gateway.
+All supported model types (text, image, video, speech, transcription, evaluation) are fetched live from the AI Gateway. If the catalog cannot be fetched, `ai models` exits `1` with an error instead of printing an empty list.
 
 Pass a model ID (or short name) to see its context window, max output, pricing, release date and per-provider latency, throughput and uptime:
 
@@ -593,6 +620,8 @@ When running in a terminal that supports the [Kitty graphics protocol](https://s
 
 When the CLI needs to choose a filename, it uses a response id when available and falls back to a random 8-character id.
 
+Files are written atomically: the CLI writes a temporary file next to the target and renames it, so an interrupted run does not leave a partial file. Error messages redact bearer tokens and the values of `AI_GATEWAY_API_KEY` and `VERCEL_OIDC_TOKEN`.
+
 ### Environment Variables
 
 | Variable | Description |
@@ -608,8 +637,9 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | `AI_CLI_EVALUATION_MODEL` | Default evaluation model (overrides `typesafe-ai/jev`) |
 | `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
 | `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
-| `NO_COLOR` | Disable ANSI color output |
-| `FORCE_COLOR` | Force color output even when not a TTY |
+| `NO_COLOR` | Disable ANSI color output when set to any non-empty value |
+| `FORCE_COLOR` | `0` disables color; any other value forces color even when output is not a TTY |
+| `TERM` | `dumb` disables color and progress output |
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 
@@ -635,6 +665,8 @@ Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, 
 | `0` | Success |
 | `1` | Invalid input or request failure; all generations failed |
 | `2` | Partial generation failure (some succeeded, some failed) |
+| `130` | Interrupted with Ctrl+C |
+| `143` | Terminated with `SIGTERM` |
 
 ## Development
 

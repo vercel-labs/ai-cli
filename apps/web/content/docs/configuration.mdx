@@ -43,11 +43,17 @@ and structured media inputs. There is no global config file.
   <Property name="AI_CLI_PREVIEW" type="0 | 1">
     `1` forces inline preview on, `0` disables it.
   </Property>
-  <Property name="NO_COLOR" type="any">
-    Disable ANSI color output.
+  <Property name="NO_COLOR" type="string">
+    Any non-empty value disables ANSI color output.
   </Property>
-  <Property name="FORCE_COLOR" type="any">
-    Force color output even when not a TTY.
+  <Property name="FORCE_COLOR" type="string">
+    `0` disables color. Any other value forces color even when output is not a TTY.
+  </Property>
+  <Property name="TERM" type="string">
+    `dumb` disables color and progress output.
+  </Property>
+  <Property name="CI" type="string">
+    When set, `ai login` does not prompt for a key unless stdin is piped.
   </Property>
 </Properties>
 

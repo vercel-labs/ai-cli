@@ -143,7 +143,7 @@ describe("cli integration", () => {
     const { exitCode, stdout, stderr } = await run("text", "hello", "-h", "-m");
     expect(exitCode).toBe(1);
     expect(stdout).toBe("");
-    expect(stderr).toContain("option '-m, --model <model>' argument missing");
+    expect(stderr).toContain("option '-m, --model <MODEL>' argument missing");
   });
 
   test("text with no prompt and no stdin exits 1", async () => {

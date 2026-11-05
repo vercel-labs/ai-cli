@@ -4,6 +4,8 @@ import { authErrorMessage, isAuthError } from "./auth.js";
 import type { MediaOptions } from "./media-options.js";
 import { writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
+import { ensureSignalHandlers } from "./progress.js";
+import { redact } from "./redact.js";
 
 export interface MediaArtifact {
   data: Buffer | string;
@@ -69,8 +71,8 @@ export function errorDetails(error: unknown) {
   if (isAuthError(error))
     return { name: "GatewayAuthenticationError", message: authErrorMessage() };
   return error instanceof Error
-    ? { name: error.name, message: error.message }
-    : { name: "Error", message: String(error) };
+    ? { name: redact(error.name), message: redact(error.message) }
+    : { name: "Error", message: redact(String(error)) };
 }
 
 export async function runMediaJobs(
@@ -82,12 +84,13 @@ export async function runMediaJobs(
     format: "image" | "video";
   }
 ) {
+  ensureSignalHandlers();
   const start = Date.now();
   const results = await pMap(
     models,
     async (model, index) => {
       const jobStart = Date.now();
-      if (!opts.quiet)
+      if (!opts.quiet && !opts.json)
         process.stderr.write(`Generating ${opts.format} with ${model}\n`);
       const files: Record<string, unknown>[] = [];
       let metadata: Record<string, unknown> = {};
@@ -95,9 +98,16 @@ export async function runMediaJobs(
         const {
           artifacts,
           calls,
-          failures = [],
+          failures: rawFailures = [],
           ...diagnostics
         } = await generate(model);
+        const failures = rawFailures.map((failure) => ({
+          ...failure,
+          error: {
+            name: redact(failure.error.name),
+            message: redact(failure.error.message),
+          },
+        }));
         metadata = diagnostics;
         if (failures.length) metadata.failures = failures;
         const artifactInfo = new Map(
@@ -151,7 +161,9 @@ export async function runMediaJobs(
             }
           : undefined;
         if (detail)
-          process.stderr.write(`Error (${model}): ${detail.message}\n`);
+          process.stderr.write(
+            `Error (${redact(model)}): ${redact(detail.message).replace(/[\r\n]+/g, " ")}\n`
+          );
         return {
           model,
           success: !detail,
@@ -162,7 +174,9 @@ export async function runMediaJobs(
         };
       } catch (error) {
         const detail = errorDetails(error);
-        process.stderr.write(`Error (${model}): ${detail.message}\n`);
+        process.stderr.write(
+          `Error (${redact(model)}): ${detail.message.replace(/[\r\n]+/g, " ")}\n`
+        );
         return {
           model,
           success: false,

@@ -20,7 +20,7 @@ export function addTimeoutOption(
   defaultTimeoutMs: number
 ): Command {
   return command.option(
-    "--timeout <seconds>",
+    "--timeout <NUMBER>",
     "Request timeout in seconds",
     (value) => parseTimeoutSeconds(value),
     defaultTimeoutMs / 1000

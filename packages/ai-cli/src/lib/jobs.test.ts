@@ -71,6 +71,37 @@ async function captureStderr(fn: () => Promise<void>): Promise<string> {
 }
 
 describe("runJobs", () => {
+  test("json mode suppresses progress without requiring quiet", async () => {
+    await withTempCwd(async () => {
+      const stderr = await captureStderr(async () => {
+        await captureStdout(async () => {
+          await runJobs(buildJobs(["model"], 2), async () => "output", {
+            noun: "text",
+            format: "txt",
+            json: true,
+            concurrency: 2,
+          });
+        });
+      });
+      expect(stderr).toBe("");
+    });
+  });
+
+  test("quiet mode still reports each job failure", async () => {
+    const stderr = await captureStderr(async () => {
+      const result = await runJobs(
+        buildJobs(["model"], 2),
+        async () => {
+          throw new Error("failed\nreason");
+        },
+        { noun: "text", format: "txt", quiet: true, concurrency: 2 }
+      );
+      expect(result.failed).toBe(2);
+    });
+    expect(stderr.trim().split("\n")).toHaveLength(2);
+    expect(stderr).toContain("failed reason");
+  });
+
   test("json mode writes single binary output to a file and keeps stdout JSON-only", async () => {
     await withTempCwd(async () => {
       const stdout = await captureStdout(async () => {
