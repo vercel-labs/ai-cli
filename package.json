@@ -14,7 +14,8 @@
     "lint": "turbo run lint",
     "format": "turbo run format",
     "format:check": "turbo run format:check",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "typecheck:tsc": "turbo run typecheck:tsc"
   },
   "devDependencies": {
     "oxfmt": "^0.41.0",
