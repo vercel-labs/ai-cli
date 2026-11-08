@@ -1,8 +1,20 @@
 # Changelog
 
-## 0.9.0
+## 0.9.1
 
 <!-- release:start -->
+
+### Improvements
+
+- Type-check the repository with `tsc-ts`. The published CLI is unchanged.
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
+## 0.9.0
 
 ### New Features
 
@@ -11,8 +23,6 @@
 ### Contributors
 
 - @Railly
-
-<!-- release:end -->
 
 ## 0.8.1
 
