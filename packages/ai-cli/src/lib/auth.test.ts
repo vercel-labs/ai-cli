@@ -41,6 +41,9 @@ describe.skipIf(!posix)("storeKey file permissions", () => {
 
   test("tightens an existing loose config dir and auth file", async () => {
     await mkdir(configDir, { mode: 0o755 });
+    // The umask can strip bits from mkdir's mode, so set the loose mode
+    // explicitly and make the assertion independent of the host umask.
+    await chmod(configDir, 0o755);
     const path = authPath();
     await writeFile(path, JSON.stringify({ apiKey: "old" }) + "\n", {
       mode: 0o644,
@@ -66,5 +69,14 @@ describe.skipIf(!posix)("storeKey file permissions", () => {
     await storeKey("fresh");
 
     expect(await readStoredKey()).toBe("fresh");
+  });
+
+  test("cleans up the temp file when the rewrite fails", async () => {
+    // A directory at auth.json makes the temp file's rename fail with EISDIR.
+    await mkdir(authPath(), { recursive: true });
+
+    await expect(storeKey("new")).rejects.toThrow();
+
+    expect(await readdir(configDir)).toEqual(["auth.json"]);
   });
 });
