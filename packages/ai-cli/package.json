@@ -46,8 +46,8 @@
   "dependencies": {
     "@ai-sdk/gateway": "4.0.112",
     "ai": "7.0.139",
-    "sharp": "0.35.4",
-    "undici": "7.30.0"
+    "sharp": "0.35.5",
+    "undici": "7.30.2"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
