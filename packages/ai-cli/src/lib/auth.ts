@@ -1,6 +1,18 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import type { FileHandle } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  open,
+  readFile,
+  rename,
+  rm,
+  stat,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+const isWindows = process.platform === "win32";
 
 export const API_KEYS_URL =
   "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys";
@@ -28,10 +40,39 @@ export async function readStoredKey(): Promise<string | undefined> {
 }
 
 export async function storeKey(apiKey: string): Promise<void> {
-  await mkdir(configDir(), { recursive: true, mode: 0o700 });
-  await writeFile(authPath(), JSON.stringify({ apiKey }) + "\n", {
-    mode: 0o600,
-  });
+  const dir = configDir();
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  if (!isWindows) {
+    // mkdir's mode only applies when the directory is created, so tighten an
+    // existing config directory that has group or other permissions.
+    const mode = (await stat(dir)).mode & 0o777;
+    if (mode !== 0o700) await chmod(dir, 0o700);
+  }
+  await writePrivateFile(authPath(), JSON.stringify({ apiKey }) + "\n");
+}
+
+/**
+ * Writes `contents` to a unique temp file next to `path` and renames it into
+ * place, so `path` is always either the old file or the fully written new one.
+ */
+async function writePrivateFile(path: string, contents: string): Promise<void> {
+  const tempPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  let handle: FileHandle | undefined;
+  try {
+    handle = await open(tempPath, "wx", 0o600);
+    // The umask can strip bits from open()'s mode, so set 0600 on the
+    // descriptor explicitly.
+    if (!isWindows) await handle.chmod(0o600);
+    await handle.writeFile(contents, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await rename(tempPath, path);
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    await rm(tempPath, { force: true });
+    throw error;
+  }
 }
 
 export async function deleteStoredKey(): Promise<void> {
