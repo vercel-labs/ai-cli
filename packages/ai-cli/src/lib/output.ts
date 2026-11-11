@@ -89,6 +89,27 @@ function isDirectory(p: string): boolean {
   }
 }
 
+function outputDirError(dir: string): Error {
+  return new Error(
+    `AI_CLI_OUTPUT_DIR must be a directory, but "${dir}" is not a directory. ` +
+      "Remove the file or point AI_CLI_OUTPUT_DIR at a directory."
+  );
+}
+
+function ensureOutputDirectory(dir: string): void {
+  let stats;
+  try {
+    stats = statSync(dir);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return;
+    if (code === "ENOTDIR") throw outputDirError(dir);
+    throw error;
+  }
+
+  if (!stats.isDirectory()) throw outputDirError(dir);
+}
+
 export async function writeOutput(
   opts: WriteOutputOptions
 ): Promise<string | null> {
@@ -103,7 +124,14 @@ export async function writeOutput(
     quiet,
     display,
   } = opts;
-  const effectiveOutput = opts.outputPath ?? process.env.AI_CLI_OUTPUT_DIR;
+  const outputPath = opts.outputPath;
+  // `--output` always wins, even when it is an empty string.
+  const envOutputDir =
+    outputPath === undefined ? process.env.AI_CLI_OUTPUT_DIR : undefined;
+  const filename = addSuffix(
+    defaultFilename(format, outputId, extension, mediaType),
+    suffix
+  );
   const buf =
     typeof data === "string"
       ? new TextEncoder().encode(data)
@@ -114,18 +142,19 @@ export async function writeOutput(
     process.stdout.isTTY &&
     supportsKittyGraphics();
 
-  if (effectiveOutput) {
+  if (outputPath || envOutputDir) {
     let filePath: string;
-    if (isDirectory(effectiveOutput)) {
-      filePath = join(
-        effectiveOutput,
-        addSuffix(
-          defaultFilename(format, outputId, extension, mediaType),
-          suffix
-        )
-      );
+    if (outputPath) {
+      // An existing directory (or a trailing slash) collects auto-named files;
+      // any other value is an explicit filename.
+      filePath = isDirectory(outputPath)
+        ? join(outputPath, filename)
+        : addSuffix(outputPath, suffix);
     } else {
-      filePath = addSuffix(effectiveOutput, suffix);
+      // AI_CLI_OUTPUT_DIR is always a directory, even before it exists.
+      const dir = envOutputDir!;
+      ensureOutputDirectory(dir);
+      filePath = join(dir, filename);
     }
     filePath = resolve(filePath);
     mkdirSync(dirname(filePath), { recursive: true });
@@ -140,10 +169,6 @@ export async function writeOutput(
     return null;
   }
 
-  const filename = addSuffix(
-    defaultFilename(format, outputId, extension, mediaType),
-    suffix
-  );
   const path = resolve(filename);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, buf);
