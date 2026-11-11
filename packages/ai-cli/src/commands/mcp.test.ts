@@ -238,6 +238,33 @@ test("serves JSON-RPC over stdio and matches the plain CLI output", async () => 
   expect(responses.get(5).error.code).toBe(-32602);
 });
 
+test("reports model discovery failures as tool errors", async () => {
+  const call = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: "models", arguments: {} },
+  };
+  const server = await fixture.run(["mcp"], {
+    built: true,
+    mode: "catalog-failure",
+    input: Buffer.from(JSON.stringify(call) + "\n"),
+  });
+
+  expect(server.exitCode).toBe(0);
+  expect(JSON.parse(server.stdout).result).toMatchObject({
+    isError: true,
+    content: [
+      {
+        type: "text",
+        text: expect.stringContaining(
+          "Error: could not fetch models from AI Gateway"
+        ),
+      },
+    ],
+  });
+});
+
 test("kills a child that outlives its timeout", async () => {
   const call = {
     jsonrpc: "2.0",

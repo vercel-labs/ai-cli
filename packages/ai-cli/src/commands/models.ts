@@ -213,6 +213,10 @@ export function registerModelsCommand(program: Command) {
       const filterCreator = opts.creator?.toLowerCase();
 
       const gatewayModels = await fetchGatewayModels(catalogOptions);
+      if (!gatewayModels.available) {
+        process.stderr.write("Error: could not fetch models from AI Gateway\n");
+        process.exit(1);
+      }
 
       if (opts.json) {
         let entries = gatewayModels.all;

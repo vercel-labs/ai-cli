@@ -514,7 +514,7 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
 --headers <path>         JSON HTTP headers
 ```
 
-All supported model types (text, image, video, speech, transcription, evaluation) are fetched live from the AI Gateway.
+All supported model types (text, image, video, speech, transcription, evaluation) are fetched live from the AI Gateway. If the catalog cannot be fetched, `ai models` exits with a nonzero status and prints an error to stderr instead of an empty catalog, including with `--json`.
 
 Pass a model ID (or short name) to see its context window, max output, pricing, release date and per-provider latency, throughput and uptime:
 
