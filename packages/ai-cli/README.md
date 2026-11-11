@@ -606,7 +606,7 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | `AI_CLI_SPEECH_MODEL` | Default speech model (overrides `openai/tts-1`) |
 | `AI_CLI_TRANSCRIPTION_MODEL` | Default transcription model (overrides `openai/whisper-1`) |
 | `AI_CLI_EVALUATION_MODEL` | Default evaluation model (overrides `typesafe-ai/jev`) |
-| `AI_CLI_OUTPUT_DIR` | Default output directory for generated files |
+| `AI_CLI_OUTPUT_DIR` | Default output directory for generated files; created when missing. A path that is not a directory is an error |
 | `AI_CLI_PREVIEW` | Set to `1` to force inline image preview, `0` to disable |
 | `NO_COLOR` | Disable ANSI color output |
 | `FORCE_COLOR` | Force color output even when not a TTY |

@@ -5,7 +5,7 @@ import {
   displayVideoFrame,
 } from "./kitty.js";
 import type { OutputFormat } from "./output.js";
-import { writeOutput } from "./output.js";
+import { assertOutputDirectory, writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
 import { Progress, MultiProgress, formatElapsed } from "./progress.js";
 
@@ -76,6 +76,8 @@ export async function runJobs(
     display,
     afterOutputs,
   } = opts;
+
+  assertOutputDirectory(outputPath);
 
   if (jobs.length === 1) {
     const job = jobs[0];
