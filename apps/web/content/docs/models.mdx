@@ -69,6 +69,8 @@ ai models --json                   # JSON with descriptions
 
 In human mode, models are grouped by creator and display short names. Use `--json` for machine-readable output with full IDs and descriptions.
 
+If the AI Gateway catalog cannot be fetched, `ai models` exits with a nonzero status and writes an error to stderr instead of printing an empty catalog. This applies to `--json` output too, so scripts and MCP clients can tell a failed lookup from an empty result.
+
 ## Model info
 
 Pass a model ID (or short name) to `ai models` to see its details: context window, max output tokens, pricing (input, output, cache read/write, web search), release date and per-provider latency, throughput and uptime:

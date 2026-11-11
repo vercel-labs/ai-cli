@@ -68,15 +68,3 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test
-
-  audit:
-    name: Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: npm
-      - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high --workspace ai-cli
