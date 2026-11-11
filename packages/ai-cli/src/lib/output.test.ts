@@ -12,7 +12,7 @@ import { basename, join } from "path";
 
 import { describe, expect, test } from "vitest";
 
-import { writeOutput } from "./output.js";
+import { assertOutputDirectory, writeOutput } from "./output.js";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), "ai-cli-output-"));
@@ -296,6 +296,40 @@ describe("writeOutput", () => {
         expect(second).toBe(join(envDir, "resp_2.md"));
         expect(readFileSync(join(envDir, "resp_1.md"), "utf8")).toBe("first");
         expect(readFileSync(second!, "utf8")).toBe("second");
+      });
+    });
+  });
+});
+
+describe("assertOutputDirectory", () => {
+  test("throws when AI_CLI_OUTPUT_DIR is an existing file", async () => {
+    await withTempDir(async (dir) => {
+      const envFile = join(dir, "not-a-dir.md");
+      writeFileSync(envFile, "keep me");
+
+      await withOutputDirEnv(envFile, async () => {
+        expect(() => assertOutputDirectory()).toThrow(
+          `AI_CLI_OUTPUT_DIR must be a directory, but "${envFile}" is not a directory.`
+        );
+      });
+    });
+  });
+
+  test("accepts a path that does not exist yet", async () => {
+    await withTempDir(async (dir) => {
+      await withOutputDirEnv(join(dir, "not-created"), async () => {
+        expect(() => assertOutputDirectory()).not.toThrow();
+      });
+    });
+  });
+
+  test("skips the check when an explicit output path is set", async () => {
+    await withTempDir(async (dir) => {
+      const envFile = join(dir, "not-a-dir.md");
+      writeFileSync(envFile, "keep me");
+
+      await withOutputDirEnv(envFile, async () => {
+        expect(() => assertOutputDirectory(join(dir, "out.md"))).not.toThrow();
       });
     });
   });

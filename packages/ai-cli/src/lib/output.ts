@@ -110,6 +110,18 @@ function ensureOutputDirectory(dir: string): void {
   if (!stats.isDirectory()) throw outputDirError(dir);
 }
 
+/**
+ * Throws when AI_CLI_OUTPUT_DIR is set to a path that is not a directory.
+ * Callers run this before starting work so a bad value fails before any
+ * generation request. An explicit output path takes priority over the
+ * environment variable, so it skips the check.
+ */
+export function assertOutputDirectory(outputPath?: string): void {
+  if (outputPath !== undefined) return;
+  const dir = process.env.AI_CLI_OUTPUT_DIR;
+  if (dir) ensureOutputDirectory(dir);
+}
+
 export async function writeOutput(
   opts: WriteOutputOptions
 ): Promise<string | null> {

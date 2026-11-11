@@ -38,7 +38,7 @@ and structured media inputs. There is no global config file.
     Default evaluation model for `decide`. Overrides `typesafe-ai/jev`.
   </Property>
   <Property name="AI_CLI_OUTPUT_DIR" type="path">
-    Default output directory for generated files.
+    Default output directory for generated files. The directory is created when it does not exist. When the path exists and is not a directory, the command fails before generating.
   </Property>
   <Property name="AI_CLI_PREVIEW" type="0 | 1">
     `1` forces inline preview on, `0` disables it.

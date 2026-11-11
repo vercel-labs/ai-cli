@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { basename, join } from "path";
 
@@ -292,6 +292,35 @@ describe("runJobs", () => {
           delete (process.stdout as { isTTY?: boolean }).isTTY;
         }
       }
+    });
+  });
+
+  test("fails before generating when AI_CLI_OUTPUT_DIR is a file", async () => {
+    await withTempCwd(async (dir) => {
+      const envFile = join(dir, "not-a-dir.md");
+      writeFileSync(envFile, "keep me");
+      const previous = process.env.AI_CLI_OUTPUT_DIR;
+      process.env.AI_CLI_OUTPUT_DIR = envFile;
+      let generated = 0;
+
+      try {
+        await expect(
+          runJobs(
+            buildJobs(["openai/tts-1"], 2),
+            async () => {
+              generated++;
+              return { data: Buffer.from([1, 2, 3]), id: "speech_123" };
+            },
+            { noun: "audio", format: "audio", quiet: true, concurrency: 1 }
+          )
+        ).rejects.toThrow("AI_CLI_OUTPUT_DIR must be a directory");
+      } finally {
+        if (previous === undefined) delete process.env.AI_CLI_OUTPUT_DIR;
+        else process.env.AI_CLI_OUTPUT_DIR = previous;
+      }
+
+      expect(generated).toBe(0);
+      expect(readFileSync(envFile, "utf8")).toBe("keep me");
     });
   });
 });

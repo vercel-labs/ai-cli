@@ -2,7 +2,7 @@ import type { GeneratedFile } from "ai";
 
 import { authErrorMessage, isAuthError } from "./auth.js";
 import type { MediaOptions } from "./media-options.js";
-import { writeOutput } from "./output.js";
+import { assertOutputDirectory, writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
 
 export interface MediaArtifact {
@@ -82,6 +82,7 @@ export async function runMediaJobs(
     format: "image" | "video";
   }
 ) {
+  assertOutputDirectory(opts.output);
   const start = Date.now();
   const results = await pMap(
     models,
