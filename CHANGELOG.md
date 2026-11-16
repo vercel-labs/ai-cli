@@ -1,8 +1,26 @@
 # Changelog
 
-## 0.9.1
+## 0.9.2
 
 <!-- release:start -->
+
+### Improvements
+
+- Update `sharp` and `undici` past recent security advisories. CI now audits the CLI's dependencies.
+
+### Bug Fixes
+
+- Always treat `AI_CLI_OUTPUT_DIR` as a directory, including when it does not exist yet. A path that names a file fails before any request is sent instead of writing a suffixed file beside it, and a directory that does not exist yet is created for the output.
+- Keep `auth.json` private when it is rewritten. The key is written to a new file that only the owner can read and renamed into place, and an existing config directory with looser permissions is tightened to `0700`.
+- `ai models` exits `1` with `Error: could not fetch models from AI Gateway` when the catalog cannot be fetched, so a script can tell a failed request from an empty list.
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
+## 0.9.1
 
 ### Improvements
 
@@ -11,8 +29,6 @@
 ### Contributors
 
 - @ctate
-
-<!-- release:end -->
 
 ## 0.9.0
 
