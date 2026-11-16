@@ -37,9 +37,10 @@ ai models --type audio                   # list speech and transcription models
 ai mcp --profile core                    # start MCP server
 ```
 
-Agents can use MCP tools instead of shelling out: `text`, `image`,
-`decide`, and `models`. The media profile adds `video_start`,
-`video_status`, `audio_speak`, and `audio_transcribe`.
+Agents can use MCP tools instead of shelling out. The `core` profile exposes
+`text`, `image`, `decide`, and `models`. The `media` profile exposes
+`video_start`, `video_status`, `audio_speak`, and `audio_transcribe`. Use
+`--profile all` to expose both sets.
 
 ## Key Flags
 
